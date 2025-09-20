@@ -33,11 +33,14 @@ export function ClaimList({ claims, onNewClaim }: ClaimListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<ClaimStatus | 'all'>('all');
 
-  const filteredClaims = claims.filter(claim => {
+  // Ensure claims is always an array
+  const claimsArray = Array.isArray(claims) ? claims : [];
+
+  const filteredClaims = claimsArray.filter(claim => {
     const matchesSearch = 
       claim.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (claim.order_id && claim.order_id.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      claim.reason.toLowerCase().includes(searchQuery.toLowerCase());
+      (claim.reason && claim.reason.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const matchesStatus = statusFilter === 'all' || claim.status === statusFilter;
     
@@ -131,12 +134,12 @@ export function ClaimList({ claims, onNewClaim }: ClaimListProps) {
             </Table>
           ) : (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">
+              <div className="text-muted-foreground mb-4">
                 {searchQuery || statusFilter !== 'all' 
                   ? 'No claims match your search criteria.' 
                   : 'No claims found.'}
-              </p>
-              <Button onClick={onNewClaim} className="mt-4">
+              </div>
+              <Button onClick={onNewClaim}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create New Claim
               </Button>

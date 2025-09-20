@@ -19,7 +19,11 @@ export const useClaims = (filters?: {
 }) => {
   return useQuery({
     queryKey: ['claims', filters],
-    queryFn: () => getClaims(),
+    queryFn: async () => {
+      const result = await getClaims();
+      // Ensure we always return an array
+      return Array.isArray(result.data) ? result.data : [];
+    },
   });
 };
 

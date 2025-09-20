@@ -368,15 +368,14 @@ export const mockFulfillments: Fulfillment[] = [
   }
 ];
 
-export const mockClaims: Claim[] = [
+export const mockClaims: any[] = [
   {
     id: 'cl-1',
     order_id: 'ord-1',
-    submitted_by: 'usr-1',
+    created_by: 'usr-1',
     retailer_id: 'ret-1',
-    status: 'open',
-    description: 'Customer reported damaged packaging',
-    metadata: {},
+    status: 'submitted',
+    reason: 'Customer reported damaged packaging',
     created_at: '2024-03-16T10:00:00Z',
     updated_at: '2024-03-16T10:00:00Z'
   }

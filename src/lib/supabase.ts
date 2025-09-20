@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { User } from '@/types';
+import { mockUser } from '@/lib/mock-data';
 
 // Get Supabase URL and anon key from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -32,6 +33,45 @@ export const supabase = hasValidCredentials
               single: function() { 
                 // This will be handled by the individual functions
                 return Promise.resolve({ data: null, error: null });
+              }
+            };
+          case 'claims':
+            return {
+              select: function() { 
+                // Return mock claims data
+                const mockClaims = [
+                  {
+                    id: 'cl-1',
+                    order_id: 'ord-1',
+                    created_by: 'usr-1',
+                    retailer_id: 'ret-1',
+                    status: 'submitted',
+                    reason: 'Customer reported damaged packaging',
+                    created_at: '2024-03-16T10:00:00Z',
+                    updated_at: '2024-03-16T10:00:00Z'
+                  }
+                ];
+                return Promise.resolve({ data: mockClaims, error: null });
+              },
+              eq: function(field: string, value: any) {
+                // For mock implementation, just return the same object
+                return this;
+              },
+              single: function() { 
+                // Return the first claim for single queries
+                const mockClaims = [
+                  {
+                    id: 'cl-1',
+                    order_id: 'ord-1',
+                    created_by: 'usr-1',
+                    retailer_id: 'ret-1',
+                    status: 'submitted',
+                    reason: 'Customer reported damaged packaging',
+                    created_at: '2024-03-16T10:00:00Z',
+                    updated_at: '2024-03-16T10:00:00Z'
+                  }
+                ];
+                return Promise.resolve({ data: mockClaims[0], error: null });
               }
             };
           default:
@@ -72,31 +112,32 @@ export const signOut = async () => {
 export const getCurrentUser = async (): Promise<User | null> => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock user.');
-    return null;
+    // Return mock user when no valid credentials
+    return mockUser;
   }
   
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) return null;
   
-  // Get user role from user_roles table
-  const { data: userRoleData, error: userRoleError } = await supabase
-    .from('user_roles')
-    .select('role, retailer_id, location_id')
-    .eq('user_id', user.id)
+  // Get user data directly from the users table
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('id, email, role, retailer_id, location_id')
+    .eq('id', user.id)
     .single();
   
-  if (userRoleError) {
-    console.error('Error fetching user role:', userRoleError);
+  if (userError) {
+    console.error('Error fetching user data:', userError);
     return null;
   }
   
   return {
-    id: user.id,
-    email: user.email || '',
-    role: userRoleData?.role || 'location',
-    retailer_id: userRoleData?.retailer_id,
-    location_id: userRoleData?.location_id,
+    id: userData.id,
+    email: userData.email || '',
+    role: userData.role || 'location_user',
+    retailer_id: userData.retailer_id,
+    location_id: userData.location_id,
     name: user.user_metadata?.name || user.email || '',
     avatar: user.user_metadata?.avatar_url
   };
@@ -119,6 +160,30 @@ export const getRetailerById = (id: string) => {
   return supabase.from('retailers').select('*').eq('id', id).single();
 };
 
+export const createRetailer = async (retailer: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('retailers').insert(retailer).select().single();
+};
+
+export const updateRetailer = async (id: string, retailer: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('retailers').update(retailer).eq('id', id).select().single();
+};
+
+export const deleteRetailer = async (id: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ error: new Error('Supabase not configured') });
+  }
+  return supabase.from('retailers').delete().eq('id', id);
+};
+
 // Location functions
 export const getLocations = () => {
   if (!hasValidCredentials) {
@@ -134,6 +199,30 @@ export const getLocationsByRetailer = (retailerId: string) => {
     return Promise.resolve({ data: [], error: null });
   }
   return supabase.from('locations').select('*').eq('retailer_id', retailerId);
+};
+
+export const createLocation = async (location: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('locations').insert(location).select().single();
+};
+
+export const updateLocation = async (id: string, location: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('locations').update(location).eq('id', id).select().single();
+};
+
+export const deleteLocation = async (id: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ error: new Error('Supabase not configured') });
+  }
+  return supabase.from('locations').delete().eq('id', id);
 };
 
 // Customer functions
@@ -717,7 +806,20 @@ export const updateFulfillment = async (id: string, fulfillment: any) => {
 export const getClaims = () => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: [], error: null });
+    // Return mock claims data
+    const mockClaims = [
+      {
+        id: 'cl-1',
+        order_id: 'ord-1',
+        created_by: 'usr-1',
+        retailer_id: 'ret-1',
+        status: 'submitted',
+        reason: 'Customer reported damaged packaging',
+        created_at: '2024-03-16T10:00:00Z',
+        updated_at: '2024-03-16T10:00:00Z'
+      }
+    ];
+    return Promise.resolve({ data: mockClaims, error: null });
   }
   return supabase.from('claims').select(`
     *,
@@ -729,7 +831,22 @@ export const getClaims = () => {
 export const getClaimById = (id: string) => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: null, error: null });
+    // Return mock claim data
+    const mockClaims = [
+      {
+        id: 'cl-1',
+        order_id: 'ord-1',
+        created_by: 'usr-1',
+        retailer_id: 'ret-1',
+        status: 'submitted',
+        reason: 'Customer reported damaged packaging',
+        created_at: '2024-03-16T10:00:00Z',
+        updated_at: '2024-03-16T10:00:00Z'
+      }
+    ];
+    
+    const claim = mockClaims.find(c => c.id === id) || null;
+    return Promise.resolve({ data: claim, error: null });
   }
   return supabase.from('claims').select(`
     *,
@@ -742,7 +859,22 @@ export const getClaimById = (id: string) => {
 export const getClaimsByRetailer = (retailerId: string) => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: [], error: null });
+    // Return mock claims data filtered by retailer
+    const mockClaims = [
+      {
+        id: 'cl-1',
+        order_id: 'ord-1',
+        created_by: 'usr-1',
+        retailer_id: 'ret-1',
+        status: 'submitted',
+        reason: 'Customer reported damaged packaging',
+        created_at: '2024-03-16T10:00:00Z',
+        updated_at: '2024-03-16T10:00:00Z'
+      }
+    ];
+    
+    const filteredClaims = mockClaims.filter(c => c.retailer_id === retailerId);
+    return Promise.resolve({ data: filteredClaims, error: null });
   }
   return supabase.from('claims').select(`
     *,
@@ -754,7 +886,14 @@ export const getClaimsByRetailer = (retailerId: string) => {
 export const createClaim = async (claim: any) => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured.');
-    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+    // Return mock claim creation
+    const newClaim = {
+      id: 'cl-' + (Math.floor(Math.random() * 1000) + 2),
+      ...claim,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    return Promise.resolve({ data: newClaim, error: null });
   }
   return supabase.from('claims').insert(claim).select().single();
 };
@@ -762,7 +901,13 @@ export const createClaim = async (claim: any) => {
 export const updateClaim = async (id: string, claim: any) => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured.');
-    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+    // Return mock claim update
+    const updatedClaim = {
+      id,
+      ...claim,
+      updated_at: new Date().toISOString()
+    };
+    return Promise.resolve({ data: updatedClaim, error: null });
   }
   return supabase.from('claims').update(claim).eq('id', id).select().single();
 };
@@ -770,9 +915,151 @@ export const updateClaim = async (id: string, claim: any) => {
 export const deleteClaim = async (id: string) => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured.');
-    return Promise.resolve({ error: new Error('Supabase not configured') });
+    // Return mock claim deletion
+    return Promise.resolve({ error: null });
   }
   return supabase.from('claims').delete().eq('id', id);
+};
+
+// User functions
+export const getUsers = () => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Returning mock data.');
+    return Promise.resolve({ data: [], error: null });
+  }
+  return supabase.from('users').select('*');
+};
+
+export const getUsersByRetailer = (retailerId: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Returning mock data.');
+    return Promise.resolve({ data: [], error: null });
+  }
+  return supabase.from('users').select('*').eq('retailer_id', retailerId);
+};
+
+export const createUser = async (user: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('users').insert(user).select().single();
+};
+
+export const updateUser = async (id: string, user: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('users').update(user).eq('id', id).select().single();
+};
+
+export const deleteUser = async (id: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ error: new Error('Supabase not configured') });
+  }
+  return supabase.from('users').delete().eq('id', id);
+};
+
+// User profile functions
+export const getUserProfile = async (userId: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Returning mock data.');
+    return Promise.resolve({ data: null, error: null });
+  }
+  return supabase.from('users').select('*').eq('id', userId).single();
+};
+
+export const updateUserProfile = async (userId: string, userData: Partial<User>) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('users').update(userData).eq('id', userId).select().single();
+};
+
+// User features functions
+export const getUserFeatures = async (userId: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Returning mock data.');
+    return Promise.resolve({ data: [], error: null });
+  }
+  return supabase.from('user_features').select('*').eq('user_id', userId);
+};
+
+export const updateUserFeature = async (featureId: string, enabled: boolean) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('user_features').update({ enabled }).eq('id', featureId).select().single();
+};
+
+export const createUserFeature = async (feature: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('user_features').insert(feature).select().single();
+};
+
+// User notifications functions
+export const getUserNotifications = async (userId: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Returning mock data.');
+    return Promise.resolve({ data: [], error: null });
+  }
+  return supabase.from('user_notifications').select('*').eq('user_id', userId);
+};
+
+export const updateUserNotification = async (notificationId: string, enabled: boolean) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('user_notifications').update({ enabled }).eq('id', notificationId).select().single();
+};
+
+export const createUserNotification = async (notification: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('user_notifications').insert(notification).select().single();
+};
+
+// System settings functions
+export const getSystemSettings = async () => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Returning mock data.');
+    return Promise.resolve({ data: [], error: null });
+  }
+  return supabase.from('system_settings').select('*');
+};
+
+export const getSystemSettingByKey = async (key: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Returning mock data.');
+    return Promise.resolve({ data: null, error: null });
+  }
+  return supabase.from('system_settings').select('*').eq('key', key).single();
+};
+
+export const updateSystemSetting = async (key: string, value: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('system_settings').update({ value }).eq('key', key).select().single();
+};
+
+export const createSystemSetting = async (setting: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('system_settings').insert(setting).select().single();
 };
 
 // Audit log functions
@@ -781,13 +1068,11 @@ export const getAuditLogs = (entity: string, entityId: string) => {
     console.warn('Supabase credentials not configured. Returning mock data.');
     return Promise.resolve({ data: [], error: null });
   }
-  return supabase.from('audit_logs').select(`
-    *,
-    users(email, role)
-  `)
-  .eq('entity', entity)
-  .eq('entity_id', entityId)
-  .order('created_at', { ascending: false });
+  return supabase.from('audit_logs')
+    .select('*, users(email, role)')
+    .eq('entity', entity)
+    .eq('entity_id', entityId)
+    .order('created_at', { ascending: false });
 };
 
 export const createAuditLog = async (log: any) => {
@@ -807,6 +1092,24 @@ export const createOutboxEvent = async (event: any) => {
   return supabase.from('outbox').insert(event).select().single();
 };
 
+// Contract functions
+export const uploadContract = async (file: File, retailerId: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  
+  // Mock implementation for contract upload
+  console.log('Mock contract upload for retailer:', retailerId, 'file:', file.name);
+  return Promise.resolve({ 
+    data: { 
+      path: `mock-path/${retailerId}/contracts/${file.name}`, 
+      url: `https://mock-storage.com/contracts/${retailerId}/${file.name}` 
+    }, 
+    error: null 
+  });
+};
+
 // Repairs functions
 export const getRepairs = () => {
   if (!hasValidCredentials) {
@@ -823,6 +1126,15 @@ export const getTasks = () => {
     return Promise.resolve({ data: [], error: null });
   }
   return supabase.from('tasks').select('*');
+};
+
+// Password update function
+export const updatePassword = async (userId: string, newPasswordHash: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured.');
+    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  }
+  return supabase.from('users').update({ password_hash: newPasswordHash }).eq('id', userId).select().single();
 };
 
 // File metadata functions

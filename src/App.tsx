@@ -17,6 +17,9 @@ import Claims from "./pages/Claims";
 import ClaimDetailPage from "./pages/ClaimDetail";
 import NewClaim from "./pages/NewClaim";
 import Retailers from "./pages/Retailers";
+import NewRetailer from "./pages/NewRetailer";
+import RetailerDetail from "./pages/RetailerDetail";
+import EditRetailer from "./pages/EditRetailer";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -49,6 +52,21 @@ const App = () => (
             <Route path="retailers" element={
               <AuthGuard allowedRoles={['owner', 'backoffice']}>
                 <Retailers />
+              </AuthGuard>
+            } />
+            <Route path="retailers/new" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <NewRetailer />
+              </AuthGuard>
+            } />
+            <Route path="retailers/:id" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <RetailerDetail />
+              </AuthGuard>
+            } />
+            <Route path="retailers/:id/edit" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <EditRetailer />
               </AuthGuard>
             } />
             <Route path="settings" element={<Settings />} />

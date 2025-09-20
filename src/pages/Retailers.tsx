@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,40 +10,68 @@ import {
   Eye,
   Edit,
   Building2,
-  MapPin
+  MapPin,
+  Phone,
+  Mail
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { getRetailers } from '@/lib/supabase';
+import { Retailer } from '@/types';
 
 export default function Retailers() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [retailers, setRetailers] = useState<Retailer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  // Mock data - will be replaced with real data from Supabase
-  const retailers = [
-    {
-      id: 'ret-1',
-      name: 'TechHub Electronics',
-      contact_email: 'contact@techhub.com',
-      phone: '(555) 123-4567',
-      address: '123 Tech Street, Silicon Valley, CA 94105',
-      locations: 2,
-      created_at: '2024-01-15T10:30:00Z'
-    },
-    {
-      id: 'ret-2',
-      name: 'GadgetZone',
-      contact_email: 'info@gadgetzone.com',
-      phone: '(555) 987-6543',
-      address: '456 Innovation Ave, Austin, TX 78701',
-      locations: 1,
-      created_at: '2024-02-01T14:15:00Z'
+  useEffect(() => {
+    fetchRetailers();
+  }, []);
+
+  const fetchRetailers = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await getRetailers();
+      if (error) {
+        console.error('Error fetching retailers:', error);
+      } else {
+        setRetailers(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching retailers:', err);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const filteredRetailers = retailers.filter(retailer => 
     retailer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    retailer.contact_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    retailer.phone.includes(searchQuery)
+    (retailer.email && retailer.email.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Retailers</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage retailer accounts and locations
+            </p>
+          </div>
+          <Button className="shadow-elegant">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Retailer
+          </Button>
+        </div>
+        <Card className="shadow-card">
+          <CardContent className="p-6">
+            <p>Loading retailers...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -55,7 +83,7 @@ export default function Retailers() {
             Manage retailer accounts and locations
           </p>
         </div>
-        <Button className="shadow-elegant">
+        <Button className="shadow-elegant" onClick={() => navigate('/retailers/new')}>
           <Plus className="w-4 h-4 mr-2" />
           Add Retailer
         </Button>
@@ -97,20 +125,28 @@ export default function Retailers() {
                       <h3 className="text-lg font-semibold text-foreground">
                         {retailer.name}
                       </h3>
-                      <p className="text-sm text-muted-foreground">
-                        {retailer.contact_email} • {retailer.phone}
-                      </p>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {retailer.email && (
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Mail className="w-4 h-4 mr-1" />
+                            {retailer.email}
+                          </div>
+                        )}
+                        {retailer.phone && (
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Phone className="w-4 h-4 mr-1" />
+                            {retailer.phone}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                     <div className="text-muted-foreground">
-                      <span className="font-medium">Address:</span> {retailer.address}
-                    </div>
-                    <div className="text-muted-foreground">
-                      <span className="font-medium">Locations:</span> 
+                      <span className="font-medium">Status:</span> 
                       <Badge variant="outline" className="ml-2">
-                        {retailer.locations} {retailer.locations === 1 ? 'Location' : 'Locations'}
+                        {retailer.status || 'active'}
                       </Badge>
                     </div>
                     <div className="text-muted-foreground">
@@ -120,11 +156,7 @@ export default function Retailers() {
                 </div>
 
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/retailers/${retailer.id}`)}>
                     <Eye className="w-4 h-4 mr-2" />
                     View
                   </Button>
@@ -146,7 +178,7 @@ export default function Retailers() {
                 : 'Add your first retailer to get started'
               }
             </p>
-            <Button>
+            <Button onClick={() => navigate('/retailers/new')}>
               <Plus className="w-4 h-4 mr-2" />
               Add Retailer
             </Button>

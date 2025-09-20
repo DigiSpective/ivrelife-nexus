@@ -48,7 +48,7 @@ npm run dev
 - Click on the "Code" button (green button) near the top right.
 - Select the "Codespaces" tab.
 - Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- Edit files directly within the Codespaces and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
 
@@ -59,6 +59,16 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+
+## Implemented Routes
+
+- **Dashboard**: Main overview page
+- **Orders**: Order management system
+- **Customers**: Customer database and profiles
+- **Products**: Product catalog and inventory
+- **Shipping**: Shipping and fulfillment tracking
+- **Claims**: Warranty claims and repair management
+- **Retailers**: Retailer account and location management
 
 ## How can I deploy this project?
 

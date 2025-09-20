@@ -27,7 +27,10 @@ export interface UserRole {
 export interface Retailer {
   id: string;
   name: string;
-  website?: string;
+  email: string;
+  phone?: string;
+  status: 'active' | 'inactive' | 'suspended';
+  contract_url?: string;
   created_at: string;
 }
 
@@ -264,5 +267,28 @@ export interface FileMetadata {
   purpose: string;
   content_type?: string;
   size_bytes?: number;
+  created_at: string;
+}
+
+export interface UserFeature {
+  id: string;
+  user_id: string;
+  feature_key: string;
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface UserNotification {
+  id: string;
+  user_id: string;
+  type: 'email' | 'sms' | 'push';
+  enabled: boolean;
+  created_at: string;
+}
+
+export interface SystemSetting {
+  id: string;
+  key: string;
+  value: any; // JSONB field
   created_at: string;
 }
