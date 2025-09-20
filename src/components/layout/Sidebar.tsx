@@ -1,0 +1,150 @@
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { 
+  Package, 
+  Users, 
+  ShoppingCart, 
+  FileText, 
+  Truck, 
+  Settings, 
+  BarChart3,
+  Building2,
+  User,
+  ClipboardList
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { mockUser } from '@/lib/mock-data';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+
+interface SidebarProps {
+  className?: string;
+}
+
+export function Sidebar({ className }: SidebarProps) {
+  const location = useLocation();
+  const user = mockUser;
+
+  const navigation = [
+    {
+      name: 'Dashboard',
+      href: '/dashboard',
+      icon: BarChart3,
+      roles: ['owner', 'backoffice', 'retailer', 'location']
+    },
+    {
+      name: 'Orders',
+      href: '/orders',
+      icon: ShoppingCart,
+      roles: ['owner', 'backoffice', 'retailer', 'location']
+    },
+    {
+      name: 'New Order',
+      href: '/orders/new',
+      icon: FileText,
+      roles: ['retailer', 'location']
+    },
+    {
+      name: 'Products',
+      href: '/products',
+      icon: Package,
+      roles: ['owner', 'backoffice', 'retailer']
+    },
+    {
+      name: 'Customers',
+      href: '/customers',
+      icon: Users,
+      roles: ['owner', 'backoffice', 'retailer', 'location']
+    },
+    {
+      name: 'Shipping',
+      href: '/shipping',
+      icon: Truck,
+      roles: ['owner', 'backoffice', 'retailer', 'location']
+    },
+    {
+      name: 'Claims & Repairs',
+      href: '/claims',
+      icon: ClipboardList,
+      roles: ['owner', 'backoffice', 'retailer', 'location']
+    },
+    {
+      name: 'Retailers',
+      href: '/retailers',
+      icon: Building2,
+      roles: ['owner', 'backoffice']
+    },
+    {
+      name: 'Settings',
+      href: '/settings',
+      icon: Settings,
+      roles: ['owner', 'backoffice', 'retailer']
+    }
+  ];
+
+  const filteredNavigation = navigation.filter(item => 
+    item.roles.includes(user.role)
+  );
+
+  return (
+    <div className={cn(
+      "flex h-full w-72 flex-col bg-card border-r border-border shadow-navbar",
+      className
+    )}>
+      {/* Header */}
+      <div className="flex items-center gap-3 px-6 py-6 border-b border-border">
+        <div className="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
+          <Package className="w-6 h-6 text-white" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-foreground">IV RELIFE</h1>
+          <p className="text-sm text-muted-foreground">Internal System</p>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-4 py-6 space-y-2">
+        {filteredNavigation.map((item) => {
+          const isActive = location.pathname === item.href || 
+            (item.href !== '/dashboard' && location.pathname.startsWith(item.href));
+          
+          return (
+            <Link key={item.name} to={item.href}>
+              <Button
+                variant={isActive ? "default" : "ghost"}
+                size="sm"
+                className={cn(
+                  "w-full justify-start gap-3 h-11 transition-smooth",
+                  isActive && "shadow-elegant"
+                )}
+              >
+                <item.icon className="w-5 h-5" />
+                {item.name}
+              </Button>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* User Profile */}
+      <div className="p-4 border-t border-border">
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+          <Avatar className="w-10 h-10">
+            <AvatarImage src={user.avatar} />
+            <AvatarFallback className="gradient-primary text-white font-semibold">
+              {user.name.split(' ').map(n => n[0]).join('')}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">
+              {user.name}
+            </p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {user.role}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

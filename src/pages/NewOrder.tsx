@@ -1,0 +1,417 @@
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  User, 
+  Package, 
+  Truck, 
+  FileText,
+  Camera,
+  PenTool
+} from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { mockProducts, mockProductVariants, mockCustomers } from '@/lib/mock-data';
+import { useToast } from '@/hooks/use-toast';
+
+const customerSchema = z.object({
+  customer_id: z.string().min(1, 'Please select a customer'),
+  notes: z.string().optional()
+});
+
+const productSchema = z.object({
+  items: z.array(z.object({
+    product_variant_id: z.string(),
+    qty: z.number().min(1)
+  })).min(1, 'Please add at least one product')
+});
+
+type CustomerForm = z.infer<typeof customerSchema>;
+type ProductForm = z.infer<typeof productSchema>;
+
+const steps = [
+  { id: 1, name: 'Customer', icon: User },
+  { id: 2, name: 'Products', icon: Package },
+  { id: 3, name: 'Shipping', icon: Truck },
+  { id: 4, name: 'Review & Sign', icon: FileText }
+];
+
+export default function NewOrder() {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [orderData, setOrderData] = useState<any>({});
+  const [selectedItems, setSelectedItems] = useState<any[]>([]);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const customerForm = useForm<CustomerForm>({
+    resolver: zodResolver(customerSchema)
+  });
+
+  const productForm = useForm<ProductForm>({
+    resolver: zodResolver(productSchema)
+  });
+
+  const handleCustomerNext = (data: CustomerForm) => {
+    setOrderData(prev => ({ ...prev, ...data }));
+    setCurrentStep(2);
+  };
+
+  const handleProductNext = () => {
+    if (selectedItems.length === 0) {
+      toast({
+        title: "No products selected",
+        description: "Please add at least one product to continue",
+        variant: "destructive"
+      });
+      return;
+    }
+    setOrderData(prev => ({ ...prev, items: selectedItems }));
+    setCurrentStep(3);
+  };
+
+  const addItem = (variantId: string) => {
+    const variant = mockProductVariants.find(v => v.id === variantId);
+    if (variant) {
+      setSelectedItems(prev => [...prev, { variant, qty: 1 }]);
+    }
+  };
+
+  const removeItem = (index: number) => {
+    setSelectedItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateQty = (index: number, qty: number) => {
+    if (qty < 1) return;
+    setSelectedItems(prev => 
+      prev.map((item, i) => i === index ? { ...item, qty } : item)
+    );
+  };
+
+  const getTotalAmount = () => {
+    return selectedItems.reduce((total, item) => total + (item.variant.price * item.qty), 0);
+  };
+
+  const handleSubmit = () => {
+    // Mock order creation - replace with actual API call to Supabase
+    toast({
+      title: "Order created successfully!",
+      description: `Order #ORD-${Date.now()} has been created and contract generated.`
+    });
+    navigate('/orders');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Link to="/orders">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Orders
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">New Order</h1>
+          <p className="text-muted-foreground mt-1">
+            Create a new customer order
+          </p>
+        </div>
+      </div>
+
+      {/* Progress Steps */}
+      <Card className="shadow-card">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex items-center">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                  step.id <= currentStep 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-muted text-muted-foreground'
+                }`}>
+                  <step.icon className="w-5 h-5" />
+                </div>
+                <div className="ml-3 hidden sm:block">
+                  <p className={`text-sm font-medium ${
+                    step.id <= currentStep ? 'text-foreground' : 'text-muted-foreground'
+                  }`}>
+                    {step.name}
+                  </p>
+                </div>
+                {index < steps.length - 1 && (
+                  <div className={`w-8 h-0.5 mx-4 ${
+                    step.id < currentStep ? 'bg-primary' : 'bg-muted'
+                  }`} />
+                )}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Step Content */}
+      {currentStep === 1 && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Customer Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={customerForm.handleSubmit(handleCustomerNext)} className="space-y-6">
+              <div>
+                <Label>Select Customer</Label>
+                <select 
+                  {...customerForm.register('customer_id')}
+                  className="w-full mt-1 p-2 border border-input rounded-md"
+                >
+                  <option value="">Choose a customer...</option>
+                  {mockCustomers.map(customer => (
+                    <option key={customer.id} value={customer.id}>
+                      {customer.name} - {customer.email}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Order Notes (Optional)</Label>
+                <Textarea 
+                  id="notes"
+                  {...customerForm.register('notes')}
+                  placeholder="Special instructions or notes for this order..."
+                  rows={3}
+                />
+              </div>
+
+              <Button type="submit" className="w-full">
+                Continue to Products
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {currentStep === 2 && (
+        <div className="space-y-6">
+          <Card className="shadow-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Select Products
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Available Products</h3>
+                  {mockProductVariants.map(variant => (
+                    <div key={variant.id} className="border border-border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h4 className="font-medium">{variant.sku}</h4>
+                        <Badge variant="outline">${variant.price}</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">
+                        SKU: {variant.sku} • Weight: {variant.weight_kg} kg
+                      </p>
+                      <Button 
+                        onClick={() => addItem(variant.id)} 
+                        size="sm" 
+                        variant="outline"
+                        className="w-full"
+                      >
+                        Add to Order
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Selected Items ({selectedItems.length})</h3>
+                  {selectedItems.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">
+                      No items selected yet
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {selectedItems.map((item, index) => (
+                        <div key={index} className="border border-border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <h4 className="font-medium">{item.variant.sku}</h4>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => removeItem(index)}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Label>Qty:</Label>
+                            <Input 
+                              type="number" 
+                              value={item.qty}
+                              onChange={(e) => updateQty(index, parseInt(e.target.value))}
+                              min="1"
+                              className="w-20"
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              × ${item.variant.price} = ${(item.variant.price * item.qty).toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="border-t pt-4">
+                        <div className="flex justify-between items-center text-lg font-semibold">
+                          <span>Total:</span>
+                          <span>${getTotalAmount().toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-6">
+                <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Back
+                </Button>
+                <Button onClick={handleProductNext} className="flex-1">
+                  Continue to Shipping
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {currentStep === 3 && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="w-5 h-5" />
+              Shipping Options
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="border border-border rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Standard Shipping</h4>
+                    <p className="text-sm text-muted-foreground">5-7 business days</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">$15.99</p>
+                  </div>
+                </div>
+              </div>
+              <div className="border border-border rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium">Express Shipping</h4>
+                    <p className="text-sm text-muted-foreground">2-3 business days</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold">$29.99</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={() => setCurrentStep(2)}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+              <Button onClick={() => setCurrentStep(4)} className="flex-1">
+                Continue to Review
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {currentStep === 4 && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Review & Signature
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Order Summary</h3>
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                    {selectedItems.map((item, index) => (
+                      <div key={index} className="flex justify-between text-sm">
+                        <span>{item.qty}× {item.variant.sku}</span>
+                        <span>${(item.variant.price * item.qty).toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-2 font-semibold">
+                      <div className="flex justify-between">
+                        <span>Total:</span>
+                        <span>${getTotalAmount().toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Required Documents</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 border border-border rounded-lg">
+                      <Camera className="w-5 h-5 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Customer ID Photo</p>
+                        <Button variant="outline" size="sm" className="mt-1">
+                          Upload Photo
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 border border-border rounded-lg">
+                      <PenTool className="w-5 h-5 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Customer Signature</p>
+                        <Button variant="outline" size="sm" className="mt-1">
+                          Capture Signature
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <Button variant="outline" onClick={() => setCurrentStep(3)}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+              <Button onClick={handleSubmit} className="flex-1 shadow-elegant">
+                Create Order & Generate Contract
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

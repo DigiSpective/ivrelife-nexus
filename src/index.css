@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* IV RELIFE Design System - Professional business application theme */
+
+@layer base {
+  :root {
+    /* Professional navy and blue color scheme */
+    --background: 0 0% 100%;
+    --foreground: 215 25% 15%;
+
+    /* IV RELIFE brand colors */
+    --primary: 213 94% 48%;
+    --primary-light: 213 94% 58%;
+    --primary-glow: 213 94% 85%;
+    --secondary: 220 9% 46%;
+    --accent: 38 92% 50%;
+    --accent-light: 38 92% 85%;
+
+    /* Gradients for professional look */
+    --gradient-primary: linear-gradient(135deg, hsl(213 94% 48%), hsl(213 94% 58%));
+    --gradient-secondary: linear-gradient(135deg, hsl(220 9% 20%), hsl(220 9% 30%));
+    --gradient-hero: linear-gradient(135deg, hsl(213 94% 48%) 0%, hsl(220 9% 20%) 100%);
+    
+    /* Professional shadows */
+    --shadow-elegant: 0 4px 20px -2px hsl(213 94% 48% / 0.25);
+    --shadow-card: 0 2px 8px -2px hsl(220 9% 46% / 0.15);
+    --shadow-navbar: 0 2px 16px -4px hsl(220 9% 46% / 0.2);
+
+    /* Status colors */
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+    --error: 0 84% 60%;
+    --info: 213 94% 48%;
+
+    /* Standard shadcn tokens */
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 15%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 15%;
+    --primary-foreground: 0 0% 98%;
+    --secondary-foreground: 215 25% 15%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent-foreground: 0 0% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 213 94% 48%;
+    --radius: 0.75rem;
+
+    /* Professional transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+
+  .dark {
+    --background: 220 9% 8%;
+    --foreground: 0 0% 98%;
+    --card: 220 9% 12%;
+    --card-foreground: 0 0% 98%;
+    --primary: 213 94% 58%;
+    --primary-foreground: 0 0% 15%;
+    --border: 220 9% 20%;
+    --input: 220 9% 20%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer components {
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  .gradient-hero {
+    background: var(--gradient-hero);
+  }
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+  .shadow-navbar {
+    box-shadow: var(--shadow-navbar);
+  }
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+}

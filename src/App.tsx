@@ -1,0 +1,63 @@
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { DashboardLayout } from "./components/layout/DashboardLayout";
+import { AuthGuard } from "./components/layout/AuthGuard";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
+import Orders from "./pages/Orders";
+import NewOrder from "./pages/NewOrder";
+import Customers from "./pages/Customers";
+import CustomerDetail from "./pages/CustomerDetail";
+import Products from "./pages/ProductsEnhanced";
+import Shipping from "./pages/Shipping";
+import Claims from "./pages/Claims";
+import ClaimDetailPage from "./pages/ClaimDetail";
+import NewClaim from "./pages/NewClaim";
+import Retailers from "./pages/Retailers";
+import Settings from "./pages/Settings";
+import NotFound from "./pages/NotFound";
+
+const queryClient = new QueryClient();
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/*" element={
+            <AuthGuard>
+              <DashboardLayout />
+            </AuthGuard>
+          }>
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="orders/new" element={<NewOrder />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="customers/:id" element={<CustomerDetail />} />
+            <Route path="products" element={<Products />} />
+            <Route path="shipping" element={<Shipping />} />
+            <Route path="claims" element={<Claims />} />
+            <Route path="claims/new" element={<NewClaim />} />
+            <Route path="claims/:id" element={<ClaimDetailPage />} />
+            <Route path="retailers" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <Retailers />
+              </AuthGuard>
+            } />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;
