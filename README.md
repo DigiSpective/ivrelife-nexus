@@ -74,6 +74,15 @@ This project is built with:
 
 Simply open [Lovable](https://lovable.dev/projects/9f653d08-e421-4145-a315-0adbe194bbdd) and click on Share -> Publish.
 
+## Supabase Setup
+
+This project requires Supabase for backend services. For detailed instructions on setting up Supabase credentials and database, please refer to:
+
+- [SUPABASE_SETUP_GUIDE.md](SUPABASE_SETUP_GUIDE.md) - General Supabase setup guide
+- [SUPABASE_CREDENTIALS_SETUP.md](SUPABASE_CREDENTIALS_SETUP.md) - Specific credentials setup for this project
+- [SUPABASE_SETUP_STATUS.md](SUPABASE_SETUP_STATUS.md) - Current setup status and next steps
+- [SUPABASE_FINAL_SETUP_STATUS.md](SUPABASE_FINAL_SETUP_STATUS.md) - Final setup status and verification
+
 ## Can I connect a custom domain to my Lovable project?
 
 Yes, you can!

@@ -34,7 +34,7 @@ CREATE TABLE public.customer_addresses (
   customer_id uuid NOT NULL REFERENCES public.customers(id) ON DELETE CASCADE,
   address jsonb NOT NULL,
   label text,
-  primary boolean DEFAULT false,
+  "primary" boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
 );
 
@@ -80,6 +80,7 @@ CREATE TABLE public.customer_merge_requests (
 CREATE INDEX idx_customers_retailer ON public.customers (retailer_id);
 CREATE INDEX idx_customer_contacts_customer ON public.customer_contacts (customer_id);
 CREATE INDEX idx_customer_addresses_customer ON public.customer_addresses (customer_id);
+CREATE INDEX idx_customer_addresses_primary ON public.customer_addresses ("primary");
 CREATE INDEX idx_customer_documents_customer ON public.customer_documents (customer_id);
 
 -- === Enable RLS ===
@@ -154,11 +155,11 @@ CREATE POLICY "customer_activity_read_scope" ON public.customer_activity
   );
 
 CREATE POLICY "customer_activity_insert_service" ON public.customer_activity
-  FOR INSERT USING ( true ); -- prefer inserts via Edge / Service role; consider limiting in production
+  FOR INSERT WITH CHECK (true); -- prefer inserts via Edge / Service role; consider limiting in production
 
 -- Merge requests: retailer/backoffice can create; only owner can approve final merge if desired
 CREATE POLICY "merge_requests_create" ON public.customer_merge_requests
-  FOR INSERT USING (
+  FOR INSERT WITH CHECK (
     ((auth.jwt() ->> 'role') IN ('backoffice','retailer') AND (auth.jwt() ->> 'retailer_id')::uuid = (SELECT retailer_id FROM public.customers WHERE id = primary_customer_id LIMIT 1))
     OR ((auth.jwt() ->> 'role') = 'owner')
   );

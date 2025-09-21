@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "customer_activity_insert_service" ON public.customer_activity; DROP POLICY IF EXISTS "audit_logs_system_insert" ON public.audit_logs; DROP POLICY IF EXISTS "merge_requests_create" ON public.customer_merge_requests;

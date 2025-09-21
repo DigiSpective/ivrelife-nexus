@@ -5,7 +5,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { AuthGuard } from "./components/layout/AuthGuard";
+import { AuthProvider } from "./components/auth/AuthProvider";
 import Login from "./pages/Login";
+import LoginPage from "./pages/auth/LoginPage";
+import RegisterPage from "./pages/auth/RegisterPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import LogoutPage from "./pages/auth/LogoutPage";
 import Dashboard from "./pages/Dashboard";
 import Orders from "./pages/Orders";
 import NewOrder from "./pages/NewOrder";
@@ -27,18 +32,30 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/*" element={
-            <AuthGuard>
-              <DashboardLayout />
-            </AuthGuard>
-          }>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* Legacy login route - redirects to new auth */}
+            <Route path="/login" element={<Login />} />
+            
+            {/* New auth routes */}
+            <Route path="/auth/login" element={<LoginPage />} />
+            <Route path="/auth/register" element={<RegisterPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/auth/logout" element={<LogoutPage />} />
+            
+            {/* Root redirect */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            
+            {/* Protected routes */}
+            <Route path="/*" element={
+              <AuthGuard>
+                <DashboardLayout />
+              </AuthGuard>
+            }>
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="orders" element={<Orders />} />
             <Route path="orders/new" element={<NewOrder />} />
@@ -70,11 +87,12 @@ const App = () => (
               </AuthGuard>
             } />
             <Route path="settings" element={<Settings />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

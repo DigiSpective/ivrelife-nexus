@@ -119,7 +119,7 @@ ALTER TABLE outbox ENABLE ROW LEVEL SECURITY;
 -- Retailers: Owners/Backoffice view all, Retailers view own.
 CREATE POLICY retailer_owner_access ON retailers FOR SELECT USING (
   EXISTS(SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role IN ('owner','backoffice'))
-) WITH CHECK (true);
+);
 
 -- Claims: Retailers and their locations see only their claims.
 CREATE POLICY claim_access ON claims FOR ALL USING (

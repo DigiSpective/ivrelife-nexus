@@ -3,11 +3,52 @@
 export interface User {
   id: string;
   email: string;
-  role: 'owner' | 'backoffice' | 'retailer' | 'location';
+  role: 'owner' | 'backoffice' | 'retailer' | 'location_user';
   retailer_id?: string;
   location_id?: string;
   name: string;
   avatar?: string;
+  password_hash?: string;
+  created_at?: string;
+}
+
+export interface AuthSession {
+  user: User;
+  access_token: string;
+  refresh_token?: string;
+  expires_at: number;
+}
+
+export interface AuthError {
+  message: string;
+  status?: number;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  name: string;
+  role: 'owner' | 'backoffice' | 'retailer' | 'location_user';
+  retailer_id?: string;
+  location_id?: string;
+  invite_token?: string;
+}
+
+export interface InviteToken {
+  id: string;
+  email: string;
+  role: 'owner' | 'backoffice' | 'retailer' | 'location_user';
+  retailer_id?: string;
+  location_id?: string;
+  expires_at: string;
+  used_at?: string;
+  created_by: string;
+  created_at: string;
 }
 
 export interface AppRole {
@@ -240,20 +281,24 @@ export interface Claim {
 export interface AuditLog {
   id: string;
   user_id?: string;
-  action: string;
+  action: 'login' | 'logout' | 'password_reset' | 'registration' | 'invite_accepted' | 'profile_update' | 'role_change' | 'create' | 'update' | 'delete';
   entity: string;
   entity_id: string;
   details?: any; // JSONB field
+  ip_address?: string;
+  user_agent?: string;
   created_at: string;
 }
 
 export interface OutboxEvent {
   id: string;
-  event_type: string;
+  event_type: 'welcome_email' | 'password_reset_email' | 'invite_email' | 'notification';
   entity: string;
   entity_id: string;
   payload: any; // JSONB field
   processed_at?: string;
+  retry_count?: number;
+  last_error?: string;
   created_at: string;
 }
 
