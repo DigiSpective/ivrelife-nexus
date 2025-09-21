@@ -61,7 +61,7 @@ export const signInWithPassword = async (credentials: LoginCredentials): Promise
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Using mock authentication.');
     // Mock successful login for demo
-    if (credentials.email === 'admin@ivrelife.com' && credentials.password === 'admin123') {
+    if (credentials.email === 'admin@iv-relife.com' && credentials.password === 'admin123') {
       const mockUser: User = {
         id: 'mock-user-id',
         email: credentials.email,

@@ -65,7 +65,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectTo }) =
             <Input
               id="email"
               type="email"
-              placeholder="admin@ivrelife.com"
+              placeholder="admin@iv-relife.com"
               {...register('email')}
               className={errors.email ? 'border-destructive' : ''}
               disabled={loading}
@@ -140,7 +140,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onSuccess, redirectTo }) =
         <div className="mt-6 p-4 bg-muted/50 rounded-lg">
           <p className="text-sm text-muted-foreground font-medium mb-2">Demo Credentials:</p>
           <p className="text-xs text-muted-foreground">
-            Email: admin@ivrelife.com<br />
+            Email: admin@iv-relife.com<br />
             Password: 123456789
           </p>
         </div>
