@@ -481,7 +481,6 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
   }
 
   return supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('Auth state change:', event, session ? 'has session' : 'no session');
     
     if (event === 'SIGNED_OUT') {
       callback(null);
@@ -502,8 +501,12 @@ export const onAuthStateChange = (callback: (user: User | null) => void) => {
     if (session) {
       const user = await getCurrentUser();
       callback(user);
+    } else if (event === 'INITIAL_SESSION') {
+      // For initial session with no session, call callback with null
+      // This ensures the loading state is cleared
+      callback(null);
     }
-    // Don't call callback(null) unless we're explicitly signed out
+    // For other events with no session, don't call callback(null)
     // This prevents premature sign-outs during authentication flow
   });
 };

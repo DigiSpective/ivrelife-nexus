@@ -76,6 +76,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
+    // Fallback timeout to ensure loading doesn't get stuck
+    const timeoutId = setTimeout(() => {
+      setLoading(false);
+    }, 5000); // 5 second timeout
+
     // Set up auth state change listener
     const { data: { subscription } } = onAuthStateChange((user) => {
       if (user) {
@@ -98,9 +103,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         SessionManager.clearSession();
       }
       setLoading(false);
+      clearTimeout(timeoutId); // Clear timeout when auth state changes
     });
 
     return () => {
+      clearTimeout(timeoutId);
       subscription?.unsubscribe?.();
     };
   }, []);
