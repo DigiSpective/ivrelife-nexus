@@ -101,7 +101,7 @@ export const signIn = async (email: string, password: string) => {
   return await supabase.auth.signInWithPassword({ email, password });
 };
 
-export const signOut = async () => {
+export const signOutLegacy = async () => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Sign out will not work.');
     return { error: new Error('Supabase not configured') };

@@ -8,7 +8,11 @@ import {
   getCurrentUser, 
   getCurrentSession,
   onAuthStateChange,
-  getRoleBasedRedirect
+  refreshSession,
+  changePassword,
+  listSessions,
+  revokeSession,
+  verifySessionServerSide
 } from '@/lib/supabase-auth';
 import { 
   logLogin, 
@@ -19,6 +23,7 @@ import {
 } from '@/lib/audit-logger';
 import { useToast } from '@/hooks/use-toast';
 import { SessionManager } from '@/lib/session-manager';
+import type { SessionWarning } from '@/lib/session-manager';
 
 // Auth Context Type
 interface AuthContextType {
@@ -26,12 +31,18 @@ interface AuthContextType {
   session: AuthSession | null;
   loading: boolean;
   error: AuthError | null;
-  signIn: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: AuthError }>;
+  sessionWarnings: SessionWarning[];
+  signIn: (credentials: LoginCredentials) => Promise<{ success: boolean; error?: AuthError; requiresMfa?: boolean }>;
   signUp: (data: RegisterData) => Promise<{ success: boolean; error?: AuthError }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ success: boolean; error?: AuthError }>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: AuthError }>;
   clearError: () => void;
   refreshUser: () => Promise<void>;
+  clearSessionWarnings: () => void;
+  dismissWarning: (warningType: string) => void;
+  getSessions: () => Promise<any[]>;
+  revokeSession: (sessionId: string) => Promise<{ success: boolean; error?: AuthError }>;
 }
 
 // Create Auth Context
@@ -43,14 +54,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<AuthSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<AuthError | null>(null);
+  const [sessionWarnings, setSessionWarnings] = useState<SessionWarning[]>([]);
+  const [sessionManager, setSessionManager] = useState<SessionManager | null>(null);
   const { toast } = useToast();
 
-  // Initialize auth state
+  // Initialize session manager and auth state
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         setLoading(true);
         
+        // Initialize SessionManager with client-side capabilities
+        const sm = new SessionManager();
+        setSessionManager(sm);
+        
+        // Set up session warning handler
+        const unsubscribeWarnings = sm.onWarning((warning: SessionWarning) => {
+          setSessionWarnings(prev => {
+            // Prevent duplicate warnings
+            const exists = prev.some(w => w.type === warning.type);
+            if (!exists) {
+              return [...prev, warning];
+            }
+            return prev;
+          });
+
+          // Show toast for critical warnings
+          if (warning.severity === 'critical' || warning.severity === 'high') {
+            toast({
+              title: "Security Alert",
+              description: warning.message,
+              variant: "destructive",
+              duration: warning.severity === 'critical' ? 0 : 10000
+            });
+          }
+        });
+
         // First check SessionManager for existing session
         const sessionManagerData = SessionManager.getSession();
         
@@ -58,14 +97,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentSession = await getCurrentSession();
         
         if (currentSession) {
-          setUser(currentSession.user);
-          setSession(currentSession);
-          // Ensure SessionManager is synchronized
-          SessionManager.setSession(currentSession);
+          // Verify session server-side for security
+          const verification = await verifySessionServerSide(currentSession.access_token);
+          
+          if (verification.valid) {
+            setUser(currentSession.user);
+            setSession(currentSession);
+            SessionManager.setSession(currentSession);
+          } else {
+            // Invalid session, clear everything
+            SessionManager.clearSession();
+            await signOut();
+          }
         } else if (sessionManagerData) {
           // If SessionManager has data but Supabase doesn't, clear it
           SessionManager.clearSession();
         }
+
+        // Cleanup function for warnings
+        return () => {
+          unsubscribeWarnings();
+        };
       } catch (err) {
         console.error('Auth initialization error:', err);
         setError({ message: 'Failed to initialize authentication' });
@@ -74,45 +126,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     };
 
-    initializeAuth();
+    const cleanup = initializeAuth();
 
     // Fallback timeout to ensure loading doesn't get stuck
     const timeoutId = setTimeout(() => {
       setLoading(false);
-    }, 5000); // 5 second timeout
+    }, 10000); // 10 second timeout
 
     // Set up auth state change listener
-    const { data: { subscription } } = onAuthStateChange((user) => {
+    const { data: { subscription } } = onAuthStateChange(async (user) => {
       if (user) {
         setUser(user);
-        // We still need to fetch the full session
-        getCurrentSession().then(session => {
+        // Fetch the full session
+        try {
+          const session = await getCurrentSession();
           setSession(session);
           // Synchronize with SessionManager
           if (session) {
             SessionManager.setSession(session);
           }
-        }).catch(err => {
+        } catch (err) {
           console.error('Error fetching session:', err);
           setSession(null);
-        });
+        }
       } else {
         setUser(null);
         setSession(null);
-        // Clear SessionManager
         SessionManager.clearSession();
+        setSessionWarnings([]);
       }
       setLoading(false);
-      clearTimeout(timeoutId); // Clear timeout when auth state changes
+      clearTimeout(timeoutId);
     });
 
     return () => {
       clearTimeout(timeoutId);
       subscription?.unsubscribe?.();
+      if (cleanup instanceof Promise) {
+        cleanup.then(cleanupFn => cleanupFn?.());
+      } else if (typeof cleanup === 'function') {
+        cleanup();
+      }
     };
-  }, []);
+  }, [toast]);
 
-  const signIn = useCallback(async (credentials: LoginCredentials): Promise<{ success: boolean; error?: AuthError }> => {
+  const signIn = useCallback(async (credentials: LoginCredentials): Promise<{ success: boolean; error?: AuthError; requiresMfa?: boolean }> => {
     try {
       setLoading(true);
       setError(null);
@@ -123,12 +181,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { data, error } = await signInWithPassword(credentials);
 
       if (error) {
-        // Re-enable validation on error
         SessionManager.enableValidation();
         setError(error);
+        
+        // Show different toast messages based on error type
+        const isCredentialError = error.message?.toLowerCase().includes('invalid') || 
+                                  error.message?.toLowerCase().includes('email') ||
+                                  error.message?.toLowerCase().includes('password');
+        
         toast({
           title: "Login Failed",
-          description: error.message,
+          description: isCredentialError ? "Invalid email or password" : error.message,
           variant: "destructive"
         });
         return { success: false, error };
@@ -137,28 +200,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (data.user && data.session) {
         setUser(data.user);
         setSession(data.session);
-        // Synchronize with SessionManager
         SessionManager.setSession(data.session);
+        SessionManager.enableValidation();
 
-        // Log successful login
+        // Log successful login with enhanced security context
         await logLogin(data.user.id, data.user.email);
 
         toast({
           title: "Login Successful",
-          description: `Welcome back, ${data.user.name}!`
+          description: `Welcome back, ${data.user.name || 'User'}!`
         });
 
         return { success: true };
       }
 
+      // Check if MFA is required
+      if (data.user?.mfa_enabled && !data.session) {
+        return { success: false, requiresMfa: true };
+      }
+
       const authError = { message: 'Login failed - no user data received' };
-      // Re-enable validation on error
       SessionManager.enableValidation();
       setError(authError);
       return { success: false, error: authError };
     } catch (err) {
       const authError = { message: 'An unexpected error occurred during login' };
-      // Re-enable validation on error
       SessionManager.enableValidation();
       setError(authError);
       console.error('Sign in error:', err);
@@ -186,7 +252,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (authData.user) {
-        // Log successful registration
+        // Log successful registration with enhanced context
         await logRegistration(authData.user.id, authData.user.email, authData.user.role, !!data.invite_token);
 
         // Queue welcome email
@@ -195,7 +261,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (authData.session) {
           setUser(authData.user);
           setSession(authData.session);
-          // Synchronize with SessionManager
           SessionManager.setSession(authData.session);
         }
 
@@ -247,7 +312,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setError(null);
-      // Clear SessionManager
+      setSessionWarnings([]);
       SessionManager.clearSession();
 
       toast({
@@ -302,6 +367,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [toast]);
 
+  const changeUserPassword = useCallback(async (currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: AuthError }> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { error } = await changePassword(currentPassword, newPassword);
+
+      if (error) {
+        setError(error);
+        toast({
+          title: "Password Change Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        return { success: false, error };
+      }
+
+      toast({
+        title: "Password Changed",
+        description: "Your password has been successfully updated."
+      });
+
+      return { success: true };
+    } catch (err) {
+      const authError = { message: 'An unexpected error occurred during password change' };
+      setError(authError);
+      console.error('Password change error:', err);
+      return { success: false, error: authError };
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -311,30 +409,84 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const currentUser = await getCurrentUser();
       const currentSession = await getCurrentSession();
       
-      setUser(currentUser);
-      setSession(currentSession);
-      
-      // Synchronize with SessionManager
       if (currentSession) {
-        SessionManager.setSession(currentSession);
+        // Verify session is still valid
+        const verification = await verifySessionServerSide(currentSession.access_token);
+        if (verification.valid) {
+          setUser(currentUser);
+          setSession(currentSession);
+          SessionManager.setSession(currentSession);
+        } else {
+          // Session invalid, sign out
+          await signOutUser();
+        }
+      } else {
+        setUser(null);
+        setSession(null);
+        SessionManager.clearSession();
       }
     } catch (err) {
       console.error('Refresh user error:', err);
       setError({ message: 'Failed to refresh user data' });
     }
+  }, [signOutUser]);
+
+  const clearSessionWarnings = useCallback(() => {
+    setSessionWarnings([]);
   }, []);
+
+  const dismissWarning = useCallback((warningType: string) => {
+    setSessionWarnings(prev => prev.filter(warning => warning.type !== warningType));
+  }, []);
+
+  const getSessions = useCallback(async (): Promise<any[]> => {
+    try {
+      if (!user?.id) return [];
+      return await listSessions(user.id);
+    } catch (err) {
+      console.error('Get sessions error:', err);
+      return [];
+    }
+  }, [user?.id]);
+
+  const revokeUserSession = useCallback(async (sessionId: string): Promise<{ success: boolean; error?: AuthError }> => {
+    try {
+      const { error } = await revokeSession(sessionId);
+      
+      if (error) {
+        return { success: false, error };
+      }
+
+      toast({
+        title: "Session Revoked",
+        description: "The session has been successfully revoked."
+      });
+
+      return { success: true };
+    } catch (err) {
+      const authError = { message: 'Failed to revoke session' };
+      console.error('Revoke session error:', err);
+      return { success: false, error: authError };
+    }
+  }, [toast]);
 
   const contextValue: AuthContextType = {
     user,
     session,
     loading,
     error,
+    sessionWarnings,
     signIn,
     signUp: signUpUser,
     signOut: signOutUser,
     resetPassword: resetUserPassword,
+    changePassword: changeUserPassword,
     clearError,
-    refreshUser
+    refreshUser,
+    clearSessionWarnings,
+    dismissWarning,
+    getSessions,
+    revokeSession: revokeUserSession
   };
 
   return (

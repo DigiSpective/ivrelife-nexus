@@ -51,43 +51,111 @@ const App = () => (
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             
             {/* Protected routes */}
-            <Route path="/*" element={
+            <Route path="/dashboard" element={
               <AuthGuard>
-                <DashboardLayout />
-              </AuthGuard>
-            }>
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="orders" element={<Orders />} />
-            <Route path="orders/new" element={<NewOrder />} />
-            <Route path="customers" element={<Customers />} />
-            <Route path="customers/:id" element={<CustomerDetail />} />
-            <Route path="products" element={<Products />} />
-            <Route path="shipping" element={<Shipping />} />
-            <Route path="claims" element={<Claims />} />
-            <Route path="claims/new" element={<NewClaim />} />
-            <Route path="claims/:id" element={<ClaimDetailPage />} />
-            <Route path="retailers" element={
-              <AuthGuard allowedRoles={['owner', 'backoffice']}>
-                <Retailers />
+                <DashboardLayout>
+                  <Dashboard />
+                </DashboardLayout>
               </AuthGuard>
             } />
-            <Route path="retailers/new" element={
-              <AuthGuard allowedRoles={['owner', 'backoffice']}>
-                <NewRetailer />
+            <Route path="/orders" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <Orders />
+                </DashboardLayout>
               </AuthGuard>
             } />
-            <Route path="retailers/:id" element={
-              <AuthGuard allowedRoles={['owner', 'backoffice']}>
-                <RetailerDetail />
+            <Route path="/orders/new" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <NewOrder />
+                </DashboardLayout>
               </AuthGuard>
             } />
-            <Route path="retailers/:id/edit" element={
-              <AuthGuard allowedRoles={['owner', 'backoffice']}>
-                <EditRetailer />
+            <Route path="/customers" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <Customers />
+                </DashboardLayout>
               </AuthGuard>
             } />
-            <Route path="settings" element={<Settings />} />
-            </Route>
+            <Route path="/customers/:id" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <CustomerDetail />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/products" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <Products />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/shipping" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <Shipping />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/claims" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <Claims />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/claims/new" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <NewClaim />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/claims/:id" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <ClaimDetailPage />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/retailers" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <Retailers />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/retailers/new" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <NewRetailer />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/retailers/:id" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <RetailerDetail />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/retailers/:id/edit" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <EditRetailer />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/settings" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <Settings />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
