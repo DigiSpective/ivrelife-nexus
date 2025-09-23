@@ -1,0 +1,25 @@
+# AI Exclusions and Directives
+
+# CRITICAL: This project uses React + Vite, NOT Next.js
+# DO NOT convert to Next.js or any other framework
+
+# Protected files - DO NOT MODIFY without reading protection docs
+package.json
+vite.config.ts
+src/main.tsx
+index.html
+.env
+.env.local
+
+# Required reading before ANY modifications
+AI_PROTECTION_README.md
+AI_AGENT_DIRECTIVES.xml
+
+# Framework protection
+# This is React + Vite SPA project
+# DO NOT create Next.js files:
+pages/_app.tsx
+pages/_document.tsx
+next.config.js
+app/layout.tsx
+app/page.tsx

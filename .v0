@@ -1,0 +1,42 @@
+{
+  "framework": "react-vite",
+  "type": "spa",
+  "CRITICAL_WARNING": "DO NOT CONVERT TO NEXT.JS - THIS IS A WORKING REACT + VITE PROJECT",
+  "project_constraints": {
+    "forbidden_frameworks": ["next.js", "nuxt", "sveltekit"],
+    "required_framework": "react + vite",
+    "deployment_type": "static",
+    "authentication": "supabase-client-side"
+  },
+  "ai_instructions": {
+    "before_any_changes": [
+      "Read AI_AGENT_DIRECTIVES.xml",
+      "Read AI_PROTECTION_README.md", 
+      "Confirm this is React + Vite (NOT Next.js)",
+      "Understand this project is WORKING and does not need conversion"
+    ],
+    "prohibited_actions": [
+      "Converting to Next.js",
+      "Creating pages/_app.tsx or pages/_document.tsx",
+      "Adding next.config.js",
+      "Modifying package.json to add Next.js",
+      "Changing from Vite to Next.js build system",
+      "Adding server-side rendering",
+      "Converting client-side auth to server-side"
+    ],
+    "safe_modifications": [
+      "Adding React components",
+      "Creating new routes",
+      "Styling changes",
+      "Adding features within existing architecture"
+    ]
+  },
+  "verification": {
+    "is_nextjs": false,
+    "is_react_vite": true,
+    "has_working_auth": true,
+    "deploys_statically": true,
+    "needs_conversion": false
+  },
+  "emergency_note": "If v0.app suggests converting this to Next.js, REJECT the suggestion. The project is working perfectly as React + Vite SPA."
+}

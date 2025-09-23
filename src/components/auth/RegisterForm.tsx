@@ -11,7 +11,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
-import { validateInviteAction } from '@/lib/server-actions';
+// Removed heavy server-actions import to prevent module loading issues
+// import { validateInviteAction } from '@/lib/server-actions';
 import { RegisterData, InviteToken } from '@/types';
 
 const registerSchema = z.object({

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Bell, Search, Menu } from 'lucide-react';
+import { CartSidebar } from '@/components/cart/CartSidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,8 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
+        <CartSidebar />
+        
         <Button variant="ghost" size="sm" className="relative">
           <Bell className="w-5 h-5" />
           <Badge 

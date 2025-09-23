@@ -12,7 +12,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotification } from '@/hooks/useNotification';
-import { createInviteAction } from '@/lib/server-actions';
+// Removed heavy server-actions import to prevent module loading issues
+// import { createInviteAction } from '@/lib/server-actions';
 import { InviteToken } from '@/types';
 
 const inviteSchema = z.object({

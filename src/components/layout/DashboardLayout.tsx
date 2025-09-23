@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
-import { SessionWarning } from '@/components/auth/SessionWarning';
+// import { SessionWarning } from '@/components/auth/SessionWarning';
 import { RoleBasedRedirect } from '@/components/auth/RoleBasedRedirect';
 
 interface DashboardLayoutProps {
@@ -12,7 +12,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <RoleBasedRedirect>
       <div className="min-h-screen bg-background">
-        <SessionWarning warningThresholdMinutes={5} />
+        {/* Temporary fix: Disable SessionWarning to prevent automatic logout after 1-2 minutes */}
+        {/* <SessionWarning warningThresholdMinutes={5} /> */}
         <div className="flex h-screen">
           <Sidebar />
           <div className="flex-1 flex flex-col overflow-hidden">

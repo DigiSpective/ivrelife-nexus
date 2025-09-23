@@ -1,4 +1,4 @@
-import { supabase } from './supabase-auth';
+import { createSupabaseClient } from './supabase-client';
 import { User } from '@/types';
 
 // Migration utility to sync existing Supabase Auth users with the users table
@@ -24,6 +24,7 @@ export class UserMigration {
         created_at: new Date().toISOString()
       };
 
+      const supabase = createSupabaseClient();
       const { data, error } = await supabase
         .from('users')
         .insert(userData)
@@ -47,6 +48,7 @@ export class UserMigration {
    */
   static async checkUserExists(userId: string): Promise<{ exists: boolean; user?: User }> {
     try {
+      const supabase = createSupabaseClient();
       const { data, error } = await supabase
         .from('users')
         .select('*')
@@ -145,6 +147,7 @@ export class UserMigration {
         created_at: new Date().toISOString()
       };
 
+      const supabase = createSupabaseClient();
       const { data, error } = await supabase
         .from('users')
         .insert(userData)

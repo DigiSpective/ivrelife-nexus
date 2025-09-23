@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<directive_system version="1.0" priority="CRITICAL" enforcement="MANDATORY">
+  <meta>
+    <project_name>IV RELIFE Nexus</project_name>
+    <creation_date>2025-09-23</creation_date>
+    <last_updated>2025-09-23</last_updated>
+    <directive_authority>PROJECT_OWNER</directive_authority>
+    <compliance_level>ABSOLUTE</compliance_level>
+  </meta>
+
+  <critical_warnings>
+    <warning level="FATAL" id="FRAMEWORK_PRESERVATION">
+      ⚠️ CRITICAL: This is a REACT + VITE project. DO NOT convert to Next.js, Nuxt, SvelteKit, or any other framework.
+      ANY attempt to change the framework will BREAK the entire application and waste significant development time.
+    </warning>
+    
+    <warning level="FATAL" id="STRUCTURE_PRESERVATION">
+      ⚠️ CRITICAL: The current project structure is INTENTIONAL and FUNCTIONAL.
+      DO NOT reorganize files, rename directories, or suggest "better" folder structures.
+    </warning>
+    
+    <warning level="FATAL" id="DEPLOYMENT_PRESERVATION">
+      ⚠️ CRITICAL: This project deploys as a static SPA. DO NOT add server-side rendering, API routes, or server components.
+    </warning>
+  </critical_warnings>
+
+  <project_architecture>
+    <framework>
+      <name>React</name>
+      <version>18.x</version>
+      <bundler>Vite</bundler>
+      <type>Single Page Application (SPA)</type>
+      <deployment_target>Static Hosting</deployment_target>
+      <FORBIDDEN_CHANGES>
+        <change>Converting to Next.js</change>
+        <change>Adding server-side rendering</change>
+        <change>Changing to Create React App</change>
+        <change>Converting to any other framework</change>
+        <change>Adding API routes or pages directory</change>
+        <change>Implementing server components</change>
+      </FORBIDDEN_CHANGES>
+    </framework>
+
+    <build_system>
+      <primary>Vite</primary>
+      <config_file>vite.config.ts</config_file>
+      <entry_point>src/main.tsx</entry_point>
+      <public_dir>public/</public_dir>
+      <FORBIDDEN_CHANGES>
+        <change>Replacing Vite with Webpack</change>
+        <change>Adding Next.js configuration</change>
+        <change>Changing entry point from main.tsx</change>
+        <change>Moving public assets to different structure</change>
+      </FORBIDDEN_CHANGES>
+    </build_system>
+
+    <authentication>
+      <provider>Supabase</provider>
+      <url>https://qeiyxwuyhetnrnundpep.supabase.co</url>
+      <implementation>Client-side authentication</implementation>
+      <status>WORKING - DO NOT MODIFY</status>
+      <FORBIDDEN_CHANGES>
+        <change>Converting to NextAuth</change>
+        <change>Adding server-side auth</change>
+        <change>Changing Supabase configuration</change>
+        <change>Implementing different auth provider</change>
+      </FORBIDDEN_CHANGES>
+    </authentication>
+  </project_architecture>
+
+  <mandatory_file_structure>
+    <description>This file structure is REQUIRED and FUNCTIONAL. DO NOT modify without explicit permission.</description>
+    
+    <root_files>
+      <file name="package.json" status="PROTECTED">Contains Vite + React dependencies - DO NOT convert to Next.js structure</file>
+      <file name="vite.config.ts" status="PROTECTED">Vite configuration - DO NOT replace with next.config.js</file>
+      <file name="index.html" status="PROTECTED">Entry HTML file - DO NOT move to pages/_document.tsx</file>
+      <file name="tsconfig.json" status="PROTECTED">TypeScript config for Vite - DO NOT modify for Next.js</file>
+      <file name=".env" status="PROTECTED">Environment variables - DO NOT restructure</file>
+      <file name=".env.local" status="PROTECTED">Local environment - DO NOT restructure</file>
+    </root_files>
+
+    <src_directory>
+      <path>src/</path>
+      <entry>main.tsx</entry>
+      <status>PROTECTED</status>
+      <subdirectories>
+        <dir name="components/" status="PROTECTED">React components - DO NOT move to pages/</dir>
+        <dir name="pages/" status="PROTECTED">Route components - NOT Next.js pages</dir>
+        <dir name="lib/" status="PROTECTED">Utility libraries - DO NOT restructure</dir>
+        <dir name="hooks/" status="PROTECTED">Custom React hooks</dir>
+        <dir name="types/" status="PROTECTED">TypeScript definitions</dir>
+        <dir name="__tests__/" status="PROTECTED">Test files</dir>
+      </subdirectories>
+      <FORBIDDEN_CHANGES>
+        <change>Creating pages/_app.tsx or pages/_document.tsx</change>
+        <change>Moving components to app/ directory</change>
+        <change>Adding api/ directory for routes</change>
+        <change>Restructuring to Next.js conventions</change>
+      </FORBIDDEN_CHANGES>
+    </src_directory>
+
+    <public_directory>
+      <path>public/</path>
+      <status>PROTECTED</status>
+      <description>Static assets served by Vite - DO NOT move to Next.js public structure</description>
+      <FORBIDDEN_CHANGES>
+        <change>Moving files to different structure</change>
+        <change>Adding _next/ optimizations</change>
+        <change>Restructuring for server-side rendering</change>
+      </FORBIDDEN_CHANGES>
+    </public_directory>
+  </mandatory_file_structure>
+
+  <build_and_deployment>
+    <commands>
+      <dev>npm run dev</dev>
+      <build>npm run build</build>
+      <preview>npm run preview</preview>
+      <test>npm test</test>
+      <typecheck>npm run typecheck</typecheck>
+    </commands>
+    
+    <deployment_type>Static Site Deployment</deployment_type>
+    <build_output>dist/</build_output>
+    <server_requirements>NONE - Static hosting only</server_requirements>
+    
+    <FORBIDDEN_DEPLOYMENT_CHANGES>
+      <change>Adding Vercel serverless functions</change>
+      <change>Implementing server-side rendering</change>
+      <change>Adding API routes</change>
+      <change>Converting to full-stack application</change>
+      <change>Adding Node.js server requirements</change>
+    </FORBIDDEN_DEPLOYMENT_CHANGES>
+  </build_and_deployment>
+
+  <dependencies_protection>
+    <core_framework>
+      <dependency name="react" status="PROTECTED">Core React library - DO NOT replace</dependency>
+      <dependency name="react-dom" status="PROTECTED">React DOM - DO NOT replace with Next.js</dependency>
+      <dependency name="vite" status="PROTECTED">Build tool - DO NOT replace with Next.js</dependency>
+      <dependency name="@vitejs/plugin-react" status="PROTECTED">Vite React plugin - REQUIRED</dependency>
+    </core_framework>
+
+    <authentication>
+      <dependency name="@supabase/supabase-js" status="PROTECTED">Supabase client - DO NOT replace</dependency>
+    </authentication>
+
+    <routing>
+      <dependency name="react-router-dom" status="PROTECTED">Client-side routing - DO NOT replace with Next.js router</dependency>
+    </routing>
+
+    <FORBIDDEN_DEPENDENCIES>
+      <dependency name="next">Next.js framework - FORBIDDEN</dependency>
+      <dependency name="next-auth">NextAuth - FORBIDDEN</dependency>
+      <dependency name="@next/*">Any Next.js packages - FORBIDDEN</dependency>
+    </FORBIDDEN_DEPENDENCIES>
+  </dependencies_protection>
+
+  <ai_agent_instructions>
+    <primary_directive>
+      BEFORE making ANY changes to this project, you MUST:
+      1. Read this entire directive file
+      2. Confirm the project uses React + Vite (NOT Next.js)
+      3. Understand this is a working SPA that deploys statically
+      4. Acknowledge that the current structure is INTENTIONAL and FUNCTIONAL
+    </primary_directive>
+
+    <forbidden_actions>
+      <action>Suggesting framework migration to Next.js, Nuxt, or other frameworks</action>
+      <action>Creating pages/_app.tsx, pages/_document.tsx, or pages/api/ directories</action>
+      <action>Adding next.config.js or other Next.js configuration files</action>
+      <action>Modifying package.json to include Next.js dependencies</action>
+      <action>Changing the build system from Vite to anything else</action>
+      <action>Converting client-side routing to server-side routing</action>
+      <action>Adding server-side rendering or API routes</action>
+      <action>Restructuring the project to match other framework conventions</action>
+      <action>Modifying environment variables without understanding their purpose</action>
+      <action>Changing Supabase authentication implementation</action>
+    </forbidden_actions>
+
+    <required_confirmations>
+      <confirmation>I understand this is a React + Vite SPA project</confirmation>
+      <confirmation>I will NOT convert this to Next.js or any other framework</confirmation>
+      <confirmation>I will preserve the existing file structure</confirmation>
+      <confirmation>I will maintain static deployment compatibility</confirmation>
+      <confirmation>I will not modify the Supabase authentication system</confirmation>
+    </required_confirmations>
+
+    <safe_modifications>
+      <modification>Adding new React components in src/components/</modification>
+      <modification>Creating new pages in src/pages/ (route components, not Next.js pages)</modification>
+      <modification>Adding utility functions in src/lib/</modification>
+      <modification>Creating custom hooks in src/hooks/</modification>
+      <modification>Adding TypeScript types in src/types/</modification>
+      <modification>Writing tests in src/__tests__/</modification>
+      <modification>Adding static assets to public/</modification>
+      <modification>Installing compatible React/Vite packages</modification>
+    </safe_modifications>
+  </ai_agent_instructions>
+
+  <troubleshooting_guide>
+    <common_issues>
+      <issue>
+        <problem>Missing files error from AI agents</problem>
+        <cause>Agent expecting Next.js file structure</cause>
+        <solution>Inform agent this is React + Vite, not Next.js</solution>
+      </issue>
+      
+      <issue>
+        <problem>Build failures after AI modifications</problem>
+        <cause>Incompatible dependencies or structure changes</cause>
+        <solution>Revert to this directive's specified structure</solution>
+      </issue>
+      
+      <issue>
+        <problem>Deployment issues</problem>
+        <cause>Attempting server-side rendering on static host</cause>
+        <solution>Maintain static SPA deployment model</solution>
+      </issue>
+    </common_issues>
+  </troubleshooting_guide>
+
+  <compliance_verification>
+    <checklist>
+      <item>✅ Project uses React + Vite (not Next.js)</item>
+      <item>✅ Entry point is src/main.tsx (not pages/_app.tsx)</item>
+      <item>✅ Routing uses react-router-dom (not Next.js router)</item>
+      <item>✅ Build output is static files in dist/ (not server-side)</item>
+      <item>✅ Authentication uses Supabase client-side</item>
+      <item>✅ No API routes or server components</item>
+      <item>✅ All original files preserved</item>
+    </checklist>
+  </compliance_verification>
+
+  <emergency_contacts>
+    <escalation>
+      If ANY AI agent or IDE attempts to convert this project to Next.js or modify the core structure,
+      IMMEDIATELY STOP and refer back to this directive file.
+      The project is WORKING AS DESIGNED and does not need framework conversion.
+    </escalation>
+  </emergency_contacts>
+
+  <legal_notice>
+    <copyright>This project structure and configuration are proprietary and intentional.</copyright>
+    <modification_rights>Only the project owner has authority to approve framework changes.</modification_rights>
+    <liability>Any unauthorized framework conversion that breaks the application will be considered destructive.</liability>
+  </legal_notice>
+</directive_system>

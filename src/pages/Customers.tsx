@@ -11,16 +11,172 @@ import {
   User,
   Upload,
   Download,
-  Users
+  Users,
+  Trash2,
+  MoreVertical
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useCustomers } from '@/hooks/useCustomers';
 import { Customer } from '@/types';
+import { CustomerDialog } from '@/components/customers/CustomerDialog';
+import { CustomerDeleteDialog } from '@/components/customers/CustomerDeleteDialog';
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [customerDialog, setCustomerDialog] = useState({
+    open: false,
+    mode: 'create' as 'create' | 'edit',
+    customer: null as Customer | null
+  });
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    customer: null as Customer | null
+  });
+  
   const { data: customersData, isLoading, error } = useCustomers();
   const customers = customersData?.data || [];
+
+  const handleAddCustomer = () => {
+    setCustomerDialog({
+      open: true,
+      mode: 'create',
+      customer: null
+    });
+  };
+
+  const handleEditCustomer = (customer: Customer) => {
+    setCustomerDialog({
+      open: true,
+      mode: 'edit',
+      customer
+    });
+  };
+
+  const handleDeleteCustomer = (customer: Customer) => {
+    setDeleteDialog({
+      open: true,
+      customer
+    });
+  };
+
+  const handleExportCustomers = () => {
+    try {
+      if (customers.length === 0) {
+        alert('No customers to export');
+        return;
+      }
+
+      // Create CSV content
+      const headers = ['Name', 'Email', 'Phone', 'Created Date', 'Notes'];
+      const csvContent = [
+        headers.join(','),
+        ...customers.map(customer => [
+          `"${customer.name}"`,
+          `"${customer.email || ''}"`,
+          `"${customer.phone || ''}"`,
+          `"${new Date(customer.created_at).toLocaleDateString()}"`,
+          `"${customer.notes || ''}"`,
+        ].join(','))
+      ].join('\n');
+
+      // Create and download the file
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `customers_export_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Export failed. Please try again.');
+    }
+  };
+
+  const handleImportCustomers = () => {
+    // Create file input
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      // Simple CSV import (placeholder implementation)
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target?.result as string;
+          const lines = text.split('\n');
+          
+          // Skip header row and process each line
+          const customerCount = lines.length - 1;
+          
+          alert(`Import functionality is a placeholder. Would import ${customerCount} customers from the CSV file.`);
+          console.log('CSV content:', text);
+          
+          // TODO: Implement actual CSV parsing and customer creation
+          // This would involve:
+          // 1. Parse CSV properly
+          // 2. Validate data
+          // 3. Create customers using the API
+          // 4. Handle errors and duplicates
+          // 5. Show progress and results
+          
+        } catch (error) {
+          console.error('Import error:', error);
+          alert('Import failed. Please check the file format.');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  };
+
+  const handleMergeDuplicates = () => {
+    // Simple duplicate detection based on email and name similarity
+    const potentialDuplicates = [];
+    
+    for (let i = 0; i < customers.length; i++) {
+      for (let j = i + 1; j < customers.length; j++) {
+        const customer1 = customers[i];
+        const customer2 = customers[j];
+        
+        // Check for exact email match or similar names
+        const emailMatch = customer1.email && customer2.email && 
+                          customer1.email.toLowerCase() === customer2.email.toLowerCase();
+        
+        const nameMatch = customer1.name.toLowerCase() === customer2.name.toLowerCase();
+        
+        if (emailMatch || nameMatch) {
+          potentialDuplicates.push([customer1, customer2]);
+        }
+      }
+    }
+    
+    if (potentialDuplicates.length === 0) {
+      alert('No potential duplicates found.');
+    } else {
+      alert(`Found ${potentialDuplicates.length} potential duplicate pairs. 
+      
+Full merge functionality would allow you to:
+- Review each duplicate pair
+- Choose which customer to keep as primary
+- Merge contact information and history
+- Delete or archive the duplicate
+
+This is a placeholder implementation.`);
+      console.log('Potential duplicates:', potentialDuplicates);
+    }
+  };
 
   const filteredCustomers = customers.filter(customer => 
     customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -38,7 +194,7 @@ export default function Customers() {
               Manage customer information and accounts
             </p>
           </div>
-          <Button className="shadow-elegant">
+          <Button className="shadow-elegant" onClick={handleAddCustomer}>
             <Plus className="w-4 h-4 mr-2" />
             Add Customer
           </Button>
@@ -60,7 +216,7 @@ export default function Customers() {
               Manage customer information and accounts
             </p>
           </div>
-          <Button className="shadow-elegant">
+          <Button className="shadow-elegant" onClick={handleAddCustomer}>
             <Plus className="w-4 h-4 mr-2" />
             Add Customer
           </Button>
@@ -85,15 +241,15 @@ export default function Customers() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleImportCustomers}>
             <Upload className="w-4 h-4 mr-2" />
             Import
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExportCustomers}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
-          <Button className="shadow-elegant">
+          <Button className="shadow-elegant" onClick={handleAddCustomer}>
             <Plus className="w-4 h-4 mr-2" />
             Add Customer
           </Button>
@@ -117,7 +273,7 @@ export default function Customers() {
               <Filter className="w-4 h-4 mr-2" />
               Filter
             </Button>
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleMergeDuplicates}>
               <Users className="w-4 h-4 mr-2" />
               Merge Duplicates
             </Button>
@@ -166,10 +322,26 @@ export default function Customers() {
                       View
                     </Link>
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit Customer
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleDeleteCustomer(customer)}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Customer
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             </CardContent>
@@ -188,13 +360,28 @@ export default function Customers() {
                 : 'Add your first customer to get started'
               }
             </p>
-            <Button>
+            <Button onClick={handleAddCustomer}>
               <Plus className="w-4 h-4 mr-2" />
               Add Customer
             </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Customer Dialog */}
+      <CustomerDialog
+        open={customerDialog.open}
+        onOpenChange={(open) => setCustomerDialog(prev => ({ ...prev, open }))}
+        customer={customerDialog.customer}
+        mode={customerDialog.mode}
+      />
+
+      {/* Delete Dialog */}
+      <CustomerDeleteDialog
+        open={deleteDialog.open}
+        onOpenChange={(open) => setDeleteDialog(prev => ({ ...prev, open }))}
+        customer={deleteDialog.customer}
+      />
     </div>
   );
 }

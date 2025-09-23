@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<audit xmlns="urn:audit:system" 
+       timestamp="2025-09-23T14:45:00Z" 
+       version="1.0" 
+       severity="CRITICAL" 
+       status="UNRESOLVED">
+  
+  <header>
+    <title>IV RELIFE Nexus - Automatic Sign-Out Persistent Issue Audit</title>
+    <system>IV RELIFE Nexus Authentication System</system>
+    <reporter>Claude Code Assistant</reporter>
+    <environment>Development (npm run dev)</environment>
+    <session_id>audit-signout-2025-09-23</session_id>
+  </header>
+
+  <issue_summary>
+    <problem>
+      <description>Users experience automatic sign-out from the application after approximately 1-2 minutes despite successful authentication and valid Supabase session tokens</description>
+      <impact>CRITICAL - Complete authentication system failure</impact>
+      <frequency>100% - Consistent reproduction</frequency>
+      <user_experience>Users cannot maintain authenticated sessions, severely impacting application usability</user_experience>
+    </problem>
+    
+    <symptoms>
+      <symptom id="S1">User successfully logs in with valid credentials (admin@iv-relife.com)</symptom>
+      <symptom id="S2">Application displays authenticated state initially</symptom>
+      <symptom id="S3">After 60-120 seconds, user is automatically redirected to login page</symptom>
+      <symptom id="S4">No explicit logout action taken by user</symptom>
+      <symptom id="S5">Session appears valid in browser storage</symptom>
+      <symptom id="S6">"Load failed" errors occasionally appear during authentication</symptom>
+    </symptoms>
+  </issue_summary>
+
+  <technical_analysis>
+    <environment_details>
+      <framework>React 18 + TypeScript</framework>
+      <auth_provider>Supabase</auth_provider>
+      <dev_server>Vite v5.4.19</dev_server>
+      <supabase_url>https://nzbexzrveeyxuonooyeh.supabase.co</supabase_url>
+      <token_duration>3600 seconds (1 hour)</token_duration>
+      <browser_support>Modern browsers with ES6 module support</browser_support>
+    </environment_details>
+
+    <token_analysis>
+      <token_lifespan>3600 seconds (60 minutes)</token_lifespan>
+      <refresh_threshold>60 seconds before expiry</refresh_threshold>
+      <refresh_behavior>Automatic via Supabase client</refresh_behavior>
+      <storage_mechanism>localStorage with key 'ivrelife-auth'</storage_mechanism>
+      <jwt_validation>Valid JWT structure confirmed</jwt_validation>
+    </token_analysis>
+
+    <infrastructure_diagnosis>
+      <network_connectivity>
+        <supabase_endpoint_status>Accessible (401 without auth, 200 with valid token)</supabase_endpoint_status>
+        <api_authentication>Working - successful login/logout operations</api_authentication>
+        <cors_policy>Resolved - CSP updated to allow Supabase endpoints</cors_policy>
+      </network_connectivity>
+      
+      <client_architecture>
+        <multiple_clients_issue>RESOLVED - Implemented singleton pattern</multiple_clients_issue>
+        <session_conflicts>RESOLVED - Eliminated custom session manager</session_conflicts>
+        <auth_state_sync>IMPROVED - Single auth listener for entire app</auth_state_sync>
+      </client_architecture>
+    </infrastructure_diagnosis>
+  </technical_analysis>
+
+  <resolution_attempts>
+    <attempt id="R1" timestamp="2025-09-23T13:30:00Z" status="FAILED">
+      <description>Content Security Policy (CSP) Configuration</description>
+      <action>Updated vite.config.ts to allow Supabase endpoints in CSP</action>
+      <implementation>
+        <file>vite.config.ts</file>
+        <change>Added https://nzbexzrveeyxuonooyeh.supabase.co to connect-src directive</change>
+        <result>Fixed "Load failed" authentication errors but sign-out persists</result>
+      </implementation>
+      <outcome>PARTIAL - Resolved authentication request blocking but core issue remains</outcome>
+    </attempt>
+
+    <attempt id="R2" timestamp="2025-09-23T13:45:00Z" status="FAILED">
+      <description>User Type Mapping Resolution</description>
+      <action>Created mapSupabaseUserToUser function to handle type mismatches</action>
+      <implementation>
+        <file>src/components/auth/AuthProvider.tsx</file>
+        <function>mapSupabaseUserToUser()</function>
+        <purpose>Convert Supabase user objects to application User types</purpose>
+        <result>Eliminated type-related authentication errors</result>
+      </implementation>
+      <outcome>SUCCESS - Fixed user object type conflicts but sign-out persists</outcome>
+    </attempt>
+
+    <attempt id="R3" timestamp="2025-09-23T14:10:00Z" status="FAILED">
+      <description>Custom Session Manager Removal</description>
+      <action>Eliminated SimpleSessionManager in favor of native Supabase session persistence</action>
+      <implementation>
+        <file>src/components/auth/AuthProvider.tsx</file>
+        <removed>SimpleSessionManager.setSession() calls</removed>
+        <removed>SimpleSessionManager.clearSession() calls</removed>
+        <removed>localStorage 'ivrelife_session' management</removed>
+        <result>Reduced session management conflicts</result>
+      </implementation>
+      <outcome>PARTIAL - Reduced complexity but sign-out persists</outcome>
+    </attempt>
+
+    <attempt id="R4" timestamp="2025-09-23T14:25:00Z" status="FAILED">
+      <description>Enhanced Auth State Change Handling</description>
+      <action>Updated auth state listener to handle TOKEN_REFRESHED events properly</action>
+      <implementation>
+        <file>src/components/auth/AuthProvider.tsx</file>
+        <enhancement>Listen for all Supabase auth events including token refresh</enhancement>
+        <enhancement>Update React state when tokens are refreshed</enhancement>
+        <result>Improved event handling but sign-out persists</result>
+      </implementation>
+      <outcome>IMPROVEMENT - Better event handling but core issue remains</outcome>
+    </attempt>
+
+    <attempt id="R5" timestamp="2025-09-23T14:35:00Z" status="FAILED">
+      <description>Singleton Supabase Client Implementation</description>
+      <action>Implemented single shared Supabase client instance to eliminate multiple client conflicts</action>
+      <implementation>
+        <file>src/lib/supabase-client.ts</file>
+        <pattern>Singleton pattern with sharedClient variable</pattern>
+        <exports>getSupabaseClient() returns same instance</exports>
+        <file>src/lib/supabase.ts</file>
+        <change>Updated to use getSupabaseClient() instead of direct createClient()</change>
+        <result>Eliminated "Multiple GoTrueClient instances" warnings</result>
+      </implementation>
+      <outcome>SUCCESS - Unified client architecture but sign-out persists</outcome>
+    </attempt>
+
+    <attempt id="R6" timestamp="2025-09-23T14:40:00Z" status="FAILED">
+      <description>Supabase Client Configuration Optimization</description>
+      <action>Enhanced Supabase client settings for better session management</action>
+      <implementation>
+        <setting>autoRefreshToken: true</setting>
+        <setting>persistSession: true</setting>
+        <setting>refreshThreshold: 60 seconds</setting>
+        <setting>storageKey: 'ivrelife-auth'</setting>
+        <result>Improved token refresh behavior</result>
+      </implementation>
+      <outcome>ENHANCEMENT - Better configuration but sign-out persists</outcome>
+    </attempt>
+  </resolution_attempts>
+
+  <current_status>
+    <issue_state>UNRESOLVED</issue_state>
+    <severity>CRITICAL</severity>
+    <business_impact>
+      <user_experience>SEVERELY DEGRADED - Users cannot maintain sessions</user_experience>
+      <functionality>BROKEN - Authentication system unusable</functionality>
+      <productivity>BLOCKED - Development and testing severely impacted</productivity>
+    </business_impact>
+    
+    <technical_debt>
+      <accumulated_complexity>Multiple resolution attempts have increased codebase complexity</accumulated_complexity>
+      <debug_artifacts>Various debug files and logging statements added</debug_artifacts>
+      <performance_impact>Multiple client initialization attempts may impact performance</performance_impact>
+    </technical_debt>
+  </current_status>
+
+  <remaining_hypotheses>
+    <hypothesis id="H1" probability="HIGH">
+      <description>React Component Lifecycle Interference</description>
+      <theory>React's StrictMode or component re-mounting may be interfering with auth state</theory>
+      <investigation_needed>Check for React.StrictMode in development, component re-rendering patterns</investigation_needed>
+    </hypothesis>
+
+    <hypothesis id="H2" probability="MEDIUM">
+      <description>Hidden Authentication Logic</description>
+      <theory>Existing authentication middleware or guards may be triggering sign-outs</theory>
+      <investigation_needed>Search for automatic logout triggers, session validation logic, route guards</investigation_needed>
+    </hypothesis>
+
+    <hypothesis id="H3" probability="MEDIUM">
+      <description>Memory Leak or Cleanup Issues</description>
+      <theory>Auth event listeners or subscriptions may not be properly cleaned up</theory>
+      <investigation_needed>Audit useEffect cleanup functions, subscription management</investigation_needed>
+    </hypothesis>
+
+    <hypothesis id="H4" probability="LOW">
+      <description>Browser Security Policies</description>
+      <theory>Browser-level security policies may be interfering with session persistence</theory>
+      <investigation_needed>Test in different browsers, check for service workers, clear all storage</investigation_needed>
+    </hypothesis>
+
+    <hypothesis id="H5" probability="LOW">
+      <description>Supabase Service Configuration</description>
+      <theory>Server-side Supabase configuration may have session timeout policies</theory>
+      <investigation_needed>Check Supabase dashboard settings, JWT configuration</investigation_needed>
+    </hypothesis>
+  </remaining_hypotheses>
+
+  <recommendations>
+    <immediate_actions>
+      <action priority="1">Investigate React.StrictMode impact on auth state management</action>
+      <action priority="2">Search codebase for hidden logout triggers or session validation logic</action>
+      <action priority="3">Audit all useEffect cleanup functions in auth-related components</action>
+      <action priority="4">Create minimal reproduction environment without complex app structure</action>
+    </immediate_actions>
+
+    <investigation_plan>
+      <phase id="1">
+        <name>React Lifecycle Analysis</name>
+        <duration>30 minutes</duration>
+        <tasks>
+          <task>Check for React.StrictMode in src/main.tsx</task>
+          <task>Add component mounting/unmounting logs</task>
+          <task>Monitor auth provider lifecycle</task>
+        </tasks>
+      </phase>
+
+      <phase id="2">
+        <name>Hidden Logic Discovery</name>
+        <duration>45 minutes</duration>
+        <tasks>
+          <task>Search for automatic logout patterns in codebase</task>
+          <task>Check route guards and authentication middleware</task>
+          <task>Audit session validation logic</task>
+        </tasks>
+      </phase>
+
+      <phase id="3">
+        <name>Minimal Reproduction</name>
+        <duration>60 minutes</duration>
+        <tasks>
+          <task>Create isolated authentication test component</task>
+          <task>Test authentication without full application context</task>
+          <task>Gradually add complexity to identify trigger point</task>
+        </tasks>
+      </phase>
+    </investigation_plan>
+  </recommendations>
+
+  <conclusions>
+    <summary>
+      Despite implementing comprehensive fixes for Content Security Policy, user type mapping, 
+      session management conflicts, auth event handling, and client singleton patterns, 
+      the automatic sign-out issue persists. The problem appears to be deeper in the 
+      application architecture, potentially related to React component lifecycle or 
+      hidden authentication logic not yet identified.
+    </summary>
+    
+    <next_steps>
+      <step>Focus investigation on React.StrictMode and component lifecycle patterns</step>
+      <step>Search for hidden authentication logic or automatic session validation</step>
+      <step>Create minimal reproduction environment to isolate the root cause</step>
+      <step>Consider temporary workarounds while pursuing permanent solution</step>
+    </next_steps>
+
+    <risk_assessment>
+      <current_risk>HIGH - Authentication system completely unreliable</current_risk>
+      <timeline_risk>CRITICAL - Each failed resolution attempt increases complexity</timeline_risk>
+      <solution_confidence>MEDIUM - Multiple valid approaches remain unexplored</solution_confidence>
+    </risk_assessment>
+  </conclusions>
+
+  <appendix>
+    <files_modified>
+      <file>vite.config.ts - CSP configuration updates</file>
+      <file>src/components/auth/AuthProvider.tsx - User mapping and auth handling</file>
+      <file>src/lib/supabase-client.ts - Singleton pattern implementation</file>
+      <file>src/lib/supabase.ts - Client reference update</file>
+    </files_modified>
+
+    <debug_artifacts_created>
+      <file>public/session-debug.html - Session monitoring (removed)</file>
+      <file>test-token-duration.mjs - Token analysis script (removed)</file>
+      <file>debug-session.html - Storage analysis (removed)</file>
+      <file>AUTOMATIC_SIGNOUT_AUDIT.xml - This audit report</file>
+    </debug_artifacts_created>
+
+    <console_observations>
+      <observation>Multiple GoTrueClient instances warnings eliminated</observation>
+      <observation>Token duration confirmed as 3600 seconds (1 hour)</observation>
+      <observation>Authentication API calls successful</observation>
+      <observation>No obvious errors during sign-out occurrence</observation>
+    </console_observations>
+  </appendix>
+
+</audit>

@@ -1,185 +1,468 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { Search, Filter, ShoppingCart, Eye, Edit, Package, Truck, Gift } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
 import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Eye,
-  Edit,
-  Package,
-  ShoppingCart
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { Product, ProductFilters } from '@/types/products';
+import { sampleProducts, shippingProfiles, giftRules } from '@/data/sampleProducts';
 
 export default function Products() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [products, setProducts] = useState<Product[]>(sampleProducts);
+  const [loading, setLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+  const [filters, setFilters] = useState<ProductFilters>({
+    price_range: { min: 0, max: 30000 }
+  });
 
-  // Mock data - will be replaced with real data from Supabase
-  const products = [
-    {
-      id: 'prod-1',
-      name: 'iPhone 15 Pro',
-      category: 'Smartphones',
-      sku: 'IPH15P-128-TIT',
-      price: 999.99,
-      inventory: 25,
-      requires_ltl: false,
-      created_at: '2024-01-10T10:30:00Z'
-    },
-    {
-      id: 'prod-2',
-      name: 'MacBook Pro 16"',
-      category: 'Laptops',
-      sku: 'MBP16-512-SG',
-      price: 2499.99,
-      inventory: 10,
-      requires_ltl: false,
-      created_at: '2024-01-12T14:15:00Z'
-    },
-    {
-      id: 'prod-3',
-      name: 'Samsung 65" QLED TV',
-      category: 'Televisions',
-      sku: 'SAM65QLED',
-      price: 1299.99,
-      inventory: 5,
-      requires_ltl: true,
-      created_at: '2024-01-15T09:45:00Z'
-    }
-  ];
+  // Get unique categories and tags for filter options
+  const categories = useMemo(() => 
+    Array.from(new Set(products.map(p => p.category))), [products]
+  );
+  
+  const allTags = useMemo(() => 
+    Array.from(new Set(products.flatMap(p => p.tags || []))), [products]
+  );
 
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filter products based on current filters
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      // Category filter
+      if (filters.category?.length && !filters.category.includes(product.category)) {
+        return false;
+      }
+
+      // Tags filter
+      if (filters.tags?.length && !filters.tags.some(tag => product.tags?.includes(tag))) {
+        return false;
+      }
+
+      // Price range filter
+      if (filters.price_range) {
+        const price = product.sale_price_usd || product.price_usd;
+        if (price < filters.price_range.min || price > filters.price_range.max) {
+          return false;
+        }
+      }
+
+      // Availability filter
+      if (filters.availability) {
+        if (filters.availability === 'in_stock' && !product.available) return false;
+        if (filters.availability === 'out_of_stock' && product.available) return false;
+      }
+
+      // Search filter
+      if (filters.search) {
+        const searchTerm = filters.search.toLowerCase();
+        return (
+          product.name.toLowerCase().includes(searchTerm) ||
+          product.description?.toLowerCase().includes(searchTerm) ||
+          product.tags?.some(tag => tag.toLowerCase().includes(searchTerm))
+        );
+      }
+
+      return true;
+    });
+  }, [products, filters]);
+
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(price);
+  };
+
+  const getShippingProfile = (profileId: string) => {
+    return shippingProfiles.find(p => p.id === profileId);
+  };
+
+  const getGiftRule = (ruleId?: string) => {
+    return ruleId ? giftRules.find(r => r.id === ruleId) : null;
+  };
+
+  const renderTableView = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle>Products Catalog</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-20">Image</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead>Category</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Availability</TableHead>
+              <TableHead>Shipping</TableHead>
+              <TableHead>Features</TableHead>
+              <TableHead className="w-40">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredProducts.map((product) => {
+              const shippingProfile = getShippingProfile(product.shipping_profile_id);
+              const giftRule = getGiftRule(product.gift_rule_id);
+              const displayPrice = product.sale_price_usd || product.price_usd;
+
+              return (
+                <TableRow key={product.id}>
+                  <TableCell>
+                    <div className="w-16 h-16 bg-muted rounded-lg flex items-center justify-center">
+                      <Package className="w-6 h-6 text-muted-foreground" />
+                    </div>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{product.name}</div>
+                      <div className="text-sm text-muted-foreground">{product.sku}</div>
+                      {product.tags && (
+                        <div className="flex gap-1 mt-1">
+                          {product.tags.slice(0, 2).map(tag => (
+                            <Badge key={tag} variant="secondary" className="text-xs">
+                              {tag.replace('_', ' ')}
+                            </Badge>
+                          ))}
+                          {product.tags.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{product.tags.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Badge variant="outline">{product.category}</Badge>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{formatPrice(displayPrice)}</div>
+                      {product.msrp_usd && product.msrp_usd > displayPrice && (
+                        <div className="text-sm text-muted-foreground line-through">
+                          {formatPrice(product.msrp_usd)}
+                        </div>
+                      )}
+                    </div>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <Badge 
+                      variant={product.available ? "default" : "destructive"}
+                      className={product.available ? "bg-green-100 text-green-800" : ""}
+                    >
+                      {product.available ? 'In Stock' : 'Out of Stock'}
+                    </Badge>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-4 h-4" />
+                      <div className="text-sm">
+                        <div>{shippingProfile?.name.replace('_', ' ').toUpperCase()}</div>
+                        <div className="text-muted-foreground">
+                          {shippingProfile?.lead_time_days_min}-{shippingProfile?.lead_time_days_max} days
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <div className="flex gap-1">
+                      {product.white_glove_available && (
+                        <Badge variant="outline" className="text-xs">
+                          White Glove
+                        </Badge>
+                      )}
+                      {product.gift_eligible && giftRule && (
+                        <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700">
+                          <Gift className="w-3 h-3 mr-1" />
+                          Gift
+                        </Badge>
+                      )}
+                      {product.extended_warranty_years && (
+                        <Badge variant="outline" className="text-xs">
+                          {product.extended_warranty_years}yr Warranty
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/products/${product.id}`}>
+                          <Eye className="w-4 h-4" />
+                        </Link>
+                      </Button>
+                      <Button variant="outline" size="sm">
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button variant="default" size="sm">
+                        <ShoppingCart className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+
+  const renderGridView = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {filteredProducts.map((product) => {
+        const giftRule = getGiftRule(product.gift_rule_id);
+        const displayPrice = product.sale_price_usd || product.price_usd;
+
+        return (
+          <Card key={product.id} className="overflow-hidden">
+            <div className="aspect-video bg-muted flex items-center justify-center">
+              <Package className="w-12 h-12 text-muted-foreground" />
+            </div>
+            
+            <CardContent className="p-4">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-semibold">{product.name}</h3>
+                <Badge 
+                  variant={product.available ? "default" : "destructive"}
+                  className={product.available ? "bg-green-100 text-green-800" : ""}
+                >
+                  {product.available ? 'Available' : 'Out of Stock'}
+                </Badge>
+              </div>
+              
+              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                {product.description}
+              </p>
+              
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <div className="font-bold text-lg">{formatPrice(displayPrice)}</div>
+                  {product.msrp_usd && product.msrp_usd > displayPrice && (
+                    <div className="text-sm text-muted-foreground line-through">
+                      {formatPrice(product.msrp_usd)}
+                    </div>
+                  )}
+                </div>
+                <Badge variant="outline">{product.category}</Badge>
+              </div>
+              
+              <div className="flex flex-wrap gap-1 mb-3">
+                {product.white_glove_available && (
+                  <Badge variant="outline" className="text-xs">White Glove</Badge>
+                )}
+                {product.gift_eligible && giftRule && (
+                  <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700">
+                    <Gift className="w-3 h-3 mr-1" />
+                    Gift Eligible
+                  </Badge>
+                )}
+              </div>
+              
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" asChild>
+                  <Link to={`/products/${product.id}`}>
+                    <Eye className="w-4 h-4 mr-1" />
+                    View
+                  </Link>
+                </Button>
+                <Button size="sm" className="flex-1">
+                  <ShoppingCart className="w-4 h-4 mr-1" />
+                  Add to Cart
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
   );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Products</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage product catalog and inventory
-          </p>
-        </div>
-        <Button className="shadow-elegant">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold">Products</h1>
+        <p className="text-muted-foreground">
+          Manage your product catalog, shipping profiles, and gift rules
+        </p>
       </div>
 
-      {/* Filters */}
-      <Card className="shadow-card">
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search products..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+      {/* Filters Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="w-5 h-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  value={filters.search || ''}
+                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
             </div>
-            <Button variant="outline">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
+
+            {/* Category Filter */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Category</label>
+              <Select 
+                value={filters.category?.[0] || 'all'}
+                onValueChange={(value) => setFilters(prev => ({ 
+                  ...prev, 
+                  category: value === 'all' ? undefined : [value] 
+                }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map(category => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Availability Filter */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Availability</label>
+              <Select 
+                value={filters.availability || 'all'}
+                onValueChange={(value) => setFilters(prev => ({ 
+                  ...prev, 
+                  availability: value === 'all' ? undefined : value as any
+                }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All Products" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Products</SelectItem>
+                  <SelectItem value="in_stock">In Stock</SelectItem>
+                  <SelectItem value="out_of_stock">Out of Stock</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">View</label>
+              <div className="flex gap-2">
+                <Button
+                  variant={viewMode === 'table' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('table')}
+                >
+                  Table
+                </Button>
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                >
+                  Grid
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Price Range */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Price Range: {formatPrice(filters.price_range?.min || 0)} - {formatPrice(filters.price_range?.max || 30000)}
+            </label>
+            <Slider
+              value={[filters.price_range?.min || 0, filters.price_range?.max || 30000]}
+              onValueChange={([min, max]) => setFilters(prev => ({ 
+                ...prev, 
+                price_range: { min, max } 
+              }))}
+              max={30000}
+              min={0}
+              step={100}
+              className="w-full"
+            />
+          </div>
+
+          {/* Tags Filter */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">Features</label>
+            <div className="flex flex-wrap gap-2">
+              {allTags.map(tag => (
+                <div key={tag} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={tag}
+                    checked={filters.tags?.includes(tag) || false}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setFilters(prev => ({
+                          ...prev,
+                          tags: [...(prev.tags || []), tag]
+                        }));
+                      } else {
+                        setFilters(prev => ({
+                          ...prev,
+                          tags: prev.tags?.filter(t => t !== tag)
+                        }));
+                      }
+                    }}
+                  />
+                  <label 
+                    htmlFor={tag} 
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    {tag.replace('_', ' ')}
+                  </label>
+                </div>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Products List */}
-      <div className="space-y-4">
-        {filteredProducts.map((product) => (
-          <Card key={product.id} className="shadow-card hover:shadow-elegant transition-smooth">
-            <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <Package className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground">
-                        {product.name}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        SKU: {product.sku}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 text-sm">
-                    <div className="text-muted-foreground">
-                      <span className="font-medium">Category:</span> {product.category}
-                    </div>
-                    <div className="text-muted-foreground">
-                      <span className="font-medium">Price:</span> ${product.price.toFixed(2)}
-                    </div>
-                    <div className="text-muted-foreground">
-                      <span className="font-medium">Inventory:</span> 
-                      <Badge 
-                        variant={product.inventory > 10 ? "default" : product.inventory > 0 ? "secondary" : "destructive"} 
-                        className="ml-2"
-                      >
-                        {product.inventory} in stock
-                      </Badge>
-                    </div>
-                    <div className="text-muted-foreground">
-                      <span className="font-medium">LTL:</span> 
-                      {product.requires_ltl ? (
-                        <Badge variant="outline" className="ml-2">
-                          Required
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="ml-2">
-                          Not Required
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <Edit className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Eye className="w-4 h-4 mr-2" />
-                    View
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Results Summary */}
+      <div className="flex justify-between items-center">
+        <p className="text-muted-foreground">
+          Showing {filteredProducts.length} of {products.length} products
+        </p>
+        <Button asChild>
+          <Link to="/admin/products/new">Add New Product</Link>
+        </Button>
       </div>
 
-      {filteredProducts.length === 0 && (
-        <Card className="shadow-card">
-          <CardContent className="p-12 text-center">
-            <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">No products found</h3>
-            <p className="text-muted-foreground mb-4">
-              {searchQuery 
-                ? 'Try adjusting your search'
-                : 'Add your first product to get started'
-              }
-            </p>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Product
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+      {/* Products List */}
+      {viewMode === 'table' ? renderTableView() : renderGridView()}
     </div>
   );
 }

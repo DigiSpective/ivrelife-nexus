@@ -17,10 +17,15 @@ import {
   File,
   Activity,
   Users,
-  Plus
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { useCustomer, useCustomerContacts, useCustomerAddresses, useCustomerDocuments, useCustomerActivity } from '@/hooks/useCustomers';
 import { Customer, CustomerContact, CustomerAddress, CustomerDocument, CustomerActivity as CustomerActivityType } from '@/types';
+import { CustomerDialog } from '@/components/customers/CustomerDialog';
+import { CustomerDeleteDialog } from '@/components/customers/CustomerDeleteDialog';
+import { ContactDialog } from '@/components/customers/ContactDialog';
+import { AddressDialog } from '@/components/customers/AddressDialog';
 
 export default function CustomerDetail() {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +43,72 @@ export default function CustomerDetail() {
   const activities = activityData?.data || [];
 
   const [activeTab, setActiveTab] = useState('overview');
+  const [editDialog, setEditDialog] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState(false);
+  const [contactDialog, setContactDialog] = useState({
+    open: false,
+    mode: 'create' as 'create' | 'edit',
+    contact: null as CustomerContact | null
+  });
+  const [addressDialog, setAddressDialog] = useState({
+    open: false,
+    mode: 'create' as 'create' | 'edit',
+    address: null as CustomerAddress | null
+  });
+
+  const handleEditCustomer = () => {
+    setEditDialog(true);
+  };
+
+  const handleDeleteCustomer = () => {
+    setDeleteDialog(true);
+  };
+
+  const handleDeleteSuccess = () => {
+    navigate('/customers');
+  };
+
+  const handleUploadID = () => {
+    // TODO: Implement ID upload functionality
+    console.log('Upload ID functionality to be implemented');
+  };
+
+  const handleGenerateContract = () => {
+    // TODO: Implement contract generation functionality
+    console.log('Generate contract functionality to be implemented');
+  };
+
+  const handleAddContact = () => {
+    setContactDialog({
+      open: true,
+      mode: 'create',
+      contact: null
+    });
+  };
+
+  const handleEditContact = (contact: CustomerContact) => {
+    setContactDialog({
+      open: true,
+      mode: 'edit',
+      contact
+    });
+  };
+
+  const handleAddAddress = () => {
+    setAddressDialog({
+      open: true,
+      mode: 'create',
+      address: null
+    });
+  };
+
+  const handleEditAddress = (address: CustomerAddress) => {
+    setAddressDialog({
+      open: true,
+      mode: 'edit',
+      address
+    });
+  };
 
   if (isCustomerLoading) {
     return (
@@ -100,17 +171,21 @@ export default function CustomerDetail() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleUploadID}>
             <Upload className="w-4 h-4 mr-2" />
             Upload ID
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleGenerateContract}>
             <FileText className="w-4 h-4 mr-2" />
             Generate Contract
           </Button>
-          <Button>
+          <Button onClick={handleEditCustomer}>
             <Edit className="w-4 h-4 mr-2" />
             Edit Customer
+          </Button>
+          <Button variant="destructive" onClick={handleDeleteCustomer}>
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete
           </Button>
         </div>
       </div>
@@ -248,7 +323,7 @@ export default function CustomerDetail() {
                     <Phone className="w-5 h-5" />
                     Contacts
                   </span>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={handleAddContact}>
                     <Plus className="w-4 h-4" />
                   </Button>
                 </CardTitle>
@@ -286,7 +361,7 @@ export default function CustomerDetail() {
                     <MapPin className="w-5 h-5" />
                     Addresses
                   </span>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={handleAddAddress}>
                     <Plus className="w-4 h-4" />
                   </Button>
                 </CardTitle>
@@ -327,8 +402,8 @@ export default function CustomerDetail() {
                     <FileText className="w-5 h-5" />
                     Notes
                   </span>
-                  <Button variant="outline" size="sm">
-                    <Plus className="w-4 h-4" />
+                  <Button variant="outline" size="sm" onClick={handleEditCustomer}>
+                    <Edit className="w-4 h-4" />
                   </Button>
                 </CardTitle>
               </CardHeader>
@@ -436,6 +511,40 @@ export default function CustomerDetail() {
           </Card>
         )}
       </div>
+
+      {/* Edit Customer Dialog */}
+      <CustomerDialog
+        open={editDialog}
+        onOpenChange={setEditDialog}
+        customer={customer}
+        mode="edit"
+      />
+
+      {/* Delete Customer Dialog */}
+      <CustomerDeleteDialog
+        open={deleteDialog}
+        onOpenChange={setDeleteDialog}
+        customer={customer}
+        onDeleteSuccess={handleDeleteSuccess}
+      />
+
+      {/* Contact Dialog */}
+      <ContactDialog
+        open={contactDialog.open}
+        onOpenChange={(open) => setContactDialog(prev => ({ ...prev, open }))}
+        customerId={id!}
+        contact={contactDialog.contact}
+        mode={contactDialog.mode}
+      />
+
+      {/* Address Dialog */}
+      <AddressDialog
+        open={addressDialog.open}
+        onOpenChange={(open) => setAddressDialog(prev => ({ ...prev, open }))}
+        customerId={id!}
+        address={addressDialog.address}
+        mode={addressDialog.mode}
+      />
     </div>
   );
 }

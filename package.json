@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "CRITICAL_AI_WARNING": "🚨 DO NOT CONVERT TO NEXT.JS - This is a working React + Vite SPA project. Read AI_PROTECTION_README.md before making changes.",
+  "framework": "react-vite-spa",
+  "deployment": "static-only",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Authentication Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test { 
+            margin: 15px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px;
+        }
+        .success { 
+            background-color: #d4edda; 
+            border-color: #c3e6cb; 
+            color: #155724;
+        }
+        .error { 
+            background-color: #f8d7da; 
+            border-color: #f5c6cb; 
+            color: #721c24;
+        }
+        .warning { 
+            background-color: #fff3cd; 
+            border-color: #ffeeba; 
+            color: #856404;
+        }
+        .info { 
+            background-color: #d1ecf1; 
+            border-color: #bee5eb; 
+            color: #0c5460;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover { background: #0056b3; }
+        .btn:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Final Authentication System Test</h1>
+        <p>Testing the new simplified AuthProvider implementation</p>
+        
+        <div id="results"></div>
+        
+        <div class="form-group">
+            <label for="email">Test Email:</label>
+            <input type="email" id="email" value="admin@iv-relife.com">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Test Password:</label>
+            <input type="password" id="password" value="123456789">
+        </div>
+        
+        <button class="btn" onclick="runEnvironmentTest()">🔧 Test Environment</button>
+        <button class="btn" onclick="runClientTest()">🔗 Test Client</button>
+        <button class="btn" onclick="runLoginTest()">🔑 Test Login</button>
+        <button class="btn" onclick="runAllTests()">🚀 Run All Tests</button>
+        <button class="btn" onclick="clearResults()">🗑️ Clear</button>
+    </div>
+    
+    <script type="module">
+        const results = document.getElementById('results');
+        
+        function addResult(title, content, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test ${type}`;
+            div.innerHTML = `
+                <h3>${title}</h3>
+                <div>${content}</div>
+                <small>Time: ${new Date().toLocaleTimeString()}</small>
+            `;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        function clearResults() {
+            results.innerHTML = '';
+        }
+        
+        async function runEnvironmentTest() {
+            addResult('🔧 Environment Test', 'Checking environment variables...', 'info');
+            
+            try {
+                const url = import.meta.env.VITE_SUPABASE_URL;
+                const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                
+                if (!url || !key) {
+                    addResult('❌ Environment Failed', 
+                        `Missing credentials:<br>URL: ${!!url}<br>Key: ${!!key}`, 
+                        'error'
+                    );
+                    return false;
+                }
+                
+                addResult('✅ Environment Success', 
+                    `Credentials loaded:<br>URL: ${url}<br>Key: ${key.substring(0, 20)}...`, 
+                    'success'
+                );
+                return true;
+            } catch (err) {
+                addResult('❌ Environment Error', `Exception: ${err.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function runClientTest() {
+            addResult('🔗 Client Test', 'Testing Supabase client creation...', 'info');
+            
+            try {
+                const { createClient } = await import('@supabase/supabase-js');
+                
+                const url = import.meta.env.VITE_SUPABASE_URL;
+                const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                
+                if (!url || !key) {
+                    addResult('❌ Client Failed', 'No credentials for client creation', 'error');
+                    return null;
+                }
+                
+                const client = createClient(url, key);
+                
+                // Test basic connection
+                const { data, error } = await client.auth.getSession();
+                
+                if (error && !error.message.includes('session')) {
+                    addResult('❌ Client Connection Failed', `Connection error: ${error.message}`, 'error');
+                    return null;
+                }
+                
+                addResult('✅ Client Success', 'Supabase client created and connected', 'success');
+                return client;
+            } catch (err) {
+                addResult('❌ Client Error', `Exception: ${err.message}`, 'error');
+                return null;
+            }
+        }
+        
+        async function runLoginTest() {
+            addResult('🔑 Login Test', 'Testing authentication...', 'info');
+            
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                const { createClient } = await import('@supabase/supabase-js');
+                const url = import.meta.env.VITE_SUPABASE_URL;
+                const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                
+                if (!url || !key) {
+                    addResult('❌ Login Failed', 'No Supabase credentials available', 'error');
+                    return false;
+                }
+                
+                const client = createClient(url, key);
+                
+                const { data, error } = await client.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) {
+                    addResult('❌ Login Failed', 
+                        `Authentication error: ${error.message}`, 
+                        'error'
+                    );
+                    return false;
+                }
+                
+                if (data.user && data.session) {
+                    addResult('✅ Login Success', 
+                        `Authenticated as: ${data.user.email}<br>Session expires: ${new Date(data.session.expires_at * 1000).toLocaleString()}`, 
+                        'success'
+                    );
+                    
+                    // Test sign out
+                    await client.auth.signOut();
+                    addResult('✅ Logout Success', 'Successfully signed out', 'success');
+                    
+                    return true;
+                } else {
+                    addResult('❌ Login Failed', 'No user data returned', 'error');
+                    return false;
+                }
+            } catch (err) {
+                addResult('❌ Login Error', `Exception: ${err.message}`, 'error');
+                return false;
+            }
+        }
+        
+        async function runAllTests() {
+            clearResults();
+            addResult('🚀 Starting Comprehensive Test', 'Running all authentication tests...', 'info');
+            
+            const envResult = await runEnvironmentTest();
+            if (!envResult) {
+                addResult('🛑 Test Suite Failed', 'Environment test failed - stopping', 'error');
+                return;
+            }
+            
+            const clientResult = await runClientTest();
+            if (!clientResult) {
+                addResult('🛑 Test Suite Failed', 'Client test failed - stopping', 'error');
+                return;
+            }
+            
+            const loginResult = await runLoginTest();
+            if (!loginResult) {
+                addResult('🛑 Test Suite Failed', 'Login test failed', 'error');
+                return;
+            }
+            
+            addResult('🎉 All Tests Passed!', 
+                'Authentication system is working correctly:<br>' +
+                '✅ Environment variables loaded<br>' +
+                '✅ Supabase client connected<br>' +
+                '✅ Login/logout working<br>' +
+                '<strong>The "Load Failed" issue has been resolved!</strong>', 
+                'success'
+            );
+        }
+        
+        // Make functions globally available
+        window.runEnvironmentTest = runEnvironmentTest;
+        window.runClientTest = runClientTest;
+        window.runLoginTest = runLoginTest;
+        window.runAllTests = runAllTests;
+        window.clearResults = clearResults;
+        
+        // Auto-run tests on page load
+        setTimeout(runAllTests, 1000);
+    </script>
+</body>
+</html>

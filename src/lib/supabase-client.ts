@@ -179,10 +179,10 @@ function getEnvVarName(field: keyof SupabaseConfig): string {
  */
 function loadSupabaseConfig(requireServiceRole = false): SupabaseConfig {
   const config: Partial<SupabaseConfig> = {
-    url: import.meta.env?.VITE_SUPABASE_URL || process.env?.VITE_SUPABASE_URL,
-    anonKey: import.meta.env?.VITE_SUPABASE_ANON_KEY || process.env?.VITE_SUPABASE_ANON_KEY,
-    serviceRoleKey: process.env?.SUPABASE_SERVICE_ROLE_KEY,
-    jwtSecret: process.env?.SUPABASE_JWT_SECRET
+    url: import.meta.env?.VITE_SUPABASE_URL || '',
+    anonKey: import.meta.env?.VITE_SUPABASE_ANON_KEY || '',
+    serviceRoleKey: typeof window === 'undefined' ? (globalThis as any).process?.env?.SUPABASE_SERVICE_ROLE_KEY : undefined,
+    jwtSecret: typeof window === 'undefined' ? (globalThis as any).process?.env?.SUPABASE_JWT_SECRET : undefined
   };
 
   // Validate each field
@@ -229,117 +229,6 @@ function loadSupabaseConfig(requireServiceRole = false): SupabaseConfig {
   return config as SupabaseConfig;
 }
 
-/**
- * Creates a client-side Supabase client with anon key
- */
-export function createSupabaseClient(): SupabaseClient<Database> {
-  try {
-    console.log('[Supabase] Attempting to create client with env vars:', {
-      url: import.meta.env?.VITE_SUPABASE_URL || 'NOT_FOUND',
-      anonKey: import.meta.env?.VITE_SUPABASE_ANON_KEY ? 'PRESENT' : 'NOT_FOUND'
-    });
-    
-    const config = loadSupabaseConfig(false);
-    
-    console.log('[Supabase] Loaded config successfully:', {
-      url: config.url,
-      anonKeyLength: config.anonKey?.length || 0
-    });
-    
-    const client = createClient<Database>(
-      config.url,
-      config.anonKey,
-      {
-        auth: {
-          autoRefreshToken: true,
-          persistSession: true,
-          detectSessionInUrl: true,
-          flowType: 'pkce'
-        },
-        global: {
-          headers: {
-            'X-Client-Info': 'ivrelife-nexus@1.0.0'
-          }
-        },
-        db: {
-          schema: 'public'
-        }
-      }
-    );
-
-    // Validate connection (this will throw if client creation failed)
-    if (!client || typeof client.auth?.getSession !== 'function') {
-      throw new SupabaseInitializationError(
-        'Client creation succeeded but client is invalid'
-      );
-    }
-
-    console.log('[Supabase] Client created successfully');
-    return client;
-  } catch (error) {
-    console.error('[Supabase] Client creation failed:', error);
-    
-    // Check if we're in development mode - if so, create a mock client that allows testing
-    if (import.meta.env?.DEV || import.meta.env?.MODE === 'development') {
-      console.warn('[Supabase] Creating mock client for development');
-      
-      // Create a mock client that simulates successful authentication with demo credentials
-      const mockClient = {
-        auth: {
-          getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-          getUser: () => Promise.resolve({ data: { user: null }, error: null }),
-          signInWithPassword: async (credentials: any) => {
-            // Simulate successful login with demo credentials
-            if (credentials.email === 'admin@iv-relife.com' && credentials.password === '123456789') {
-              const mockUser = {
-                id: 'mock-user-id',
-                email: 'admin@iv-relife.com',
-                name: 'Admin User',
-                role: 'owner' as const,
-                retailer_id: null,
-                location_id: null
-              };
-              
-              const mockSession = {
-                user: mockUser,
-                access_token: 'mock-access-token',
-                refresh_token: 'mock-refresh-token',
-                expires_at: Date.now() + 3600000 // 1 hour
-              };
-              
-              return { 
-                data: { user: mockUser, session: mockSession }, 
-                error: null 
-              };
-            } else {
-              return { 
-                data: { user: null, session: null }, 
-                error: { message: 'Invalid email or password' } 
-              };
-            }
-          },
-          signUp: () => Promise.resolve({ data: { user: null, session: null }, error: { message: 'Registration not available in demo mode' } }),
-          signOut: () => Promise.resolve({ error: null }),
-          onAuthStateChange: () => ({ data: { subscription: null }, error: null }),
-          refreshSession: () => Promise.resolve({ data: { session: null }, error: null }),
-          updateUser: () => Promise.resolve({ data: { user: null }, error: { message: 'Profile updates not available in demo mode' } }),
-          resetPasswordForEmail: () => Promise.resolve({ error: null })
-        },
-        from: () => ({
-          select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Database queries not available in demo mode' } }) }),
-          insert: () => Promise.resolve({ data: null, error: { message: 'Database operations not available in demo mode' } }),
-          update: () => Promise.resolve({ data: null, error: { message: 'Database operations not available in demo mode' } }),
-          delete: () => Promise.resolve({ data: null, error: { message: 'Database operations not available in demo mode' } })
-        })
-      };
-      
-      return mockClient as unknown as SupabaseClient<Database>;
-    }
-    
-    // In production, throw the error
-    throw error;
-  }
-}
 
 /**
  * Creates a server-side Supabase client with service role key
@@ -449,11 +338,8 @@ export function validateConfiguration(includeServerKeys = false): {
  * Checks if we're in a production environment
  */
 export function isProductionEnvironment(): boolean {
-  return (
-    process.env.NODE_ENV === 'production' ||
-    process.env.VERCEL_ENV === 'production' ||
-    import.meta.env?.PROD === true
-  );
+  // Browser environment - only use import.meta.env
+  return import.meta.env?.PROD === true;
 }
 
 /**
@@ -503,7 +389,7 @@ export async function performStartupHealthCheck(): Promise<void> {
   }
 
   // Test server client if in server environment
-  if (typeof window === 'undefined' && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  if (typeof window === 'undefined' && (globalThis as any).process?.env?.SUPABASE_SERVICE_ROLE_KEY) {
     try {
       const serverClient = createSupabaseServerClient();
       
@@ -526,14 +412,128 @@ export async function performStartupHealthCheck(): Promise<void> {
   }
 }
 
-// Export default client for convenience (with validation)
-let defaultClient: SupabaseClient<Database> | null = null;
+// Single shared client instance to avoid multiple GoTrueClient instances
+let sharedClient: SupabaseClient<Database> | null = null;
+
+function createActualSupabaseClient(): SupabaseClient<Database> {
+  try {
+    const config = loadSupabaseConfig(false);
+    
+    const client = createClient<Database>(
+      config.url,
+      config.anonKey,
+      {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          // Attempt to refresh the token 60 seconds before expiry
+          refreshThreshold: 60,
+          // Storage key for session persistence
+          storageKey: 'ivrelife-auth'
+        },
+        global: {
+          headers: {
+            'X-Client-Info': 'ivrelife-nexus@1.0.0'
+          }
+        },
+        db: {
+          schema: 'public'
+        }
+      }
+    );
+
+    // Validate connection (this will throw if client creation failed)
+    if (!client || typeof client.auth?.getSession !== 'function') {
+      throw new SupabaseInitializationError(
+        'Client creation succeeded but client is invalid'
+      );
+    }
+
+    return client;
+  } catch (error) {
+    console.error('[Supabase] Client creation failed:', error);
+    
+    // Only create mock client if there's a configuration error AND environment variables are completely missing
+    // This allows real Supabase connections in development while falling back to mock for actual config issues
+    const hasValidConfig = import.meta.env?.VITE_SUPABASE_URL && import.meta.env?.VITE_SUPABASE_ANON_KEY;
+    
+    if (!hasValidConfig) {
+      console.warn('[Supabase] Creating mock client due to missing configuration');
+      
+      // Create a mock client that simulates successful authentication with demo credentials
+      const mockClient = {
+        auth: {
+          getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+          getUser: () => Promise.resolve({ data: { user: null }, error: null }),
+          signInWithPassword: async (credentials: any) => {
+            // Simulate successful login with demo credentials
+            if (credentials.email === 'admin@iv-relife.com' && credentials.password === '123456789') {
+              const mockUser = {
+                id: 'mock-user-id',
+                email: 'admin@iv-relife.com',
+                name: 'Admin User',
+                role: 'owner' as const,
+                retailer_id: null,
+                location_id: null
+              };
+              
+              const mockSession = {
+                user: mockUser,
+                access_token: 'mock-access-token',
+                refresh_token: 'mock-refresh-token',
+                expires_at: Date.now() + 3600000 // 1 hour
+              };
+              
+              return { 
+                data: { user: mockUser, session: mockSession }, 
+                error: null 
+              };
+            } else {
+              return { 
+                data: { user: null, session: null }, 
+                error: { message: 'Invalid email or password' } 
+              };
+            }
+          },
+          signUp: () => Promise.resolve({ data: { user: null, session: null }, error: { message: 'Registration not available in demo mode' } }),
+          signOut: () => Promise.resolve({ error: null }),
+          onAuthStateChange: (callback) => {
+            // Call callback immediately with null user for development mode
+            setTimeout(() => callback('SIGNED_OUT', null), 0);
+            return { data: { subscription: { unsubscribe: () => {} } }, error: null };
+          },
+          refreshSession: () => Promise.resolve({ data: { session: null }, error: null }),
+          updateUser: () => Promise.resolve({ data: { user: null }, error: { message: 'Profile updates not available in demo mode' } }),
+          resetPasswordForEmail: () => Promise.resolve({ error: null })
+        },
+        from: () => ({
+          select: () => ({ single: () => Promise.resolve({ data: null, error: { message: 'Database queries not available in demo mode' } }) }),
+          insert: () => Promise.resolve({ data: null, error: { message: 'Database operations not available in demo mode' } }),
+          update: () => Promise.resolve({ data: null, error: { message: 'Database operations not available in demo mode' } }),
+          delete: () => Promise.resolve({ data: null, error: { message: 'Database operations not available in demo mode' } })
+        })
+      };
+      
+      return mockClient as unknown as SupabaseClient<Database>;
+    }
+    
+    // In production, throw the error
+    throw error;
+  }
+}
 
 export function getSupabaseClient(): SupabaseClient<Database> {
-  if (!defaultClient) {
-    defaultClient = createSupabaseClient();
+  if (!sharedClient) {
+    sharedClient = createActualSupabaseClient();
   }
-  return defaultClient;
+  return sharedClient;
+}
+
+// Export both for backward compatibility
+export function createSupabaseClient(): SupabaseClient<Database> {
+  return getSupabaseClient();
 }
 
 // Type exports

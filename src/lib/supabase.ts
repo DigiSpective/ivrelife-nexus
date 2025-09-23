@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabase-client';
 import { User } from '@/types';
 import { mockUser } from '@/lib/mock-data';
 
@@ -9,9 +9,9 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 // Check if we have valid Supabase credentials
 const hasValidCredentials = supabaseUrl && supabaseAnonKey && supabaseUrl !== 'https://your-supabase-url.supabase.co' && supabaseAnonKey !== 'your-anon-key';
 
-// Create Supabase client only if we have valid credentials
+// Use shared Supabase client instead of creating a new one
 export const supabase = hasValidCredentials 
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? getSupabaseClient()
   : {
       // Mock client for development without Supabase credentials
       from: (table: string) => {
