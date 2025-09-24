@@ -32,6 +32,44 @@ export const mockUser: User = {
   avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150&h=150&fit=crop&crop=face'
 };
 
+export const mockUsers: User[] = [
+  {
+    id: 'usr-1',
+    email: 'admin@ivrelife.com',
+    role: 'owner',
+    name: 'Sarah Chen',
+    avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b47c?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'usr-2',
+    email: 'manager@ivrelife.com',
+    role: 'backoffice',
+    name: 'Michael Rodriguez',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'usr-3',
+    email: 'store1@retailer.com',
+    role: 'retailer',
+    name: 'Jennifer Wu',
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'usr-4',
+    email: 'staff@location.com',
+    role: 'location',
+    name: 'David Thompson',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&h=150&fit=crop&crop=face'
+  },
+  {
+    id: 'usr-5',
+    email: 'operations@ivrelife.com',
+    role: 'backoffice',
+    name: 'Lisa Park',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&h=150&fit=crop&crop=face'
+  }
+];
+
 export const mockAppRoles: AppRole[] = [
   {
     role_name: 'owner',

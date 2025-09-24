@@ -27,6 +27,10 @@ const Shipping = React.lazy(() => import("./pages/ShippingNew"));
 const ShippingAdmin = React.lazy(() => import("./pages/admin/ShippingAdmin"));
 import ProductsAdmin from "./pages/admin/ProductsAdmin";
 import GiftRulesAdmin from "./pages/admin/GiftRulesAdmin";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import UsersAdmin from "./pages/admin/UsersAdmin";
+import OrdersAdmin from "./pages/admin/OrdersAdmin";
+import CustomersAdmin from "./pages/admin/CustomersAdmin";
 import Claims from "./pages/Claims";
 import ClaimDetailPage from "./pages/ClaimDetail";
 import NewClaim from "./pages/NewClaim";
@@ -135,6 +139,41 @@ const App = () => (
                   <React.Suspense fallback={<div>Loading Shipping Admin...</div>}>
                     <ShippingAdmin />
                   </React.Suspense>
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/admin" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <AdminDashboard />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/admin/dashboard" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <AdminDashboard />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/admin/users" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <UsersAdmin />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/admin/orders" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <OrdersAdmin />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/admin/customers" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <CustomersAdmin />
                 </DashboardLayout>
               </AuthGuard>
             } />
