@@ -22,6 +22,7 @@ import { Search, Plus, Eye } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Claim, ClaimStatus } from '@/types';
 import { ClaimStatusBadge } from './ClaimStatusBadge';
+import { OrderCustomerLink } from '../shared/OrderCustomerLink';
 import { format } from 'date-fns';
 
 interface ClaimListProps {
@@ -101,7 +102,7 @@ export function ClaimList({ claims, onNewClaim }: ClaimListProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Claim ID</TableHead>
-                  <TableHead>Order ID</TableHead>
+                  <TableHead>Order & Customer</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Date</TableHead>
@@ -112,7 +113,13 @@ export function ClaimList({ claims, onNewClaim }: ClaimListProps) {
                 {filteredClaims.map((claim) => (
                   <TableRow key={claim.id}>
                     <TableCell className="font-medium">{claim.id.slice(0, 8)}</TableCell>
-                    <TableCell>{claim.order_id ? claim.order_id.slice(0, 8) : 'N/A'}</TableCell>
+                    <TableCell>
+                      {claim.order_id ? (
+                        <OrderCustomerLink orderId={claim.order_id} variant="inline" />
+                      ) : (
+                        <span className="text-muted-foreground text-sm">No order linked</span>
+                      )}
+                    </TableCell>
                     <TableCell className="max-w-xs truncate">{claim.reason}</TableCell>
                     <TableCell>
                       <ClaimStatusBadge status={claim.status} />

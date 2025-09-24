@@ -158,14 +158,16 @@ export const mockCustomers: Customer[] = [
     name: 'John Smith',
     email: 'john.smith@email.com',
     phone: '(555) 666-7777',
-    address: {
+    default_address: {
       street: '123 Customer Lane',
       city: 'San Francisco',
       state: 'CA',
-      zip: '94103'
+      zip: '94103',
+      country: 'USA'
     },
-    external_id: 'EXT001',
-    created_at: '2024-03-01T00:00:00Z'
+    notes: 'VIP customer with excellent payment history',
+    created_at: '2024-03-01T00:00:00Z',
+    updated_at: '2024-03-01T00:00:00Z'
   },
   {
     id: 'cust-2',
@@ -173,16 +175,110 @@ export const mockCustomers: Customer[] = [
     name: 'Emily Johnson',
     email: 'emily.johnson@email.com',
     phone: '(555) 888-9999',
-    address: {
+    default_address: {
       street: '456 Buyer Street',
       city: 'Oakland',
       state: 'CA',
-      zip: '94607'
+      zip: '94607',
+      country: 'USA'
     },
-    external_id: 'EXT002',
-    created_at: '2024-03-05T00:00:00Z'
+    notes: 'Regular customer, prefers email communication',
+    created_at: '2024-03-05T00:00:00Z',
+    updated_at: '2024-03-05T00:00:00Z'
+  },
+  {
+    id: 'cust-3',
+    retailer_id: 'ret-1',
+    name: 'Michael Chen',
+    email: 'michael.chen@email.com',
+    phone: '(555) 777-8888',
+    default_address: {
+      street: '789 Technology Blvd',
+      city: 'Palo Alto',
+      state: 'CA',
+      zip: '94301',
+      country: 'USA'
+    },
+    notes: 'Business customer, bulk orders',
+    created_at: '2024-03-10T00:00:00Z',
+    updated_at: '2024-03-10T00:00:00Z'
   }
 ];
+
+// Mock storage for dynamic customer data - using a more persistent approach
+// Store in globalThis to survive HMR reloads during development
+declare global {
+  var __mockCustomerStorage: Customer[] | undefined;
+}
+
+const initializeMockCustomers = () => {
+  if (!globalThis.__mockCustomerStorage) {
+    console.log('Initializing mock customer storage...');
+    globalThis.__mockCustomerStorage = [...mockCustomers];
+  }
+  return globalThis.__mockCustomerStorage;
+};
+
+// Helper functions for mock customer storage
+export const getMockCustomers = () => {
+  const storage = initializeMockCustomers();
+  console.log('getMockCustomers called, returning:', storage.length, 'customers');
+  return [...storage];
+};
+
+export const getMockCustomerById = (id: string) => {
+  const storage = initializeMockCustomers();
+  return storage.find(customer => customer.id === id) || null;
+};
+
+export const createMockCustomer = (customerData: Partial<Customer>): Customer => {
+  const storage = initializeMockCustomers();
+  const newCustomer: Customer = {
+    id: `cust-${Date.now()}`,
+    retailer_id: customerData.retailer_id || 'ret-1',
+    primary_location_id: customerData.primary_location_id,
+    name: customerData.name || '',
+    email: customerData.email,
+    phone: customerData.phone,
+    default_address: customerData.default_address,
+    notes: customerData.notes,
+    external_ids: customerData.external_ids,
+    created_by: customerData.created_by,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  
+  storage.push(newCustomer);
+  console.log('Customer added to storage. Total customers:', storage.length);
+  console.log('New customer:', newCustomer);
+  return newCustomer;
+};
+
+export const updateMockCustomer = (id: string, customerData: Partial<Customer>): Customer | null => {
+  const storage = initializeMockCustomers();
+  const index = storage.findIndex(customer => customer.id === id);
+  if (index === -1) return null;
+  
+  const updatedCustomer = {
+    ...storage[index],
+    ...customerData,
+    updated_at: new Date().toISOString()
+  };
+  
+  storage[index] = updatedCustomer;
+  console.log('Customer updated in storage:', updatedCustomer);
+  return updatedCustomer;
+};
+
+export const deleteMockCustomer = (id: string): boolean => {
+  const storage = initializeMockCustomers();
+  const index = storage.findIndex(customer => customer.id === id);
+  if (index === -1) return false;
+  
+  storage.splice(index, 1);
+  console.log('Customer deleted from storage. Total customers:', storage.length);
+  return true;
+};
 
 export const mockProductCategories: ProductCategory[] = [
   {

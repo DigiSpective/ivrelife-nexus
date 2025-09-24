@@ -45,6 +45,7 @@ import { TrackingTab } from '@/components/shipping/TrackingTab';
 import { RateCalculatorTab } from '@/components/shipping/RateCalculatorTab';
 import { CreateShipmentDialog } from '@/components/shipping/CreateShipmentDialog';
 import { ShipmentManagementDialog } from '@/components/shipping/ShipmentManagementDialog';
+import { OrderCustomerLink } from '@/components/shared/OrderCustomerLink';
 
 export default function ShippingNew() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -284,7 +285,7 @@ export default function ShippingNew() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tracking #</TableHead>
-                    <TableHead>Order</TableHead>
+                    <TableHead>Order & Customer</TableHead>
                     <TableHead>Carrier</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Destination</TableHead>
@@ -299,9 +300,7 @@ export default function ShippingNew() {
                         {shipment.tracking_number}
                       </TableCell>
                       <TableCell>
-                        <Link to={`/orders/${shipment.order_id}`} className="text-blue-600 hover:underline">
-                          {shipment.order_id}
-                        </Link>
+                        <OrderCustomerLink orderId={shipment.order_id} variant="inline" />
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -448,7 +447,7 @@ export default function ShippingNew() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tracking #</TableHead>
-                    <TableHead>Order</TableHead>
+                    <TableHead>Order & Customer</TableHead>
                     <TableHead>Carrier & Service</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ship Date</TableHead>
@@ -465,9 +464,7 @@ export default function ShippingNew() {
                         {shipment.tracking_number}
                       </TableCell>
                       <TableCell>
-                        <Link to={`/orders/${shipment.order_id}`} className="text-blue-600 hover:underline">
-                          {shipment.order_id}
-                        </Link>
+                        <OrderCustomerLink orderId={shipment.order_id} variant="inline" />
                       </TableCell>
                       <TableCell>
                         <div>

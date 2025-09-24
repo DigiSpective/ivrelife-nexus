@@ -32,6 +32,7 @@ import {
 import { Claim, ClaimStatus } from '@/types';
 import { useUpdateClaim, useAuditLogs } from '@/hooks/useClaims';
 import { ClaimStatusBadge } from './ClaimStatusBadge';
+import { OrderCustomerLink } from '../shared/OrderCustomerLink';
 import { format } from 'date-fns';
 
 interface ClaimDetailProps {
@@ -76,13 +77,20 @@ export function ClaimDetail({ claim }: ClaimDetailProps) {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Order and Customer Context */}
+          {claim.order_id && (
+            <div>
+              <Label className="text-base font-semibold">Related Order & Customer</Label>
+              <div className="mt-2">
+                <OrderCustomerLink orderId={claim.order_id} variant="compact" />
+              </div>
+            </div>
+          )}
+          
+          <Separator />
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <div>
-                <Label>Order ID</Label>
-                <p className="text-sm">{claim.order_id || 'N/A'}</p>
-              </div>
-              
               <div>
                 <Label>Product</Label>
                 <p className="text-sm">{claim.product_id || 'N/A'}</p>

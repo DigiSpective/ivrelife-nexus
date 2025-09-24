@@ -39,7 +39,16 @@ export const useCustomers = (filters?: {
 }) => {
   return useQuery({
     queryKey: ['customers', filters],
-    queryFn: () => getCustomers(),
+    queryFn: () => {
+      const timestamp = new Date().toISOString();
+      console.log(`[${timestamp}] ⚠️  useCustomers queryFn called - THIS SHOULD NOT HAPPEN AFTER DIRECT UPDATE!`);
+      console.log('Call stack:', new Error().stack);
+      return getCustomers();
+    },
+    // Prevent automatic refetches that could overwrite our direct updates
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -56,8 +65,31 @@ export const useCreateCustomer = () => {
   
   return useMutation({
     mutationFn: (customer: Partial<Customer>) => createCustomer(customer),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    onSuccess: async (data) => {
+      console.log('Customer created successfully:', data);
+      console.log('Directly updating React Query cache...');
+      
+      // Get current customers data from cache
+      const currentData = queryClient.getQueryData(['customers', undefined]) as { data: Customer[] } | undefined;
+      console.log('Current cached data:', currentData);
+      
+      if (currentData && data.data) {
+        // Directly update the cache with new customer data
+        const updatedData = {
+          ...currentData,
+          data: [...currentData.data, data.data]
+        };
+        
+        // Set the new data directly
+        queryClient.setQueryData(['customers', undefined], updatedData);
+        console.log('Cache updated directly with new customer:', updatedData);
+      }
+      
+      // REMOVING FALLBACK - this was overwriting our direct update!
+      // await queryClient.invalidateQueries({ queryKey: ['customers'] });
+      console.log('Direct cache update complete - NOT running fallback invalidation');
+      
+      console.log('Direct cache update completed');
     },
   });
 };
@@ -69,8 +101,26 @@ export const useUpdateCustomer = () => {
     mutationFn: ({ id, customer }: { id: string; customer: Partial<Customer> }) => 
       updateCustomer(id, customer),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
-      queryClient.invalidateQueries({ queryKey: ['customer', data.data?.id] });
+      console.log('Customer updated successfully:', data);
+      
+      // Direct cache update for customers list
+      const currentData = queryClient.getQueryData(['customers', undefined]) as { data: Customer[] } | undefined;
+      if (currentData && data.data) {
+        const updatedData = {
+          ...currentData,
+          data: currentData.data.map(customer => 
+            customer.id === data.data!.id ? data.data! : customer
+          )
+        };
+        queryClient.setQueryData(['customers', undefined], updatedData);
+        console.log('Customers cache updated with modified customer');
+      }
+      
+      // Update individual customer cache
+      queryClient.setQueryData(['customer', data.data?.id], data);
+      
+      // Removed fallback invalidation to prevent overwriting direct updates
+      console.log('Customer update cache manipulation complete');
     },
   });
 };
@@ -80,8 +130,25 @@ export const useDeleteCustomer = () => {
   
   return useMutation({
     mutationFn: (id: string) => deleteCustomer(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['customers'] });
+    onSuccess: (data, variables) => {
+      console.log('Customer deleted successfully:', variables);
+      
+      // Direct cache update for customers list
+      const currentData = queryClient.getQueryData(['customers', undefined]) as { data: Customer[] } | undefined;
+      if (currentData) {
+        const updatedData = {
+          ...currentData,
+          data: currentData.data.filter(customer => customer.id !== variables)
+        };
+        queryClient.setQueryData(['customers', undefined], updatedData);
+        console.log('Customers cache updated - customer removed');
+      }
+      
+      // Remove individual customer from cache
+      queryClient.removeQueries({ queryKey: ['customer', variables] });
+      
+      // Removed fallback invalidation to prevent overwriting direct updates
+      console.log('Customer delete cache manipulation complete');
     },
   });
 };

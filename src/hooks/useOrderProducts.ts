@@ -47,10 +47,11 @@ export function useOrderProducts(orderId: string) {
   };
 }
 
-// Hook to get all products available for orders
+// Hook to get all products for orders (including unavailable ones)
 export function useAvailableProducts() {
   return useMemo(() => {
-    return sampleProducts.filter(product => product.available);
+    // Return all products, we'll handle availability in the UI
+    return sampleProducts;
   }, []);
 }
 

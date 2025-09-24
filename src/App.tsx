@@ -28,9 +28,10 @@ const ShippingAdmin = React.lazy(() => import("./pages/admin/ShippingAdmin"));
 import ProductsAdmin from "./pages/admin/ProductsAdmin";
 import GiftRulesAdmin from "./pages/admin/GiftRulesAdmin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import UsersAdmin from "./pages/admin/UsersAdmin";
-import OrdersAdmin from "./pages/admin/OrdersAdmin";
-import CustomersAdmin from "./pages/admin/CustomersAdmin";
+import UsersAdmin from "./pages/admin/UsersAdminSimple";
+import OrdersAdmin from "./pages/admin/OrdersAdminSimple";
+import CustomersAdmin from "./pages/admin/CustomersAdminSimple";
+import AdminTest from "./pages/admin/AdminTest";
 import Claims from "./pages/Claims";
 import ClaimDetailPage from "./pages/ClaimDetail";
 import NewClaim from "./pages/NewClaim";
@@ -188,6 +189,13 @@ const App = () => (
               <AuthGuard allowedRoles={['owner', 'backoffice']}>
                 <DashboardLayout>
                   <GiftRulesAdmin />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/admin/test" element={
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
+                <DashboardLayout>
+                  <AdminTest />
                 </DashboardLayout>
               </AuthGuard>
             } />

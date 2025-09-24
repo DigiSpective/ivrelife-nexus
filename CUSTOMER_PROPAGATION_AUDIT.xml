@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<audit>
+    <header>
+        <title>Customer Propagation Issue - Comprehensive Audit</title>
+        <date>2025-09-24</date>
+        <status>PERSISTENT_ISSUE_REQUIRES_FINAL_RESOLUTION</status>
+        <severity>HIGH</severity>
+        <impact>Customer creation succeeds but UI does not refresh to show new customers</impact>
+    </header>
+
+    <problem_statement>
+        <description>
+            Despite successful customer creation (confirmed by success toast notifications), 
+            newly created customers do not appear in the customer list UI. This indicates 
+            a disconnect between the data layer and presentation layer, specifically around 
+            React Query cache management and mock data persistence.
+        </description>
+        <symptoms>
+            <symptom>Success notification shows "Customer created successfully"</symptom>
+            <symptom>New customer does not appear in /customers route list</symptom>
+            <symptom>Page refresh is required to see new customers</symptom>
+            <symptom>Customer data is being created but UI is not reflecting changes</symptom>
+        </symptoms>
+    </problem_statement>
+
+    <root_cause_analysis>
+        <primary_causes>
+            <cause id="1">
+                <title>React Query Cache Invalidation Failure</title>
+                <description>Cache invalidation not properly triggering UI refresh</description>
+                <evidence>Success callback executes but list doesn't update</evidence>
+            </cause>
+            <cause id="2">
+                <title>Mock Data Storage Persistence Issues</title>
+                <description>Hot Module Reload (HMR) resets in-memory mock data</description>
+                <evidence>Module-scoped arrays get reset on code changes</evidence>
+            </cause>
+            <cause id="3">
+                <title>Supabase/Mock Data Inconsistency</title>
+                <description>App connects to Supabase but falls back to mock inconsistently</description>
+                <evidence>Valid Supabase credentials but no customer table setup</evidence>
+            </cause>
+            <cause id="4">
+                <title>Data Flow Architecture Issues</title>
+                <description>Multiple data sources creating confusion in the data flow</description>
+                <evidence>Mock data, Supabase fallbacks, and React Query caching conflicts</evidence>
+            </cause>
+        </primary_causes>
+    </root_cause_analysis>
+
+    <attempted_solutions>
+        <solution_attempt id="1">
+            <title>Fixed Mock Data Structure</title>
+            <description>Updated mockCustomers to use correct field names</description>
+            <files_modified>
+                <file>src/lib/mock-data.ts</file>
+            </files_modified>
+            <changes>
+                <change>Changed 'address' to 'default_address' to match Customer type</change>
+                <change>Added missing fields: notes, created_at, updated_at</change>
+                <change>Enhanced with 3 realistic customer records</change>
+            </changes>
+            <result>PARTIAL_SUCCESS - Structure fixed but issue persisted</result>
+        </solution_attempt>
+
+        <solution_attempt id="2">
+            <title>Enhanced Supabase Functions with Error Handling</title>
+            <description>Added graceful fallbacks from Supabase to mock data</description>
+            <files_modified>
+                <file>src/lib/supabase.ts</file>
+            </files_modified>
+            <changes>
+                <change>Made getCustomers() async with try-catch blocks</change>
+                <change>Added Supabase error detection and mock data fallbacks</change>
+                <change>Enhanced createCustomer(), updateCustomer(), deleteCustomer() with fallbacks</change>
+                <change>Fixed ES module imports instead of require() calls</change>
+            </changes>
+            <result>PARTIAL_SUCCESS - Error handling improved but issue persisted</result>
+        </solution_attempt>
+
+        <solution_attempt id="3">
+            <title>Mock Data Storage System Overhaul</title>
+            <description>Implemented persistent global storage for mock data</description>
+            <files_modified>
+                <file>src/lib/mock-data.ts</file>
+            </files_modified>
+            <changes>
+                <change>Replaced module-scoped array with globalThis storage</change>
+                <change>Added initializeMockCustomers() function</change>
+                <change>Updated all CRUD operations to use persistent storage</change>
+                <change>Added comprehensive debugging console logs</change>
+            </changes>
+            <result>IMPROVEMENT - Data persists through HMR but UI issue remains</result>
+        </solution_attempt>
+
+        <solution_attempt id="4">
+            <title>React Query Cache Management Enhancement</title>
+            <description>Aggressive cache invalidation and refetch strategies</description>
+            <files_modified>
+                <file>src/hooks/useCustomers.ts</file>
+            </files_modified>
+            <changes>
+                <change>Added triple-layer cache invalidation in useCreateCustomer</change>
+                <change>Implemented: invalidateQueries + refetchQueries + removeQueries</change>
+                <change>Set staleTime: 0 to force fresh data on every fetch</change>
+                <change>Added refetchOnMount: true for guaranteed fresh data</change>
+                <change>Enhanced debugging with timestamps</change>
+            </changes>
+            <result>EXPECTED_SUCCESS - Most aggressive approach implemented</result>
+        </solution_attempt>
+    </attempted_solutions>
+
+    <current_architecture>
+        <data_flow>
+            <step id="1">User clicks "Add Customer" button</step>
+            <step id="2">CustomerDialog opens with form</step>
+            <step id="3">User submits form data</step>
+            <step id="4">useCreateCustomer() mutation executes</step>
+            <step id="5">createCustomer() function called</step>
+            <step id="6">Supabase connection attempted</step>
+            <step id="7">Supabase fails, fallback to createMockCustomer()</step>
+            <step id="8">New customer added to globalThis.__mockCustomerStorage</step>
+            <step id="9">Success callback executes with cache invalidation</step>
+            <step id="10">useCustomers() should refetch data</step>
+            <step id="11">getCustomers() should return updated mock data</step>
+            <step id="12">UI should re-render with new customer</step>
+        </data_flow>
+        <failure_point>
+            <location>Between step 11 and 12</location>
+            <description>Data is updated but UI component doesn't re-render</description>
+        </failure_point>
+    </current_architecture>
+
+    <debugging_evidence>
+        <console_logs_expected>
+            <log>"Initializing mock customer storage..."</log>
+            <log>"getMockCustomers called, returning: 3 customers"</log>
+            <log>"Creating customer with data: {...}"</log>
+            <log>"Customer added to storage. Total customers: 4"</log>
+            <log>"Customer created successfully: {...}"</log>
+            <log>"Invalidating React Query cache for customers..."</log>
+            <log>"useCustomers queryFn called, fetching customers at: [timestamp]"</log>
+            <log>"Cache invalidation completed"</log>
+        </console_logs_expected>
+        <ui_behavior_expected>
+            <behavior>Customer list immediately updates with new customer</behavior>
+            <behavior>No page refresh required</behavior>
+            <behavior>Success toast notification appears</behavior>
+        </ui_behavior_expected>
+    </debugging_evidence>
+
+    <remaining_potential_issues>
+        <issue id="1">
+            <title>React Component State Management</title>
+            <description>Component may not be responding to React Query state changes</description>
+            <location>src/pages/Customers.tsx</location>
+        </issue>
+        <issue id="2">
+            <title>Query Key Mismatch</title>
+            <description>Cache invalidation keys might not match query keys exactly</description>
+            <location>src/hooks/useCustomers.ts</location>
+        </issue>
+        <issue id="3">
+            <title>React Query Version Compatibility</title>
+            <description>Cache methods might work differently in current version</description>
+            <location>React Query configuration</location>
+        </issue>
+        <issue id="4">
+            <title>Component Rendering Optimization</title>
+            <description>Component might be memoized or not re-rendering on data changes</description>
+            <location>src/pages/Customers.tsx</location>
+        </issue>
+    </remaining_potential_issues>
+
+    <recommended_final_resolution>
+        <approach>Direct React Query Client Manipulation</approach>
+        <description>
+            Bypass cache invalidation and directly set query data to ensure immediate UI update.
+            This approach eliminates any potential issues with cache invalidation timing or 
+            React Query version compatibility.
+        </description>
+        <implementation_steps>
+            <step id="1">Modify useCreateCustomer to directly set query data</step>
+            <step id="2">Use queryClient.setQueryData() instead of invalidation</step>
+            <step id="3">Add fallback component force re-render if needed</step>
+            <step id="4">Implement comprehensive testing and validation</step>
+        </implementation_steps>
+    </recommended_final_resolution>
+
+    <files_to_modify>
+        <file priority="high">src/hooks/useCustomers.ts</file>
+        <file priority="medium">src/pages/Customers.tsx</file>
+        <file priority="low">src/components/customers/CustomerDialog.tsx</file>
+    </files_to_modify>
+
+    <success_criteria>
+        <criterion>Customer creation shows success toast</criterion>
+        <criterion>New customer appears immediately in list without refresh</criterion>
+        <criterion>Console shows complete data flow logs</criterion>
+        <criterion>Edit/delete operations work on newly created customers</criterion>
+        <criterion>Data persists through development session (HMR)</criterion>
+    </success_criteria>
+</audit>

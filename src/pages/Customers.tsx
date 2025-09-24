@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ import { CustomerDeleteDialog } from '@/components/customers/CustomerDeleteDialo
 
 export default function Customers() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [forceUpdateKey, setForceUpdateKey] = useState(0);
   const [customerDialog, setCustomerDialog] = useState({
     open: false,
     mode: 'create' as 'create' | 'edit',
@@ -39,8 +40,17 @@ export default function Customers() {
     customer: null as Customer | null
   });
   
-  const { data: customersData, isLoading, error } = useCustomers();
+  const { data: customersData, isLoading, error, dataUpdatedAt } = useCustomers();
   const customers = customersData?.data || [];
+  
+  // Debug logging to trace component re-renders
+  console.log(`[${new Date().toISOString()}] Customers component render:`, {
+    customersCount: customers.length,
+    isLoading,
+    error: error?.message,
+    dataUpdatedAt: new Date(dataUpdatedAt),
+    customers: customers.map(c => ({ id: c.id, name: c.name, created_at: c.created_at }))
+  });
 
   const handleAddCustomer = () => {
     setCustomerDialog({

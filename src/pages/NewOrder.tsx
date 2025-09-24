@@ -19,9 +19,9 @@ import {
   PenTool
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { mockCustomers } from '@/lib/mock-data';
 import { sampleProducts } from '@/data/sampleProducts';
 import { useAvailableProducts } from '@/hooks/useOrderProducts';
+import { useCustomers } from '@/hooks/useCustomers';
 import { useToast } from '@/hooks/use-toast';
 
 const customerSchema = z.object({
@@ -52,6 +52,10 @@ export default function NewOrder() {
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
+  
+  // Get dynamic customers instead of static mock data
+  const { data: customersData } = useCustomers();
+  const customers = customersData?.data || [];
   const availableProducts = useAvailableProducts();
 
   const customerForm = useForm<CustomerForm>({
@@ -181,7 +185,7 @@ export default function NewOrder() {
                   className="w-full mt-1 p-2 border border-input rounded-md"
                 >
                   <option value="">Choose a customer...</option>
-                  {mockCustomers.map(customer => (
+                  {customers.map(customer => (
                     <option key={customer.id} value={customer.id}>
                       {customer.name} - {customer.email}
                     </option>
@@ -220,17 +224,18 @@ export default function NewOrder() {
             <CardContent>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <h3 className="font-semibold">Available Products</h3>
+                  <h3 className="font-semibold">All Products</h3>
                   <div className="max-h-96 overflow-y-auto space-y-3">
                     {availableProducts.map(product => {
                       const displayPrice = product.sale_price_usd || product.price_usd;
                       const isOnSale = product.sale_price_usd && product.msrp_usd && product.sale_price_usd < product.msrp_usd;
+                      const isAvailable = product.available;
                       
                       return (
-                        <div key={product.id} className="border border-border rounded-lg p-4">
+                        <div key={product.id} className={`border border-border rounded-lg p-4 ${!isAvailable ? 'opacity-60 bg-gray-50' : ''}`}>
                           <div className="flex justify-between items-start mb-2">
                             <div className="flex-1">
-                              <h4 className="font-medium">{product.name}</h4>
+                              <h4 className={`font-medium ${!isAvailable ? 'text-gray-500' : ''}`}>{product.name}</h4>
                               <p className="text-xs text-muted-foreground">{product.sku}</p>
                             </div>
                             <div className="text-right">
@@ -251,10 +256,13 @@ export default function NewOrder() {
                           </p>
                           <div className="flex flex-wrap gap-1 mb-3">
                             <Badge variant="secondary" className="text-xs">{product.category}</Badge>
-                            {product.white_glove_available && (
+                            {!isAvailable && (
+                              <Badge variant="destructive" className="text-xs">Out of Stock</Badge>
+                            )}
+                            {isAvailable && product.white_glove_available && (
                               <Badge variant="outline" className="text-xs">White Glove</Badge>
                             )}
-                            {product.gift_eligible && (
+                            {isAvailable && product.gift_eligible && (
                               <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700">Gift Eligible</Badge>
                             )}
                           </div>
@@ -263,8 +271,9 @@ export default function NewOrder() {
                             size="sm" 
                             variant="outline"
                             className="w-full"
+                            disabled={!isAvailable}
                           >
-                            Add to Order
+                            {isAvailable ? 'Add to Order' : 'Out of Stock'}
                           </Button>
                         </div>
                       );

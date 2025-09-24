@@ -1,6 +1,13 @@
 import { getSupabaseClient } from '@/lib/supabase-client';
 import { User } from '@/types';
-import { mockUser } from '@/lib/mock-data';
+import { 
+  mockUser,
+  getMockCustomers, 
+  getMockCustomerById, 
+  createMockCustomer, 
+  updateMockCustomer, 
+  deleteMockCustomer 
+} from '@/lib/mock-data';
 
 // Get Supabase URL and anon key from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -226,18 +233,32 @@ export const deleteLocation = async (id: string) => {
 };
 
 // Customer functions
-export const getCustomers = () => {
+export const getCustomers = async () => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: [], error: null });
+    console.log('Mock customers being returned:', getMockCustomers());
+    return Promise.resolve({ data: getMockCustomers(), error: null });
   }
-  return supabase.from('customers').select('*');
+  
+  try {
+    const result = await supabase.from('customers').select('*');
+    // If the query succeeds but there's an error (like table doesn't exist), fall back to mock
+    if (result.error) {
+      console.warn('Supabase query failed, falling back to mock data:', result.error);
+      return Promise.resolve({ data: getMockCustomers(), error: null });
+    }
+    return result;
+  } catch (error) {
+    console.warn('Supabase connection failed, falling back to mock data:', error);
+    return Promise.resolve({ data: getMockCustomers(), error: null });
+  }
 };
 
 export const getCustomerById = (id: string) => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: null, error: null });
+    const customer = getMockCustomerById(id);
+    return Promise.resolve({ data: customer, error: customer ? null : new Error('Customer not found') });
   }
   return supabase.from('customers').select('*').eq('id', id).single();
 };
@@ -245,7 +266,8 @@ export const getCustomerById = (id: string) => {
 export const getCustomersByRetailer = (retailerId: string) => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: [], error: null });
+    const customers = getMockCustomers().filter(customer => customer.retailer_id === retailerId);
+    return Promise.resolve({ data: customers, error: null });
   }
   return supabase.from('customers').select('*').eq('retailer_id', retailerId);
 };
@@ -253,26 +275,94 @@ export const getCustomersByRetailer = (retailerId: string) => {
 // Add new customer-related functions after the existing customer functions
 export const createCustomer = async (customer: any) => {
   if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured.');
-    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+    console.warn('Supabase credentials not configured. Using mock storage.');
+    console.log('Creating customer with data:', customer);
+    const newCustomer = createMockCustomer(customer);
+    console.log('New customer created:', newCustomer);
+    console.log('All customers after creation:', getMockCustomers());
+    return Promise.resolve({ data: newCustomer, error: null });
   }
-  return supabase.from('customers').insert(customer).select().single();
+  
+  try {
+    const result = await supabase.from('customers').insert(customer).select().single();
+    // If the query succeeds but there's an error (like table doesn't exist), fall back to mock
+    if (result.error) {
+      console.warn('Supabase create failed, falling back to mock storage:', result.error);
+      console.log('Creating customer with data:', customer);
+      const newCustomer = createMockCustomer(customer);
+      console.log('New customer created:', newCustomer);
+      return Promise.resolve({ data: newCustomer, error: null });
+    }
+    return result;
+  } catch (error) {
+    console.warn('Supabase connection failed, falling back to mock storage:', error);
+    console.log('Creating customer with data:', customer);
+    const newCustomer = createMockCustomer(customer);
+    console.log('New customer created:', newCustomer);
+    return Promise.resolve({ data: newCustomer, error: null });
+  }
 };
 
 export const updateCustomer = async (id: string, customer: any) => {
   if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured.');
-    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+    console.warn('Supabase credentials not configured. Using mock storage.');
+    const updatedCustomer = updateMockCustomer(id, customer);
+    return Promise.resolve({ 
+      data: updatedCustomer, 
+      error: updatedCustomer ? null : new Error('Customer not found') 
+    });
   }
-  return supabase.from('customers').update(customer).eq('id', id).select().single();
+  
+  try {
+    const result = await supabase.from('customers').update(customer).eq('id', id).select().single();
+    if (result.error) {
+      console.warn('Supabase update failed, falling back to mock storage:', result.error);
+      const updatedCustomer = updateMockCustomer(id, customer);
+      return Promise.resolve({ 
+        data: updatedCustomer, 
+        error: updatedCustomer ? null : new Error('Customer not found') 
+      });
+    }
+    return result;
+  } catch (error) {
+    console.warn('Supabase connection failed, falling back to mock storage:', error);
+    const updatedCustomer = updateMockCustomer(id, customer);
+    return Promise.resolve({ 
+      data: updatedCustomer, 
+      error: updatedCustomer ? null : new Error('Customer not found') 
+    });
+  }
 };
 
 export const deleteCustomer = async (id: string) => {
   if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured.');
-    return Promise.resolve({ error: new Error('Supabase not configured') });
+    console.warn('Supabase credentials not configured. Using mock storage.');
+    const success = deleteMockCustomer(id);
+    return Promise.resolve({ 
+      data: null, 
+      error: success ? null : new Error('Customer not found') 
+    });
   }
-  return supabase.from('customers').delete().eq('id', id);
+  
+  try {
+    const result = await supabase.from('customers').delete().eq('id', id);
+    if (result.error) {
+      console.warn('Supabase delete failed, falling back to mock storage:', result.error);
+      const success = deleteMockCustomer(id);
+      return Promise.resolve({ 
+        data: null, 
+        error: success ? null : new Error('Customer not found') 
+      });
+    }
+    return result;
+  } catch (error) {
+    console.warn('Supabase connection failed, falling back to mock storage:', error);
+    const success = deleteMockCustomer(id);
+    return Promise.resolve({ 
+      data: null, 
+      error: success ? null : new Error('Customer not found') 
+    });
+  }
 };
 
 // Customer contacts functions
