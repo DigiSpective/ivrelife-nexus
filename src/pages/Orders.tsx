@@ -13,6 +13,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { mockOrders, mockCustomers } from '@/lib/mock-data';
+import { sampleProducts } from '@/data/sampleProducts';
 import { Link } from 'react-router-dom';
 
 export default function Orders() {

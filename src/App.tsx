@@ -35,6 +35,7 @@ import NewRetailer from "./pages/NewRetailer";
 import RetailerDetail from "./pages/RetailerDetail";
 import EditRetailer from "./pages/EditRetailer";
 import Settings from "./pages/Settings";
+import OrderDetail from "./pages/OrderDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,13 @@ const App = () => (
               <AuthGuard>
                 <DashboardLayout>
                   <NewOrder />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/orders/:id" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <OrderDetail />
                 </DashboardLayout>
               </AuthGuard>
             } />
@@ -197,6 +205,15 @@ const App = () => (
               <AuthGuard>
                 <DashboardLayout>
                   <Settings />
+                </DashboardLayout>
+              </AuthGuard>
+            } />
+            <Route path="/settings/subscription" element={
+              <AuthGuard>
+                <DashboardLayout>
+                  <React.Suspense fallback={<div>Loading Subscription...</div>}>
+                    {React.createElement(React.lazy(() => import('./pages/settings/SubscriptionSettings')))}
+                  </React.Suspense>
                 </DashboardLayout>
               </AuthGuard>
             } />

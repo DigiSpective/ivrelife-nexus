@@ -21,54 +21,94 @@ CREATE EXTENSION IF NOT EXISTS "postgis" CASCADE;
 -- ============================================================================
 
 -- User roles enum
-CREATE TYPE user_role AS ENUM ('owner', 'admin', 'manager', 'employee', 'viewer', 'customer', 'provider');
+DO $$ BEGIN
+    CREATE TYPE user_role AS ENUM ('owner', 'admin', 'manager', 'employee', 'viewer', 'customer', 'provider');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Order status enum
-CREATE TYPE order_status AS ENUM (
-    'draft', 'new', 'confirmed', 'processing', 'shipped', 'delivered', 
-    'cancelled', 'refunded', 'on_hold', 'pending_payment'
-);
+DO $$ BEGIN
+    CREATE TYPE order_status AS ENUM (
+        'draft', 'new', 'confirmed', 'processing', 'shipped', 'delivered', 
+        'cancelled', 'refunded', 'on_hold', 'pending_payment'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Payment status enum
-CREATE TYPE payment_status AS ENUM (
-    'pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded', 'partial'
-);
+DO $$ BEGIN
+    CREATE TYPE payment_status AS ENUM (
+        'pending', 'processing', 'completed', 'failed', 'cancelled', 'refunded', 'partial'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Retailer status enum
-CREATE TYPE retailer_status AS ENUM (
-    'setup_pending', 'active', 'suspended', 'inactive', 'trial', 'premium'
-);
+DO $$ BEGIN
+    CREATE TYPE retailer_status AS ENUM (
+        'setup_pending', 'active', 'suspended', 'inactive', 'trial', 'premium'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Appointment status enum
-CREATE TYPE appointment_status AS ENUM (
-    'scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show', 'rescheduled'
-);
+DO $$ BEGIN
+    CREATE TYPE appointment_status AS ENUM (
+        'scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show', 'rescheduled'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Inventory transaction types
-CREATE TYPE inventory_transaction_type AS ENUM (
-    'purchase', 'sale', 'adjustment', 'transfer', 'return', 'waste', 'recount'
-);
+DO $$ BEGIN
+    CREATE TYPE inventory_transaction_type AS ENUM (
+        'purchase', 'sale', 'adjustment', 'transfer', 'return', 'waste', 'recount'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Audit action types
-CREATE TYPE audit_action AS ENUM (
-    'create', 'read', 'update', 'delete', 'login', 'logout', 'password_change',
-    'role_change', 'export', 'import', 'backup', 'restore', 'bulk_update'
-);
+DO $$ BEGIN
+    CREATE TYPE audit_action AS ENUM (
+        'create', 'read', 'update', 'delete', 'login', 'logout', 'password_change',
+        'role_change', 'export', 'import', 'backup', 'restore', 'bulk_update'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Document types
-CREATE TYPE document_type AS ENUM (
-    'invoice', 'receipt', 'contract', 'form', 'image', 'pdf', 'spreadsheet', 'other'
-);
+DO $$ BEGIN
+    CREATE TYPE document_type AS ENUM (
+        'invoice', 'receipt', 'contract', 'form', 'image', 'pdf', 'spreadsheet', 'other'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Communication types
-CREATE TYPE communication_type AS ENUM (
-    'email', 'sms', 'phone', 'in_person', 'video_call', 'chat', 'note'
-);
+DO $$ BEGIN
+    CREATE TYPE communication_type AS ENUM (
+        'email', 'sms', 'phone', 'in_person', 'video_call', 'chat', 'note'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- Subscription status
-CREATE TYPE subscription_status AS ENUM (
-    'active', 'inactive', 'cancelled', 'expired', 'trial', 'suspended'
-);
+DO $$ BEGIN
+    CREATE TYPE subscription_status AS ENUM (
+        'active', 'inactive', 'cancelled', 'expired', 'trial', 'suspended'
+    );
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 
 -- ============================================================================
 -- CORE BUSINESS TABLES

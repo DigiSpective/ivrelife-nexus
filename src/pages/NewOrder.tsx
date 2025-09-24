@@ -19,7 +19,9 @@ import {
   PenTool
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { mockProducts, mockProductVariants, mockCustomers } from '@/lib/mock-data';
+import { mockCustomers } from '@/lib/mock-data';
+import { sampleProducts } from '@/data/sampleProducts';
+import { useAvailableProducts } from '@/hooks/useOrderProducts';
 import { useToast } from '@/hooks/use-toast';
 
 const customerSchema = z.object({
@@ -50,6 +52,7 @@ export default function NewOrder() {
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const availableProducts = useAvailableProducts();
 
   const customerForm = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema)
@@ -77,10 +80,10 @@ export default function NewOrder() {
     setCurrentStep(3);
   };
 
-  const addItem = (variantId: string) => {
-    const variant = mockProductVariants.find(v => v.id === variantId);
-    if (variant) {
-      setSelectedItems(prev => [...prev, { variant, qty: 1 }]);
+  const addItem = (productId: string) => {
+    const product = sampleProducts.find(p => p.id === productId);
+    if (product) {
+      setSelectedItems(prev => [...prev, { product, qty: 1 }]);
     }
   };
 
@@ -96,7 +99,10 @@ export default function NewOrder() {
   };
 
   const getTotalAmount = () => {
-    return selectedItems.reduce((total, item) => total + (item.variant.price * item.qty), 0);
+    return selectedItems.reduce((total, item) => {
+      const price = item.product.sale_price_usd || item.product.price_usd;
+      return total + (price * item.qty);
+    }, 0);
   };
 
   const handleSubmit = () => {
@@ -215,25 +221,55 @@ export default function NewOrder() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <h3 className="font-semibold">Available Products</h3>
-                  {mockProductVariants.map(variant => (
-                    <div key={variant.id} className="border border-border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-medium">{variant.sku}</h4>
-                        <Badge variant="outline">${variant.price}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-3">
-                        SKU: {variant.sku} • Weight: {variant.weight_kg} kg
-                      </p>
-                      <Button 
-                        onClick={() => addItem(variant.id)} 
-                        size="sm" 
-                        variant="outline"
-                        className="w-full"
-                      >
-                        Add to Order
-                      </Button>
-                    </div>
-                  ))}
+                  <div className="max-h-96 overflow-y-auto space-y-3">
+                    {availableProducts.map(product => {
+                      const displayPrice = product.sale_price_usd || product.price_usd;
+                      const isOnSale = product.sale_price_usd && product.msrp_usd && product.sale_price_usd < product.msrp_usd;
+                      
+                      return (
+                        <div key={product.id} className="border border-border rounded-lg p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{product.name}</h4>
+                              <p className="text-xs text-muted-foreground">{product.sku}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="flex flex-col items-end">
+                                <Badge variant="outline" className="mb-1">
+                                  ${displayPrice.toLocaleString()}
+                                </Badge>
+                                {isOnSale && (
+                                  <span className="text-xs text-muted-foreground line-through">
+                                    ${product.msrp_usd?.toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">
+                            {product.description}
+                          </p>
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            <Badge variant="secondary" className="text-xs">{product.category}</Badge>
+                            {product.white_glove_available && (
+                              <Badge variant="outline" className="text-xs">White Glove</Badge>
+                            )}
+                            {product.gift_eligible && (
+                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700">Gift Eligible</Badge>
+                            )}
+                          </div>
+                          <Button 
+                            onClick={() => addItem(product.id)} 
+                            size="sm" 
+                            variant="outline"
+                            className="w-full"
+                          >
+                            Add to Order
+                          </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -244,37 +280,51 @@ export default function NewOrder() {
                     </p>
                   ) : (
                     <div className="space-y-3">
-                      {selectedItems.map((item, index) => (
-                        <div key={index} className="border border-border rounded-lg p-4">
-                          <div className="flex justify-between items-start mb-2">
-                            <h4 className="font-medium">{item.variant.sku}</h4>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => removeItem(index)}
-                            >
-                              Remove
-                            </Button>
+                      {selectedItems.map((item, index) => {
+                        const price = item.product.sale_price_usd || item.product.price_usd;
+                        const lineTotal = price * item.qty;
+                        
+                        return (
+                          <div key={index} className="border border-border rounded-lg p-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex-1">
+                                <h4 className="font-medium">{item.product.name}</h4>
+                                <p className="text-xs text-muted-foreground">{item.product.sku}</p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  <Badge variant="secondary" className="text-xs">{item.product.category}</Badge>
+                                  {item.product.white_glove_available && (
+                                    <Badge variant="outline" className="text-xs">White Glove Available</Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                onClick={() => removeItem(index)}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                            <div className="flex items-center gap-2 mt-3">
+                              <Label>Qty:</Label>
+                              <Input 
+                                type="number" 
+                                value={item.qty}
+                                onChange={(e) => updateQty(index, parseInt(e.target.value))}
+                                min="1"
+                                className="w-20"
+                              />
+                              <span className="text-sm text-muted-foreground">
+                                × ${price.toLocaleString()} = ${lineTotal.toLocaleString()}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Label>Qty:</Label>
-                            <Input 
-                              type="number" 
-                              value={item.qty}
-                              onChange={(e) => updateQty(index, parseInt(e.target.value))}
-                              min="1"
-                              className="w-20"
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              × ${item.variant.price} = ${(item.variant.price * item.qty).toFixed(2)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                       <div className="border-t pt-4">
                         <div className="flex justify-between items-center text-lg font-semibold">
                           <span>Total:</span>
-                          <span>${getTotalAmount().toFixed(2)}</span>
+                          <span>${getTotalAmount().toLocaleString()}</span>
                         </div>
                       </div>
                     </div>
@@ -359,16 +409,21 @@ export default function NewOrder() {
                 <div className="space-y-4">
                   <h3 className="font-semibold">Order Summary</h3>
                   <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                    {selectedItems.map((item, index) => (
-                      <div key={index} className="flex justify-between text-sm">
-                        <span>{item.qty}× {item.variant.sku}</span>
-                        <span>${(item.variant.price * item.qty).toFixed(2)}</span>
-                      </div>
-                    ))}
+                    {selectedItems.map((item, index) => {
+                      const price = item.product.sale_price_usd || item.product.price_usd;
+                      const lineTotal = price * item.qty;
+                      
+                      return (
+                        <div key={index} className="flex justify-between text-sm">
+                          <span>{item.qty}× {item.product.name}</span>
+                          <span>${lineTotal.toLocaleString()}</span>
+                        </div>
+                      );
+                    })}
                     <div className="border-t pt-2 font-semibold">
                       <div className="flex justify-between">
                         <span>Total:</span>
-                        <span>${getTotalAmount().toFixed(2)}</span>
+                        <span>${getTotalAmount().toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
