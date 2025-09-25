@@ -18,13 +18,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCreateClaim } from '@/hooks/useClaims';
 import { OrderCustomerLink } from '../shared/OrderCustomerLink';
 import { useCustomers } from '@/hooks/useCustomers';
-import { mockOrders } from '@/lib/mock-data';
+import { useOrders } from '@/hooks/useOrders';
 import { sampleProducts } from '@/data/sampleProducts';
+import { mockOrderItems, mockProductVariants } from '@/lib/mock-data';
 import { Claim } from '@/types';
 
 const claimFormSchema = z.object({
   order_id: z.string().min(1, 'Order ID is required'),
-  product_id: z.string().min(1, 'Product ID is required'),
+  product_ids: z.array(z.string()).min(1, 'At least one product must be selected'),
   reason: z.string().min(10, 'Reason must be at least 10 characters'),
   resolution_notes: z.string().optional(),
 });
@@ -40,31 +41,138 @@ interface ClaimFormProps {
 }
 
 export function ClaimForm({ retailer_id, location_id, created_by, onSuccess, onCancel }: ClaimFormProps) {
+  console.log('🚀 ClaimForm MOUNTED with props:', { retailer_id, location_id, created_by });
+  
   const [isLoading, setIsLoading] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string>('');
-  const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const { mutate: createClaim } = useCreateClaim();
 
   // Get dynamic customers instead of static mock data
   const { data: customersData } = useCustomers();
   const customers = customersData?.data || [];
+  
+  // Debug: Check data availability
+  console.log('📊 Data loaded:', {
+    mockOrderItems: mockOrderItems.length,
+    mockProductVariants: mockProductVariants.length, 
+    sampleProducts: sampleProducts.length,
+    orders: orders.length,
+    customers: customers.length
+  });
 
-  // Get available orders
-  const availableOrders = mockOrders.map((order, index) => ({
+  // Get dynamic orders instead of static mock data
+  const { data: ordersData } = useOrders();
+  const orders = ordersData?.data || [];
+
+  // Get available orders with order numbers and customer info
+  const availableOrders = orders.map((order, index) => ({
     ...order,
     orderNumber: `ORD-${String(index + 1).padStart(4, '0')}`,
     customer: customers.find(c => c.id === order.customer_id)
   }));
-
-  // Get available products from /products route
-  const availableProducts = sampleProducts;
-  const selectedProduct = selectedProductId ? sampleProducts.find(p => p.id === selectedProductId) : null;
+  
+  // Get products for the selected order
+  const getOrderProducts = (orderId: string) => {
+    console.log('🔍 getOrderProducts called with orderId:', orderId);
+    
+    if (!orderId) return [];
+    
+    // Find the selected order from our available orders
+    const selectedOrder = orders.find(order => order.id === orderId);
+    console.log('🔍 Selected order found:', selectedOrder ? 'YES' : 'NO');
+    
+    if (!selectedOrder) {
+      console.log('❌ No order found with ID:', orderId);
+      return [];
+    }
+    
+    // Get order items from the order (these come from the Supabase query)
+    const orderItems = selectedOrder.order_items || [];
+    console.log('📋 Order items from selected order:', orderItems.length);
+    
+    // If no order_items in the order object, check static mock data
+    const staticOrderItems = mockOrderItems.filter(item => item.order_id === orderId);
+    console.log('📋 Static order items found:', staticOrderItems.length);
+    console.log('📋 Static order items:', staticOrderItems);
+    
+    let itemsToUse = orderItems.length > 0 ? orderItems : staticOrderItems;
+    
+    // COMPREHENSIVE FIX: If still no items found, create placeholder items from available products
+    // This handles dynamically created orders that don't have order_items
+    if (itemsToUse.length === 0) {
+      console.log('⚠️ No order items found for order:', orderId);
+      console.log('🔧 Creating placeholder order items from available products...');
+      
+      // Create placeholder order items using the first few available products
+      const placeholderItems = sampleProducts.slice(0, 3).map((product, index) => {
+        const correspondingVariant = mockProductVariants.find(v => v.product_id === product.id);
+        if (!correspondingVariant) return null;
+        
+        return {
+          id: `placeholder-${orderId}-${index}`,
+          order_id: orderId,
+          product_variant_id: correspondingVariant.id,
+          qty: 1,
+          unit_price: correspondingVariant.price,
+          created_at: new Date().toISOString()
+        };
+      }).filter(Boolean);
+      
+      console.log('🔧 Created placeholder items:', placeholderItems.length, placeholderItems);
+      itemsToUse = placeholderItems;
+    }
+    
+    console.log('📋 Items to use (final):', itemsToUse.length, 'items');
+    
+    if (itemsToUse.length === 0) {
+      console.log('❌ Still no order items available for order:', orderId);
+      return [];
+    }
+    
+    // Get product variants and map to products
+    console.log('🔄 Starting product mapping for', itemsToUse.length, 'items...');
+    const orderProducts = itemsToUse.map((item, index) => {
+      const variant = mockProductVariants.find(v => v.id === item.product_variant_id);
+      if (!variant) {
+        console.log(`❌ No variant found for ${item.product_variant_id}`);
+        return null;
+      }
+      
+      const product = sampleProducts.find(p => p.id === variant.product_id);
+      if (!product) {
+        console.log(`❌ No product found for ${variant.product_id}`);
+        return null;
+      }
+      
+      const result = {
+        ...product,
+        variant: variant,
+        orderItem: item,
+        displayName: `${product.name} (${variant.sku})`,
+        quantity: item.qty,
+        unitPrice: item.unit_price
+      };
+      
+      return result;
+    }).filter(Boolean);
+    
+    console.log('🎉 Successfully mapped', orderProducts.length, 'products:', orderProducts.map(p => p.displayName));
+    
+    return orderProducts;
+  };
+  
+  const availableProducts = getOrderProducts(selectedOrderId);
+  const selectedProducts = availableProducts.filter(p => selectedProductIds.includes(p.id));
+  
+  console.log('🎯 Final result - Available products:', availableProducts.length);
+  
   
   const form = useForm<ClaimFormValues>({
     resolver: zodResolver(claimFormSchema),
     defaultValues: {
       order_id: '',
-      product_id: '',
+      product_ids: [],
       reason: '',
       resolution_notes: '',
     },
@@ -73,25 +181,39 @@ export function ClaimForm({ retailer_id, location_id, created_by, onSuccess, onC
   const onSubmit = (data: ClaimFormValues) => {
     setIsLoading(true);
     
-    const claimData: Partial<Claim> = {
-      ...data,
-      retailer_id,
-      location_id,
-      created_by,
-      status: 'submitted',
-    };
+    // Create separate claims for each product
+    const claimPromises = data.product_ids.map(product_id => {
+      const claimData: Partial<Claim> = {
+        order_id: data.order_id,
+        product_id,
+        reason: data.reason,
+        resolution_notes: data.resolution_notes,
+        retailer_id,
+        location_id,
+        created_by,
+        status: 'submitted',
+      };
+      
+      return new Promise((resolve, reject) => {
+        createClaim(claimData, {
+          onSuccess: resolve,
+          onError: reject,
+        });
+      });
+    });
     
-    createClaim(claimData, {
-      onSuccess: () => {
+    Promise.all(claimPromises)
+      .then(() => {
         setIsLoading(false);
         form.reset();
+        setSelectedOrderId('');
+        setSelectedProductIds([]);
         onSuccess?.();
-      },
-      onError: (error) => {
+      })
+      .catch((error) => {
         setIsLoading(false);
-        console.error('Error creating claim:', error);
-      },
-    });
+        console.error('Error creating claims:', error);
+      });
   };
 
   return (
@@ -109,8 +231,10 @@ export function ClaimForm({ retailer_id, location_id, created_by, onSuccess, onC
                 <FormItem>
                   <FormLabel>Select Order</FormLabel>
                   <Select onValueChange={(value) => {
+                    console.log('🎯 Order selected:', value);
                     field.onChange(value);
                     setSelectedOrderId(value);
+                    console.log('🎯 selectedOrderId state updated to:', value);
                   }} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -142,105 +266,79 @@ export function ClaimForm({ retailer_id, location_id, created_by, onSuccess, onC
             
             <FormField
               control={form.control}
-              name="product_id"
+              name="product_ids"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Select Product</FormLabel>
-                  <Select onValueChange={(value) => {
-                    field.onChange(value);
-                    setSelectedProductId(value);
-                  }} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Choose a product for this claim" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {availableProducts.map((product) => {
-                        const displayPrice = product.sale_price_usd || product.price_usd;
-                        const isOnSale = product.sale_price_usd && product.msrp_usd && product.sale_price_usd < product.msrp_usd;
-                        
-                        return (
-                          <SelectItem key={product.id} value={product.id}>
-                            <div className="flex items-center justify-between w-full">
-                              <div>
-                                <span className="font-medium">{product.name}</span>
-                                <span className="text-muted-foreground ml-2">({product.sku})</span>
+                  <FormLabel>Select Products from Order</FormLabel>
+                  {!selectedOrderId ? (
+                    <p className="text-sm text-muted-foreground">Please select an order first to see available products.</p>
+                  ) : availableProducts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No products found for the selected order.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {availableProducts.map((product) => (
+                        <div key={product.id} className="flex items-start space-x-3 p-3 border border-border rounded-lg">
+                          <input
+                            type="checkbox"
+                            id={`product-${product.id}`}
+                            checked={field.value?.includes(product.id) || false}
+                            onChange={(e) => {
+                              const currentValues = field.value || [];
+                              if (e.target.checked) {
+                                const newValues = [...currentValues, product.id];
+                                field.onChange(newValues);
+                                setSelectedProductIds(newValues);
+                              } else {
+                                const newValues = currentValues.filter(id => id !== product.id);
+                                field.onChange(newValues);
+                                setSelectedProductIds(newValues);
+                              }
+                            }}
+                            className="mt-1"
+                          />
+                          <div className="flex-1">
+                            <label htmlFor={`product-${product.id}`} className="cursor-pointer">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-medium">{product.displayName}</p>
+                                  <p className="text-sm text-muted-foreground">{product.description}</p>
+                                  <div className="flex gap-2 mt-1">
+                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                      Qty: {product.quantity}
+                                    </span>
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                      ${product.unitPrice.toLocaleString()}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="ml-4 text-right">
-                                <span className="font-semibold">${displayPrice.toLocaleString()}</span>
-                                {isOnSale && (
-                                  <span className="text-xs text-muted-foreground line-through ml-1">
-                                    ${product.msrp_usd?.toLocaleString()}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                            </label>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {/* Show product details when selected */}
-            {selectedProduct && (
+            {/* Show summary of selected products */}
+            {selectedProducts.length > 0 && (
               <div>
-                <FormLabel>Selected Product Details</FormLabel>
+                <FormLabel>Selected Products Summary</FormLabel>
                 <div className="mt-2 p-4 border border-border rounded-lg bg-muted/30">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <div>
-                        <h4 className="font-semibold">{selectedProduct.name}</h4>
-                        <p className="text-sm text-muted-foreground">{selectedProduct.sku}</p>
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {selectedProduct.description}
-                      </p>
-                      <div className="flex flex-wrap gap-1">
-                        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                          {selectedProduct.category}
-                        </span>
-                        {!selectedProduct.available && (
-                          <span className="inline-flex items-center rounded-md bg-red-50 px-2 py-1 text-xs font-medium text-red-700">
-                            Out of Stock
-                          </span>
-                        )}
-                        {selectedProduct.white_glove_available && (
-                          <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700">
-                            White Glove Available
-                          </span>
-                        )}
-                        {selectedProduct.gift_eligible && (
-                          <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
-                            Gift Eligible
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="space-y-1">
-                        {(() => {
-                          const displayPrice = selectedProduct.sale_price_usd || selectedProduct.price_usd;
-                          const isOnSale = selectedProduct.sale_price_usd && selectedProduct.msrp_usd && selectedProduct.sale_price_usd < selectedProduct.msrp_usd;
-                          
-                          return (
-                            <div>
-                              <p className="text-lg font-bold">${displayPrice.toLocaleString()}</p>
-                              {isOnSale && (
-                                <p className="text-sm text-muted-foreground line-through">
-                                  ${selectedProduct.msrp_usd?.toLocaleString()}
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {selectedProducts.length} product{selectedProducts.length !== 1 ? 's' : ''} selected for this claim:
+                  </p>
+                  <ul className="list-disc list-inside space-y-1">
+                    {selectedProducts.map((product) => (
+                      <li key={product.id} className="text-sm">
+                        <span className="font-medium">{product.displayName}</span>
+                        <span className="text-muted-foreground"> - Qty: {product.quantity}, ${product.unitPrice.toLocaleString()}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             )}

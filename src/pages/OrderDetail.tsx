@@ -20,16 +20,24 @@ import {
   Clock,
   AlertTriangle
 } from 'lucide-react';
-import { mockOrders, mockCustomers } from '@/lib/mock-data';
+import { useOrders } from '@/hooks/useOrders';
+import { useCustomers } from '@/hooks/useCustomers';
 import { useOrderProducts } from '@/hooks/useOrderProducts';
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState('details');
   
+  // Get dynamic data instead of static mock data
+  const { data: ordersData } = useOrders();
+  const { data: customersData } = useCustomers();
+  
+  const orders = ordersData?.data || [];
+  const customers = customersData?.data || [];
+  
   // Find the order
-  const order = mockOrders.find(o => o.id === id);
-  const customer = order ? mockCustomers.find(c => c.id === order.customer_id) : null;
+  const order = orders.find(o => o.id === id);
+  const customer = order ? customers.find(c => c.id === order.customer_id) : null;
   const { orderItems, orderTotal } = useOrderProducts(id || '');
 
   if (!order || !customer) {

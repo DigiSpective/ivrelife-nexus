@@ -280,6 +280,88 @@ export const deleteMockCustomer = (id: string): boolean => {
   return true;
 };
 
+// Order functions with global storage for HMR persistence
+declare global {
+  var __mockOrderStorage: Order[] | undefined;
+}
+
+const initializeMockOrders = () => {
+  if (!globalThis.__mockOrderStorage) {
+    globalThis.__mockOrderStorage = [...mockOrders];
+  }
+  return globalThis.__mockOrderStorage;
+};
+
+export const getMockOrders = (): Order[] => {
+  const storage = initializeMockOrders();
+  console.log('getMockOrders called, returning:', storage.length, 'orders');
+  return [...storage];
+};
+
+export const getMockOrderById = (id: string): Order | null => {
+  const storage = initializeMockOrders();
+  return storage.find(order => order.id === id) || null;
+};
+
+export const createMockOrder = (orderData: Partial<Order>): Order => {
+  console.log('createMockOrder function called with:', orderData);
+  
+  try {
+    const storage = initializeMockOrders();
+    console.log('Storage initialized, current orders:', storage.length);
+    
+    const newOrder: Order = {
+      id: `ord-${Date.now()}`,
+      retailer_id: orderData.retailer_id || 'ret-1',
+      location_id: orderData.location_id || 'loc-1',
+      customer_id: orderData.customer_id || 'cust-1',
+      created_by: orderData.created_by || 'usr-1',
+      status: orderData.status || 'pending',
+      subtotal_amount: orderData.subtotal_amount || 0,
+      tax_amount: orderData.tax_amount || 0,
+      total_amount: orderData.total_amount || 0,
+      notes: orderData.notes || '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      ...orderData
+    };
+    
+    storage.push(newOrder);
+    console.log('Order added to storage. Total orders:', storage.length);
+    console.log('New order:', newOrder);
+    return newOrder;
+  } catch (error) {
+    console.error('Error in createMockOrder:', error);
+    throw error;
+  }
+};
+
+export const updateMockOrder = (id: string, orderData: Partial<Order>): Order | null => {
+  const storage = initializeMockOrders();
+  const index = storage.findIndex(order => order.id === id);
+  if (index === -1) return null;
+  
+  const updatedOrder = {
+    ...storage[index],
+    ...orderData,
+    updated_at: new Date().toISOString()
+  };
+  
+  storage[index] = updatedOrder;
+  console.log('Order updated in storage:', updatedOrder);
+  return updatedOrder;
+};
+
+export const deleteMockOrder = (id: string): boolean => {
+  const storage = initializeMockOrders();
+  const index = storage.findIndex(order => order.id === id);
+  if (index === -1) return false;
+  
+  storage.splice(index, 1);
+  console.log('Order deleted from storage. Total orders:', storage.length);
+  return true;
+};
+
 export const mockProductCategories: ProductCategory[] = [
   {
     id: 'cat-1',
@@ -328,7 +410,7 @@ export const mockProducts: Product[] = [
 export const mockProductVariants: ProductVariant[] = [
   {
     id: 'var-1',
-    product_id: 'prod-1',
+    product_id: 'boss-plus',
     sku: 'IPH15P-128-TIT',
     price: 999.99,
     weight_kg: 0.25,
@@ -342,7 +424,7 @@ export const mockProductVariants: ProductVariant[] = [
   },
   {
     id: 'var-2',
-    product_id: 'prod-2',
+    product_id: 'arya',
     sku: 'MBP16-512-SG',
     price: 2499.99,
     weight_kg: 2.2,

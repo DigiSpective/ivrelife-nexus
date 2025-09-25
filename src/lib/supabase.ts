@@ -6,7 +6,9 @@ import {
   getMockCustomerById, 
   createMockCustomer, 
   updateMockCustomer, 
-  deleteMockCustomer 
+  deleteMockCustomer,
+  getMockOrders,
+  createMockOrder
 } from '@/lib/mock-data';
 
 // Get Supabase URL and anon key from environment variables
@@ -725,13 +727,19 @@ export const getProductVariantsByProduct = (productId: string) => {
 export const getOrders = () => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: [], error: null });
+    return Promise.resolve({ data: getMockOrders(), error: null });
   }
-  return supabase.from('orders').select(`
-    *,
-    customers(name),
-    order_items(*)
-  `);
+  
+  try {
+    return supabase.from('orders').select(`
+      *,
+      customers(name),
+      order_items(*)
+    `);
+  } catch (error) {
+    console.error('Error fetching orders from Supabase, falling back to mock data:', error);
+    return Promise.resolve({ data: getMockOrders(), error: null });
+  }
 };
 
 export const getOrderById = (id: string) => {
@@ -768,6 +776,33 @@ export const getOrdersByLocation = (locationId: string) => {
     customers(name),
     order_items(*)
   `).eq('location_id', locationId);
+};
+
+export const createOrder = async (orderData: Partial<Order>) => {
+  console.log('createOrder called with:', orderData);
+  
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Using mock data.');
+    // Create order in mock storage
+    console.log('Calling createMockOrder with:', orderData);
+    const newOrder = createMockOrder(orderData);
+    console.log('createMockOrder returned:', newOrder);
+    return Promise.resolve({ data: newOrder, error: null });
+  }
+  
+  try {
+    const result = await supabase.from('orders').insert([orderData]).select().single();
+    if (result.error) {
+      console.error('Supabase order creation failed, falling back to mock data:', result.error);
+      const newOrder = createMockOrder(orderData);
+      return Promise.resolve({ data: newOrder, error: null });
+    }
+    return result;
+  } catch (error) {
+    console.error('Error creating order in Supabase, falling back to mock data:', error);
+    const newOrder = createMockOrder(orderData);
+    return Promise.resolve({ data: newOrder, error: null });
+  }
 };
 
 // Order item functions

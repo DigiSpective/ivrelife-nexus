@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useShippingProviders, useShippingMethods, useCreateFulfillment } from '@/hooks/useShipping';
 import { OrderCustomerLink } from '../shared/OrderCustomerLink';
 import { useCustomers } from '@/hooks/useCustomers';
-import { mockOrders } from '@/lib/mock-data';
+import { useOrders } from '@/hooks/useOrders';
 import { sampleProducts } from '@/data/sampleProducts';
 import { 
   Loader2, 
@@ -133,12 +133,16 @@ export function CreateShipmentDialog({ open, onOpenChange, orderId }: CreateShip
   const { data: customersData } = useCustomers();
   const customers = customersData?.data || [];
 
+  // Get dynamic orders instead of static mock data
+  const { data: ordersData } = useOrders();
+  const orders = ordersData?.data || [];
+
   const providers = providersData?.data || [];
   const methods = methodsData?.data || [];
   const availableMethods = methods.filter(method => method.provider_id === formData.provider_id);
 
-  // Get available orders
-  const availableOrders = mockOrders.map((order, index) => ({
+  // Get available orders with order numbers and customer info
+  const availableOrders = orders.map((order, index) => ({
     ...order,
     orderNumber: `ORD-${String(index + 1).padStart(4, '0')}`,
     customer: customers.find(c => c.id === order.customer_id)

@@ -12,21 +12,29 @@ import {
   Truck,
   Calendar
 } from 'lucide-react';
-import { mockOrders, mockCustomers } from '@/lib/mock-data';
 import { sampleProducts } from '@/data/sampleProducts';
+import { useOrders } from '@/hooks/useOrders';
+import { useCustomers } from '@/hooks/useCustomers';
 import { Link } from 'react-router-dom';
 
 export default function Orders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Get dynamic data instead of static mock data
+  const { data: ordersData, isLoading: ordersLoading } = useOrders();
+  const { data: customersData, isLoading: customersLoading } = useCustomers();
+  
+  const orders = ordersData?.data || [];
+  const customers = customersData?.data || [];
+
   // Function to get customer name by ID
   const getCustomerName = (customerId: string) => {
-    const customer = mockCustomers.find(c => c.id === customerId);
+    const customer = customers.find(c => c.id === customerId);
     return customer ? customer.name : 'Unknown Customer';
   };
 
-  const filteredOrders = mockOrders.filter(order => {
+  const filteredOrders = orders.filter(order => {
     const customerName = getCustomerName(order.customer_id);
     const matchesSearch = 
       customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -114,7 +122,14 @@ export default function Orders() {
 
       {/* Orders List */}
       <div className="space-y-4">
-        {filteredOrders.map((order) => (
+        {ordersLoading || customersLoading ? (
+          <Card className="shadow-card">
+            <CardContent className="p-6 text-center">
+              <p className="text-muted-foreground">Loading orders...</p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredOrders.map((order) => (
           <Card key={order.id} className="shadow-card hover:shadow-elegant transition-smooth">
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
@@ -159,10 +174,10 @@ export default function Orders() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        )))}
       </div>
 
-      {filteredOrders.length === 0 && (
+      {!ordersLoading && !customersLoading && filteredOrders.length === 0 && (
         <Card className="shadow-card">
           <CardContent className="p-12 text-center">
             <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />

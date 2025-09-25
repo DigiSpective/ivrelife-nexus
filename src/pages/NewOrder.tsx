@@ -22,6 +22,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { sampleProducts } from '@/data/sampleProducts';
 import { useAvailableProducts } from '@/hooks/useOrderProducts';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useCreateOrder } from '@/hooks/useOrders';
 import { useToast } from '@/hooks/use-toast';
 
 const customerSchema = z.object({
@@ -57,6 +58,9 @@ export default function NewOrder() {
   const { data: customersData } = useCustomers();
   const customers = customersData?.data || [];
   const availableProducts = useAvailableProducts();
+  
+  // Order creation hook
+  const { mutate: createOrderMutation, isPending: isCreatingOrder } = useCreateOrder();
 
   const customerForm = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema)
@@ -67,7 +71,9 @@ export default function NewOrder() {
   });
 
   const handleCustomerNext = (data: CustomerForm) => {
+    console.log('handleCustomerNext called with data:', data);
     setOrderData(prev => ({ ...prev, ...data }));
+    console.log('OrderData updated, moving to step 2');
     setCurrentStep(2);
   };
 
@@ -110,12 +116,76 @@ export default function NewOrder() {
   };
 
   const handleSubmit = () => {
-    // Mock order creation - replace with actual API call to Supabase
-    toast({
-      title: "Order created successfully!",
-      description: `Order #ORD-${Date.now()} has been created and contract generated.`
+    console.log('handleSubmit called');
+    console.log('orderData:', orderData);
+    console.log('selectedItems:', selectedItems);
+
+    // Validate required data
+    if (!orderData.customer_id) {
+      console.warn('No customer_id found in orderData');
+      toast({
+        title: "Validation Error",
+        description: "Please select a customer before creating the order.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    console.log('Customer validation passed, customer_id:', orderData.customer_id);
+
+    if (selectedItems.length === 0) {
+      toast({
+        title: "Validation Error", 
+        description: "Please add at least one product to the order.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Calculate totals
+    const subtotal = selectedItems.reduce((sum, item) => {
+      const price = item.product.sale_price_usd || item.product.price_usd;
+      return sum + (price * item.qty);
+    }, 0);
+    const tax = subtotal * 0.08; // 8% tax rate
+    const total = subtotal + tax;
+
+    // Prepare order data
+    const newOrderData = {
+      retailer_id: 'ret-1', // Default retailer
+      location_id: 'loc-1', // Default location
+      customer_id: orderData.customer_id,
+      created_by: 'usr-1', // Current user - should come from auth context
+      status: 'pending',
+      subtotal_amount: subtotal,
+      tax_amount: tax,
+      total_amount: total,
+      notes: orderData.notes || '',
+    };
+
+    console.log('Prepared order data:', newOrderData);
+
+    createOrderMutation(newOrderData, {
+      onSuccess: (data) => {
+        const orderNumber = `ORD-${String(Date.now()).slice(-4)}`;
+        toast({
+          title: "Order created successfully!",
+          description: `Order #${orderNumber} has been created and contract generated.`
+        });
+        navigate('/orders');
+      },
+      onError: (error) => {
+        console.error('React Query mutation onError triggered');
+        console.error('Error object:', error);
+        console.error('Error message:', error?.message);
+        console.error('Error stack:', error?.stack);
+        toast({
+          title: "Error creating order",
+          description: "Please try again.",
+          variant: "destructive"
+        });
+      }
     });
-    navigate('/orders');
   };
 
   return (
@@ -469,8 +539,8 @@ export default function NewOrder() {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back
               </Button>
-              <Button onClick={handleSubmit} className="flex-1 shadow-elegant">
-                Create Order & Generate Contract
+              <Button onClick={handleSubmit} disabled={isCreatingOrder} className="flex-1 shadow-elegant">
+                {isCreatingOrder ? 'Creating Order...' : 'Create Order & Generate Contract'}
               </Button>
             </div>
           </CardContent>
