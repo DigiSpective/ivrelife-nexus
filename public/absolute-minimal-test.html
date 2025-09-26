@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Absolute Minimal Test</title>
+</head>
+<body>
+    <h1 id="status">Initial Status</h1>
+    <div id="log"></div>
+    
+    <script>
+        // Test 1: Immediate execution
+        document.getElementById('status').textContent = 'JavaScript is executing!';
+        document.getElementById('status').style.color = 'green';
+        
+        // Test 2: Add to log
+        const log = document.getElementById('log');
+        log.innerHTML += '<p>✅ Basic JavaScript execution works</p>';
+        
+        // Test 3: Test setTimeout
+        setTimeout(() => {
+            log.innerHTML += '<p>✅ setTimeout works</p>';
+        }, 100);
+        
+        // Test 4: Test event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            log.innerHTML += '<p>✅ DOMContentLoaded event works</p>';
+        });
+        
+        // Test 5: Test modern JavaScript
+        try {
+            const arrow = () => 'test';
+            const [a, b] = [1, 2];
+            log.innerHTML += '<p>✅ ES6 features work</p>';
+        } catch (e) {
+            log.innerHTML += '<p>❌ ES6 features failed: ' + e.message + '</p>';
+        }
+        
+        // Test 6: Test console
+        console.log('Console logging works');
+        
+        // Test 7: Alert as final confirmation
+        alert('If you see this alert, JavaScript is definitely working!');
+    </script>
+</body>
+</html>

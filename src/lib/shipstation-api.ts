@@ -23,18 +23,37 @@ export class ShipStationAPI {
   private apiSecret: string;
 
   constructor() {
-    // Use import.meta.env for browser environment
-    this.baseUrl = import.meta.env?.VITE_SHIPSTATION_API_URL || 'https://ssapi.shipstation.com';
-    this.apiKey = import.meta.env?.VITE_SHIPSTATION_API_KEY || '';
-    this.apiSecret = import.meta.env?.VITE_SHIPSTATION_API_SECRET || '';
+    try {
+      // Use import.meta.env for browser environment
+      this.baseUrl = import.meta.env?.VITE_SHIPSTATION_API_URL || 'https://ssapi.shipstation.com';
+      this.apiKey = import.meta.env?.VITE_SHIPSTATION_API_KEY || '';
+      this.apiSecret = import.meta.env?.VITE_SHIPSTATION_API_SECRET || '';
+      
+      console.log('[ShipStationAPI] Initialized with credentials:', { 
+        hasApiKey: !!this.apiKey, 
+        hasApiSecret: !!this.apiSecret 
+      });
+    } catch (error) {
+      console.error('[ShipStationAPI] Constructor error:', error);
+      this.baseUrl = 'https://ssapi.shipstation.com';
+      this.apiKey = '';
+      this.apiSecret = '';
+    }
   }
 
   private getAuthHeaders(): HeadersInit {
-    const credentials = btoa(`${this.apiKey}:${this.apiSecret}`);
-    return {
-      'Authorization': `Basic ${credentials}`,
-      'Content-Type': 'application/json',
-    };
+    try {
+      const credentials = btoa(`${this.apiKey}:${this.apiSecret}`);
+      return {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json',
+      };
+    } catch (error) {
+      console.error('[ShipStationAPI] Auth headers error:', error);
+      return {
+        'Content-Type': 'application/json',
+      };
+    }
   }
 
   private async makeRequest<T>(

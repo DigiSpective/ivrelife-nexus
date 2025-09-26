@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Browser Inspector - IV RELIFE Nexus</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .section { background: white; margin: 20px 0; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .info { background: #d1ecf1; border: 1px solid #bee5eb; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+        button { padding: 10px 20px; margin: 5px; border: none; border-radius: 4px; cursor: pointer; }
+        .btn-primary { background: #007bff; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: black; }
+        .btn-danger { background: #dc3545; color: white; }
+    </style>
+</head>
+<body>
+    <h1>🔍 IV RELIFE Nexus - Browser Inspector</h1>
+    <p>Advanced diagnostic tool to identify the exact cause of the blank page issue.</p>
+
+    <div class="section">
+        <h2>🚦 Live Status Monitor</h2>
+        <div id="status-monitor">Initializing...</div>
+        <button class="btn-primary" onclick="runFullDiagnostic()">🔍 Run Full Diagnostic</button>
+        <button class="btn-success" onclick="testMainApp()">🎯 Test Main App</button>
+        <button class="btn-warning" onclick="captureNetworkErrors()">📡 Capture Network Errors</button>
+        <button class="btn-danger" onclick="forceReloadMainApp()">🔄 Force Reload Main App</button>
+    </div>
+
+    <div class="section">
+        <h2>📊 Browser Environment</h2>
+        <div id="browser-info">Loading...</div>
+    </div>
+
+    <div class="section">
+        <h2>🌐 Network Tests</h2>
+        <div id="network-tests">Ready...</div>
+    </div>
+
+    <div class="section">
+        <h2>⚛️ React/Module Tests</h2>
+        <div id="module-tests">Ready...</div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Console Capture</h2>
+        <pre id="console-output">Waiting for events...</pre>
+    </div>
+
+    <div class="section">
+        <h2>🎯 Main App Integration</h2>
+        <div id="main-app-test">
+            <iframe id="main-app-frame" src="about:blank" style="width: 100%; height: 400px; border: 1px solid #ccc; border-radius: 4px;"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const logs = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            logs.push({ timestamp, message, type });
+            updateConsoleOutput();
+        }
+        
+        function updateConsoleOutput() {
+            const output = document.getElementById('console-output');
+            output.textContent = logs.map(l => 
+                `[${l.timestamp.split('T')[1].split('.')[0]}] ${l.type.toUpperCase()}: ${l.message}`
+            ).join('\n');
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function updateStatus(message, type = 'info') {
+            const monitor = document.getElementById('status-monitor');
+            const className = type === 'error' ? 'error' : type === 'warning' ? 'warning' : type === 'success' ? 'success' : 'info';
+            monitor.innerHTML = `<div class="status ${className}">${message}</div>`;
+        }
+        
+        function runFullDiagnostic() {
+            log('🔍 Starting comprehensive diagnostic...');
+            updateStatus('Running full diagnostic...', 'info');
+            
+            // Test 1: Browser capabilities
+            testBrowserCapabilities();
+            
+            // Test 2: Network connectivity
+            setTimeout(() => testNetworkConnectivity(), 500);
+            
+            // Test 3: Module loading
+            setTimeout(() => testModuleLoading(), 1000);
+            
+            // Test 4: Main app
+            setTimeout(() => testMainApp(), 1500);
+        }
+        
+        function testBrowserCapabilities() {
+            const info = {
+                userAgent: navigator.userAgent,
+                vendor: navigator.vendor,
+                platform: navigator.platform,
+                cookieEnabled: navigator.cookieEnabled,
+                onLine: navigator.onLine,
+                language: navigator.language,
+                javaEnabled: navigator.javaEnabled ? navigator.javaEnabled() : false,
+                
+                // JavaScript features
+                es6Classes: (() => { try { eval('class Test {}'); return true; } catch(e) { return false; } })(),
+                es6Modules: (() => { try { eval('import("data:text/javascript,")'); return true; } catch(e) { return false; } })(),
+                es6Promises: !!window.Promise,
+                es6Fetch: !!window.fetch,
+                es6ArrowFunctions: (() => { try { eval('() => {}'); return true; } catch(e) { return false; } })(),
+                
+                // DOM features
+                querySelector: !!document.querySelector,
+                addEventListener: !!document.addEventListener,
+                createElement: !!document.createElement,
+                
+                // Window features
+                localStorage: !!window.localStorage,
+                sessionStorage: !!window.sessionStorage,
+                console: !!window.console,
+                JSON: !!window.JSON
+            };
+            
+            document.getElementById('browser-info').innerHTML = `
+                <div class="status success">✅ Browser Detection Complete</div>
+                <pre>${JSON.stringify(info, null, 2)}</pre>
+            `;
+            
+            log('✅ Browser capabilities tested');
+            log(\`Browser: \${info.userAgent}\`);
+            log(\`ES6 Modules: \${info.es6Modules}\`);
+            log(\`Fetch API: \${info.es6Fetch}\`);
+        }
+        
+        function testNetworkConnectivity() {
+            const tests = [
+                { name: 'Main App HTML', url: 'http://localhost:8084/' },
+                { name: 'Main Emergency Module', url: 'http://localhost:8084/src/main-emergency.tsx' },
+                { name: 'Dashboard Component', url: 'http://localhost:8084/src/pages/Dashboard.tsx' },
+                { name: 'App Emergency Component', url: 'http://localhost:8084/src/App-emergency.tsx' },
+                { name: 'Index CSS', url: 'http://localhost:8084/src/index.css' }
+            ];
+            
+            const networkDiv = document.getElementById('network-tests');
+            networkDiv.innerHTML = '<div class="status info">🌐 Testing network connectivity...</div>';
+            
+            Promise.all(tests.map(test => 
+                fetch(test.url)
+                    .then(response => ({ ...test, status: response.status, ok: response.ok }))
+                    .catch(error => ({ ...test, status: 'ERROR', ok: false, error: error.message }))
+            )).then(results => {
+                const resultHtml = results.map(r => 
+                    \`<div class="status \${r.ok ? 'success' : 'error'}">
+                        \${r.ok ? '✅' : '❌'} \${r.name}: \${r.status} \${r.error ? '(' + r.error + ')' : ''}
+                    </div>\`
+                ).join('');
+                
+                networkDiv.innerHTML = resultHtml;
+                
+                results.forEach(r => {
+                    log(\`Network test: \${r.name} - \${r.ok ? 'SUCCESS' : 'FAILED'} (\${r.status})\`, r.ok ? 'info' : 'error');
+                });
+            });
+        }
+        
+        function testModuleLoading() {
+            const moduleDiv = document.getElementById('module-tests');
+            moduleDiv.innerHTML = '<div class="status info">⚛️ Testing module loading...</div>';
+            
+            // Test dynamic import
+            import('data:text/javascript,export default "test"')
+                .then(() => {
+                    log('✅ Dynamic import works');
+                    
+                    // Test actual module import
+                    return import('http://localhost:8084/src/main-emergency.tsx');
+                })
+                .then(() => {
+                    moduleDiv.innerHTML += '<div class="status success">✅ Main emergency module import successful</div>';
+                    log('✅ Main emergency module imported successfully');
+                })
+                .catch(error => {
+                    moduleDiv.innerHTML += \`<div class="status error">❌ Module import failed: \${error.message}</div>\`;
+                    log(\`❌ Module import failed: \${error.message}\`, 'error');
+                    
+                    // Test alternative loading
+                    testAlternativeLoading();
+                });
+        }
+        
+        function testAlternativeLoading() {
+            log('🔄 Testing alternative loading methods...');
+            
+            // Test script tag injection
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.src = 'http://localhost:8084/src/main-emergency.tsx';
+            script.onload = () => {
+                log('✅ Script tag module loading works');
+            };
+            script.onerror = (error) => {
+                log(\`❌ Script tag module loading failed: \${error.message}\`, 'error');
+            };
+            
+            // Don't actually inject to avoid conflicts, just test creation
+            log('✅ Script tag creation successful');
+        }
+        
+        function testMainApp() {
+            log('🎯 Testing main application...');
+            updateStatus('Loading main application in iframe...', 'info');
+            
+            const frame = document.getElementById('main-app-frame');
+            frame.src = 'http://localhost:8084/';
+            
+            frame.onload = () => {
+                log('✅ Main app iframe loaded');
+                
+                try {
+                    const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                    const content = frameDoc.body.innerHTML;
+                    
+                    if (content.includes('Loading application')) {
+                        log('⚠️ Main app still showing loading message', 'warning');
+                        updateStatus('Main app loaded but showing loading message', 'warning');
+                        
+                        // Try to trigger fallback in iframe
+                        setTimeout(() => {
+                            try {
+                                const frameWindow = frame.contentWindow;
+                                if (frameWindow.forceCDNFallback) {
+                                    frameWindow.forceCDNFallback();
+                                    log('🔄 Triggered CDN fallback in iframe');
+                                }
+                            } catch (e) {
+                                log(\`❌ Cannot trigger fallback: \${e.message}\`, 'error');
+                            }
+                        }, 2000);
+                    } else {
+                        log('✅ Main app appears to be working');
+                        updateStatus('Main app loaded successfully!', 'success');
+                    }
+                } catch (e) {
+                    log(\`⚠️ Cannot inspect iframe content (CORS): \${e.message}\`, 'warning');
+                    updateStatus('Main app loaded (content inspection blocked by CORS)', 'warning');
+                }
+            };
+            
+            frame.onerror = (error) => {
+                log(\`❌ Main app iframe failed to load: \${error.message}\`, 'error');
+                updateStatus('Main app failed to load in iframe', 'error');
+            };
+        }
+        
+        function captureNetworkErrors() {
+            log('📡 Setting up network error capture...');
+            
+            // Monitor fetch failures
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+                return originalFetch.apply(this, args)
+                    .then(response => {
+                        if (!response.ok) {
+                            log(\`📡 Fetch failed: \${args[0]} - \${response.status}\`, 'error');
+                        }
+                        return response;
+                    })
+                    .catch(error => {
+                        log(\`📡 Fetch error: \${args[0]} - \${error.message}\`, 'error');
+                        throw error;
+                    });
+            };
+            
+            log('✅ Network error capture activated');
+        }
+        
+        function forceReloadMainApp() {
+            log('🔄 Force reloading main application...');
+            const frame = document.getElementById('main-app-frame');
+            frame.src = 'about:blank';
+            setTimeout(() => {
+                frame.src = 'http://localhost:8084/';
+            }, 500);
+        }
+        
+        // Initialize
+        log('🚀 Browser Inspector initialized');
+        updateStatus('Browser Inspector ready - click "Run Full Diagnostic" to begin', 'info');
+        
+        // Auto-run basic tests
+        setTimeout(testBrowserCapabilities, 500);
+    </script>
+</body>
+</html>

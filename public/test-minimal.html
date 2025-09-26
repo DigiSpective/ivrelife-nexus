@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minimal JS Test</title>
+</head>
+<body>
+    <div id="root">Loading...</div>
+    
+    <script type="module">
+        console.log('🧪 Minimal module script executing...');
+        
+        // Test basic DOM manipulation
+        const root = document.getElementById('root');
+        if (root) {
+            root.innerHTML = `
+                <h1>✅ JavaScript Module Execution Works!</h1>
+                <p>Current time: ${new Date().toLocaleTimeString()}</p>
+                <p>Browser: ${navigator.userAgent}</p>
+            `;
+            console.log('✅ DOM manipulation successful');
+        } else {
+            console.error('❌ Root element not found');
+        }
+    </script>
+</body>
+</html>

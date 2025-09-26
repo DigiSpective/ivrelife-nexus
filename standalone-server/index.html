@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IV RELIFE Nexus</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react-router-dom@6/dist/umd/react-router-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .nav {
+            display: flex;
+            gap: 20px;
+        }
+        .nav-button {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .nav-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .feature-card {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(102, 126, 234, 0.2);
+        }
+        .feature-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .feature-description {
+            color: #666;
+            line-height: 1.6;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #22c55e;
+            color: white;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 10px;
+        }
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            font-size: 18px;
+            color: #666;
+        }
+        .error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #dc2626;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="loading">Loading IV RELIFE Nexus...</div>
+    </div>
+
+    <script>
+        const { useState, useEffect, createElement: h } = React;
+        const { createRoot } = ReactDOM;
+        const { BrowserRouter, Routes, Route, Link, useNavigate } = ReactRouterDOM;
+
+        // Mock authentication and data
+        const mockAuth = {
+            user: {
+                id: 'user123',
+                email: 'admin@ivrelife.com',
+                name: 'Admin User',
+                role: 'admin'
+            },
+            signIn: (email, password) => Promise.resolve({ user: mockAuth.user }),
+            signOut: () => Promise.resolve(),
+            signUp: (email, password) => Promise.resolve({ user: mockAuth.user })
+        };
+
+        const mockData = {
+            products: [
+                { id: 1, name: 'IV Therapy Basic', price: 150, category: 'therapy', stock: 25 },
+                { id: 2, name: 'Vitamin B12 Injection', price: 75, category: 'injection', stock: 50 },
+                { id: 3, name: 'Hydration Plus', price: 200, category: 'therapy', stock: 15 }
+            ],
+            customers: [
+                { id: 1, name: 'John Smith', email: 'john@example.com', phone: '555-0123' },
+                { id: 2, name: 'Sarah Johnson', email: 'sarah@example.com', phone: '555-0456' }
+            ],
+            orders: [
+                { id: 1, customerId: 1, productId: 1, quantity: 1, total: 150, status: 'completed', date: '2024-01-15' },
+                { id: 2, customerId: 2, productId: 2, quantity: 2, total: 150, status: 'pending', date: '2024-01-16' }
+            ]
+        };
+
+        // Components
+        function Header({ user, onSignOut }) {
+            return h('div', { className: 'header' },
+                h('div', { className: 'logo' }, 'IV RELIFE Nexus'),
+                h('div', { className: 'nav' },
+                    h(Link, { to: '/', className: 'nav-button' }, 'Dashboard'),
+                    h(Link, { to: '/products', className: 'nav-button' }, 'Products'),
+                    h(Link, { to: '/orders', className: 'nav-button' }, 'Orders'),
+                    h(Link, { to: '/customers', className: 'nav-button' }, 'Customers'),
+                    user ? h('button', { 
+                        className: 'nav-button', 
+                        onClick: onSignOut 
+                    }, 'Sign Out') : null
+                )
+            );
+        }
+
+        function Dashboard() {
+            const [stats, setStats] = useState({
+                totalProducts: mockData.products.length,
+                totalCustomers: mockData.customers.length,
+                totalOrders: mockData.orders.length,
+                revenue: mockData.orders.reduce((sum, order) => sum + order.total, 0)
+            });
+
+            return h('div', null,
+                h('h1', { style: { marginBottom: '30px', color: '#333' } }, 'Dashboard'),
+                h('div', { className: 'feature-grid' },
+                    h('div', { className: 'feature-card' },
+                        h('div', { className: 'feature-title' }, 
+                            'Products', 
+                            h('span', { className: 'status-indicator' }, stats.totalProducts)
+                        ),
+                        h('div', { className: 'feature-description' }, 'Manage your IV therapy products and services')
+                    ),
+                    h('div', { className: 'feature-card' },
+                        h('div', { className: 'feature-title' }, 
+                            'Customers', 
+                            h('span', { className: 'status-indicator' }, stats.totalCustomers)
+                        ),
+                        h('div', { className: 'feature-description' }, 'Track customer information and history')
+                    ),
+                    h('div', { className: 'feature-card' },
+                        h('div', { className: 'feature-title' }, 
+                            'Orders', 
+                            h('span', { className: 'status-indicator' }, stats.totalOrders)
+                        ),
+                        h('div', { className: 'feature-description' }, 'Process and manage customer orders')
+                    ),
+                    h('div', { className: 'feature-card' },
+                        h('div', { className: 'feature-title' }, 
+                            'Revenue', 
+                            h('span', { className: 'status-indicator' }, `$${stats.revenue}`)
+                        ),
+                        h('div', { className: 'feature-description' }, 'Track your business performance')
+                    )
+                )
+            );
+        }
+
+        function Products() {
+            const [products] = useState(mockData.products);
+
+            return h('div', null,
+                h('h1', { style: { marginBottom: '30px', color: '#333' } }, 'Products'),
+                h('div', { style: { display: 'grid', gap: '20px' } },
+                    products.map(product => 
+                        h('div', { 
+                            key: product.id, 
+                            className: 'feature-card',
+                            style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' }
+                        },
+                            h('div', null,
+                                h('div', { className: 'feature-title' }, product.name),
+                                h('div', { className: 'feature-description' }, 
+                                    `Category: ${product.category} | Stock: ${product.stock}`)
+                            ),
+                            h('div', { 
+                                style: { 
+                                    fontSize: '20px', 
+                                    fontWeight: 'bold', 
+                                    color: '#667eea' 
+                                } 
+                            }, `$${product.price}`)
+                        )
+                    )
+                )
+            );
+        }
+
+        function Orders() {
+            const [orders] = useState(mockData.orders);
+            const [customers] = useState(mockData.customers);
+            const [products] = useState(mockData.products);
+
+            const getCustomerName = (customerId) => {
+                const customer = customers.find(c => c.id === customerId);
+                return customer ? customer.name : 'Unknown';
+            };
+
+            const getProductName = (productId) => {
+                const product = products.find(p => p.id === productId);
+                return product ? product.name : 'Unknown';
+            };
+
+            return h('div', null,
+                h('h1', { style: { marginBottom: '30px', color: '#333' } }, 'Orders'),
+                h('div', { style: { display: 'grid', gap: '20px' } },
+                    orders.map(order => 
+                        h('div', { key: order.id, className: 'feature-card' },
+                            h('div', { className: 'feature-title' }, 
+                                `Order #${order.id}`,
+                                h('span', { 
+                                    className: 'status-indicator',
+                                    style: { 
+                                        background: order.status === 'completed' ? '#22c55e' : '#f59e0b' 
+                                    }
+                                }, order.status)
+                            ),
+                            h('div', { className: 'feature-description' },
+                                h('p', null, `Customer: ${getCustomerName(order.customerId)}`),
+                                h('p', null, `Product: ${getProductName(order.productId)}`),
+                                h('p', null, `Quantity: ${order.quantity} | Total: $${order.total}`),
+                                h('p', null, `Date: ${order.date}`)
+                            )
+                        )
+                    )
+                )
+            );
+        }
+
+        function Customers() {
+            const [customers] = useState(mockData.customers);
+
+            return h('div', null,
+                h('h1', { style: { marginBottom: '30px', color: '#333' } }, 'Customers'),
+                h('div', { style: { display: 'grid', gap: '20px' } },
+                    customers.map(customer => 
+                        h('div', { key: customer.id, className: 'feature-card' },
+                            h('div', { className: 'feature-title' }, customer.name),
+                            h('div', { className: 'feature-description' },
+                                h('p', null, `Email: ${customer.email}`),
+                                h('p', null, `Phone: ${customer.phone}`)
+                            )
+                        )
+                    )
+                )
+            );
+        }
+
+        function LoginPage({ onLogin }) {
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [loading, setLoading] = useState(false);
+
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                try {
+                    await mockAuth.signIn(email, password);
+                    onLogin(mockAuth.user);
+                } catch (error) {
+                    console.error('Login failed:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            return h('div', { 
+                style: { 
+                    maxWidth: '400px', 
+                    margin: '100px auto', 
+                    padding: '40px',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    borderRadius: '15px',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+                } 
+            },
+                h('h1', { 
+                    style: { 
+                        textAlign: 'center', 
+                        marginBottom: '30px', 
+                        color: '#333' 
+                    } 
+                }, 'IV RELIFE Nexus Login'),
+                h('form', { onSubmit: handleSubmit },
+                    h('div', { style: { marginBottom: '20px' } },
+                        h('input', {
+                            type: 'email',
+                            placeholder: 'Email',
+                            value: email,
+                            onChange: (e) => setEmail(e.target.value),
+                            required: true,
+                            style: {
+                                width: '100%',
+                                padding: '12px',
+                                border: '1px solid #ddd',
+                                borderRadius: '8px',
+                                fontSize: '16px'
+                            }
+                        })
+                    ),
+                    h('div', { style: { marginBottom: '30px' } },
+                        h('input', {
+                            type: 'password',
+                            placeholder: 'Password',
+                            value: password,
+                            onChange: (e) => setPassword(e.target.value),
+                            required: true,
+                            style: {
+                                width: '100%',
+                                padding: '12px',
+                                border: '1px solid #ddd',
+                                borderRadius: '8px',
+                                fontSize: '16px'
+                            }
+                        })
+                    ),
+                    h('button', {
+                        type: 'submit',
+                        disabled: loading,
+                        className: 'nav-button',
+                        style: { width: '100%', padding: '15px' }
+                    }, loading ? 'Signing in...' : 'Sign In')
+                )
+            );
+        }
+
+        function App() {
+            const [user, setUser] = useState(mockAuth.user); // Auto-login for demo
+            const [loading, setLoading] = useState(false);
+
+            const handleLogin = (userData) => {
+                setUser(userData);
+            };
+
+            const handleSignOut = async () => {
+                setLoading(true);
+                try {
+                    await mockAuth.signOut();
+                    setUser(null);
+                } catch (error) {
+                    console.error('Sign out failed:', error);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            if (loading) {
+                return h('div', { className: 'container' },
+                    h('div', { className: 'loading' }, 'Loading...')
+                );
+            }
+
+            if (!user) {
+                return h('div', { className: 'container' },
+                    h(LoginPage, { onLogin: handleLogin })
+                );
+            }
+
+            return h(BrowserRouter, null,
+                h('div', { className: 'container' },
+                    h(Header, { user, onSignOut: handleSignOut }),
+                    h('div', { className: 'main-content' },
+                        h(Routes, null,
+                            h(Route, { path: '/', element: h(Dashboard) }),
+                            h(Route, { path: '/products', element: h(Products) }),
+                            h(Route, { path: '/orders', element: h(Orders) }),
+                            h(Route, { path: '/customers', element: h(Customers) })
+                        )
+                    )
+                )
+            );
+        }
+
+        // Initialize application
+        const root = createRoot(document.getElementById('root'));
+        root.render(h(App));
+
+        // Debug logging
+        console.log('IV RELIFE Nexus application loaded successfully');
+        console.log('React version:', React.version);
+        console.log('Application initialized at:', new Date().toISOString());
+    </script>
+</body>
+</html>

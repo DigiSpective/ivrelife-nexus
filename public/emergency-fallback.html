@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Fallback - IV RELIFE</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+            color: white;
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid white;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .status { font-family: monospace; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🆘 EMERGENCY FALLBACK DIAGNOSTIC</h1>
+        
+        <div class="card">
+            <h2>✅ Basic HTML/CSS Working</h2>
+            <p>If you can see this styled page, the browser can:</p>
+            <ul>
+                <li>✅ Load HTML from the server</li>
+                <li>✅ Process CSS styles</li>
+                <li>✅ Render the DOM</li>
+            </ul>
+        </div>
+        
+        <div class="card">
+            <h2>🔧 Environment Diagnostics</h2>
+            <div class="status">
+                <div>📍 <strong>URL:</strong> <span id="url-display"></span></div>
+                <div>🕒 <strong>Loaded:</strong> <span id="time-display"></span></div>
+                <div>🌐 <strong>User Agent:</strong> <span id="ua-display"></span></div>
+                <div>📱 <strong>Screen:</strong> <span id="screen-display"></span></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🧪 JavaScript Test</h2>
+            <p>Testing basic JavaScript execution:</p>
+            <button onclick="testBasicJS()">Test Basic JS</button>
+            <button onclick="testFetch()">Test Network (Fetch)</button>
+            <button onclick="testModules()">Test ES6 Modules</button>
+            <button onclick="testLocalStorage()">Test LocalStorage</button>
+            <div id="js-results" class="status" style="margin-top: 10px;"></div>
+        </div>
+        
+        <div class="card">
+            <h2>🚨 Issue Analysis</h2>
+            <p><strong>What this means:</strong></p>
+            <ul>
+                <li>If you can see this page: Server and basic web serving works</li>
+                <li>If JavaScript tests fail: Browser environment issues</li>
+                <li>If ES6 modules fail: Module loading blocked (CORS, security, etc.)</li>
+                <li>If network tests fail: Development server connectivity issues</li>
+            </ul>
+        </div>
+        
+        <div class="card">
+            <h2>🔄 Recovery Actions</h2>
+            <button onclick="window.location.reload()">🔄 Reload Page</button>
+            <button onclick="openDevServer()">🚀 Open Dev Server Direct</button>
+            <button onclick="clearStorage()">🧹 Clear All Storage</button>
+            <button onclick="showDetailedInfo()">📊 Show Browser Details</button>
+        </div>
+    </div>
+
+    <script>
+        // Basic diagnostics
+        document.getElementById('url-display').textContent = window.location.href;
+        document.getElementById('time-display').textContent = new Date().toLocaleString();
+        document.getElementById('ua-display').textContent = navigator.userAgent;
+        document.getElementById('screen-display').textContent = screen.width + 'x' + screen.height;
+        
+        function log(message) {
+            const results = document.getElementById('js-results');
+            results.innerHTML += '<div>' + message + '</div>';
+            console.log(message);
+        }
+        
+        function testBasicJS() {
+            log('✅ Basic JavaScript execution: WORKING');
+            log('✅ DOM manipulation: WORKING');
+            log('✅ Event handling: WORKING');
+        }
+        
+        async function testFetch() {
+            try {
+                log('🔄 Testing network connectivity...');
+                const response = await fetch('/src/main-emergency.tsx');
+                if (response.ok) {
+                    log('✅ Network fetch: WORKING');
+                    log('✅ Dev server connectivity: WORKING');
+                } else {
+                    log('❌ Network fetch: FAILED (Status: ' + response.status + ')');
+                }
+            } catch (error) {
+                log('❌ Network fetch: ERROR (' + error.message + ')');
+            }
+        }
+        
+        function testModules() {
+            try {
+                log('🔄 Testing ES6 module loading...');
+                // Test dynamic import
+                import('/src/main-emergency.tsx').then(() => {
+                    log('✅ ES6 modules: WORKING');
+                }).catch(error => {
+                    log('❌ ES6 modules: FAILED (' + error.message + ')');
+                    log('📋 This is likely the root cause of the blank page');
+                });
+            } catch (error) {
+                log('❌ ES6 modules: ERROR (' + error.message + ')');
+            }
+        }
+        
+        function testLocalStorage() {
+            try {
+                localStorage.setItem('test', 'value');
+                const value = localStorage.getItem('test');
+                localStorage.removeItem('test');
+                log('✅ LocalStorage: WORKING');
+            } catch (error) {
+                log('❌ LocalStorage: FAILED (' + error.message + ')');
+            }
+        }
+        
+        function openDevServer() {
+            // Try different common dev server ports
+            const ports = [8084, 8080, 8081, 8082, 8083, 3000, 5173, 5174];
+            ports.forEach(port => {
+                const url = 'http://localhost:' + port;
+                log('🚀 Trying: ' + url);
+                window.open(url, '_blank');
+            });
+        }
+        
+        function clearStorage() {
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+                log('✅ Storage cleared');
+            } catch (error) {
+                log('❌ Storage clear failed: ' + error.message);
+            }
+        }
+        
+        function showDetailedInfo() {
+            log('=== DETAILED BROWSER INFO ===');
+            log('Protocol: ' + window.location.protocol);
+            log('Host: ' + window.location.host);
+            log('Port: ' + window.location.port);
+            log('Pathname: ' + window.location.pathname);
+            log('Online: ' + navigator.onLine);
+            log('Cookies enabled: ' + navigator.cookieEnabled);
+            log('Languages: ' + navigator.languages.join(', '));
+            log('Platform: ' + navigator.platform);
+            log('Memory (approx): ' + (navigator.deviceMemory || 'unknown') + 'GB');
+        }
+        
+        // Auto-run basic tests
+        setTimeout(() => {
+            log('🤖 Auto-running diagnostics...');
+            testBasicJS();
+            testFetch();
+            testModules();
+            testLocalStorage();
+        }, 1000);
+    </script>
+</body>
+</html>

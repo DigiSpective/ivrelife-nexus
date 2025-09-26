@@ -221,7 +221,7 @@ export default function RetailerDetail() {
         <TabsContent value="locations" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Locations</h2>
-            <Button>
+            <Button onClick={() => navigate(`/retailers/${id}/locations/new`)}>
               <Plus className="w-4 h-4 mr-2" />
               Add Location
             </Button>
@@ -249,7 +249,7 @@ export default function RetailerDetail() {
                         </p>
                       )}
                     </div>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/retailers/${id}/locations/${location.id}/edit`)}>
                       <Edit className="w-4 h-4" />
                     </Button>
                   </div>
@@ -264,7 +264,7 @@ export default function RetailerDetail() {
                   <p className="text-muted-foreground mb-4">
                     This retailer doesn't have any locations yet.
                   </p>
-                  <Button>
+                  <Button onClick={() => navigate(`/retailers/${id}/locations/new`)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Location
                   </Button>
@@ -277,7 +277,7 @@ export default function RetailerDetail() {
         <TabsContent value="users" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Assigned Users</h2>
-            <Button>
+            <Button onClick={() => navigate(`/retailers/${id}/users/new`)}>
               <Plus className="w-4 h-4 mr-2" />
               Add User
             </Button>
@@ -298,7 +298,7 @@ export default function RetailerDetail() {
         <TabsContent value="contracts" className="space-y-6">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">Contracts</h2>
-            <Button>
+            <Button onClick={() => navigate(`/retailers/${id}/contracts/upload`)}>
               <Plus className="w-4 h-4 mr-2" />
               Upload Contract
             </Button>

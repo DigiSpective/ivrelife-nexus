@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IV RELIFE Browser Diagnostic</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test { padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; background: white; }
+        .pass { border-left: 4px solid #4CAF50; }
+        .fail { border-left: 4px solid #f44336; }
+        .pending { border-left: 4px solid #ff9800; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 IV RELIFE Nexus - Browser Diagnostic</h1>
+    <p>This page will help diagnose why the application isn't loading properly.</p>
+    
+    <div id="tests"></div>
+    
+    <h2>Console Output:</h2>
+    <pre id="console-output"></pre>
+    
+    <script>
+        const tests = document.getElementById('tests');
+        const consoleOutput = document.getElementById('console-output');
+        const logs = [];
+        
+        // Capture console logs
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const originalConsoleWarn = console.warn;
+        
+        function logMessage(type, ...args) {
+            const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : arg).join(' ');
+            logs.push(`[${type}] ${new Date().toLocaleTimeString()}: ${message}`);
+            consoleOutput.textContent = logs.join('\n');
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        console.log = (...args) => { originalConsoleLog.apply(console, args); logMessage('LOG', ...args); };
+        console.error = (...args) => { originalConsoleError.apply(console, args); logMessage('ERROR', ...args); };
+        console.warn = (...args) => { originalConsoleWarn.apply(console, args); logMessage('WARN', ...args); };
+        
+        function addTest(name, status, details = '') {
+            const div = document.createElement('div');
+            div.className = `test ${status}`;
+            div.innerHTML = `
+                <strong>${name}</strong>: ${status.toUpperCase()}
+                ${details ? `<br><small>${details}</small>` : ''}
+            `;
+            tests.appendChild(div);
+        }
+        
+        // Test 1: Basic JavaScript execution
+        console.log('🧪 Starting diagnostic tests...');
+        addTest('Basic JavaScript Execution', 'pass', 'JavaScript is running');
+        
+        // Test 2: DOM manipulation
+        try {
+            const testDiv = document.createElement('div');
+            testDiv.textContent = 'test';
+            addTest('DOM Manipulation', 'pass', 'Can create and modify DOM elements');
+        } catch (e) {
+            addTest('DOM Manipulation', 'fail', e.message);
+        }
+        
+        // Test 3: ES6 features
+        try {
+            const arrow = () => 'test';
+            const [a, b] = [1, 2];
+            const {test} = {test: 'value'};
+            addTest('ES6 Features', 'pass', 'Arrow functions, destructuring work');
+        } catch (e) {
+            addTest('ES6 Features', 'fail', e.message);
+        }
+        
+        // Test 4: Module support
+        if (typeof importMap !== 'undefined' || 'import' in window) {
+            addTest('ES6 Module Support', 'pass', 'Browser supports ES6 modules');
+        } else {
+            addTest('ES6 Module Support', 'fail', 'Browser may not support ES6 modules');
+        }
+        
+        // Test 5: Fetch API
+        addTest('Fetch API', fetch ? 'pass' : 'fail', fetch ? 'Available' : 'Not available');
+        
+        // Test 6: Local Storage
+        try {
+            localStorage.setItem('test', 'value');
+            localStorage.removeItem('test');
+            addTest('Local Storage', 'pass', 'Available');
+        } catch (e) {
+            addTest('Local Storage', 'fail', e.message);
+        }
+        
+        // Test 7: Try to load a Vite module
+        const moduleTest = document.createElement('div');
+        moduleTest.className = 'test pending';
+        moduleTest.innerHTML = '<strong>Vite Module Loading</strong>: TESTING...';
+        tests.appendChild(moduleTest);
+        
+        // Test 8: Browser info
+        addTest('Browser Info', 'pass', `${navigator.userAgent}`);
+        
+        // Try to import a module
+        setTimeout(() => {
+            try {
+                import('/src/AppTest.tsx')
+                    .then(() => {
+                        moduleTest.className = 'test pass';
+                        moduleTest.innerHTML = '<strong>Vite Module Loading</strong>: PASS<br><small>Successfully loaded Vite module</small>';
+                        console.log('✅ Module import successful');
+                    })
+                    .catch(error => {
+                        moduleTest.className = 'test fail';
+                        moduleTest.innerHTML = `<strong>Vite Module Loading</strong>: FAIL<br><small>${error.message}</small>`;
+                        console.error('❌ Module import failed:', error);
+                    });
+            } catch (error) {
+                moduleTest.className = 'test fail';
+                moduleTest.innerHTML = `<strong>Vite Module Loading</strong>: FAIL<br><small>Dynamic import not supported: ${error.message}</small>`;
+                console.error('❌ Dynamic import error:', error);
+            }
+        }, 1000);
+        
+        console.log('✅ Diagnostic tests completed');
+    </script>
+</body>
+</html>

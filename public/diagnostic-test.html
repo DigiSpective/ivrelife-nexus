@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Diagnostic Test - IV RELIFE</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; line-height: 1.6; }
+        .success { background: #d4edda; padding: 15px; border: 1px solid #c3e6cb; border-radius: 5px; margin: 10px 0; }
+        .error { background: #f8d7da; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px; margin: 10px 0; }
+        .info { background: #d1ecf1; padding: 15px; border: 1px solid #bee5eb; border-radius: 5px; margin: 10px 0; }
+        .console { background: #f8f9fa; padding: 10px; border: 1px solid #dee2e6; border-radius: 3px; font-family: monospace; white-space: pre-wrap; margin: 10px 0; min-height: 100px; }
+        button { padding: 10px 15px; margin: 5px; font-size: 14px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔬 Direct Diagnostic Test</h1>
+    
+    <div class="info">
+        <h3>Current Status</h3>
+        <p><strong>URL:</strong> <span id="current-url"></span></p>
+        <p><strong>Time:</strong> <span id="current-time"></span></p>
+        <p><strong>User Agent:</strong> <span id="user-agent"></span></p>
+    </div>
+    
+    <div class="success">
+        <h3>✅ Basic Browser Functionality Working</h3>
+        <p>If you can see this styled page, your browser can load HTML/CSS from the server.</p>
+    </div>
+    
+    <div>
+        <h3>🧪 Live Tests</h3>
+        <button onclick="testReactApp()">Test React App Loading</button>
+        <button onclick="testEmergencyScript()">Test Emergency Script</button>
+        <button onclick="testMainScript()">Test Main Script</button>
+        <button onclick="clearConsole()">Clear Console</button>
+    </div>
+    
+    <div class="console" id="console-output">Console output will appear here...</div>
+    
+    <div id="react-test-area"></div>
+    
+    <script>
+        // Initialize display
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('current-time').textContent = new Date().toLocaleString();
+        document.getElementById('user-agent').textContent = navigator.userAgent;
+        
+        const consoleOutput = document.getElementById('console-output');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            consoleOutput.textContent += `[${timestamp}] ${message}\n`;
+            console.log(message);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        function clearConsole() {
+            consoleOutput.textContent = '';
+        }
+        
+        async function testReactApp() {
+            log('🔄 Testing React app loading...');
+            try {
+                const response = await fetch('/');
+                const html = await response.text();
+                
+                if (html.includes('main-emergency.tsx')) {
+                    log('✅ Emergency script is referenced in HTML');
+                } else if (html.includes('main.tsx')) {
+                    log('⚠️ Original main.tsx script is referenced');
+                } else {
+                    log('❌ No main script found in HTML');
+                }
+                
+                // Check if React app has rendered in main window
+                const mainWindow = window.opener || window.parent;
+                if (mainWindow && mainWindow.document) {
+                    const rootEl = mainWindow.document.getElementById('root');
+                    if (rootEl) {
+                        log('🎯 Main window root element found');
+                        log('📄 Root element content preview: ' + rootEl.innerHTML.substring(0, 200) + '...');
+                    } else {
+                        log('❌ No root element found in main window');
+                    }
+                }
+                
+            } catch (error) {
+                log('❌ Failed to test React app: ' + error.message);
+            }
+        }
+        
+        async function testEmergencyScript() {
+            log('🚨 Testing emergency script loading...');
+            try {
+                const response = await fetch('/src/main-emergency.tsx');
+                if (response.ok) {
+                    log('✅ Emergency script file accessible');
+                    const content = await response.text();
+                    if (content.includes('EMERGENCY MAIN')) {
+                        log('✅ Emergency script contains expected content');
+                    } else {
+                        log('⚠️ Emergency script content may be processed/compiled');
+                    }
+                } else {
+                    log('❌ Emergency script not accessible: ' + response.status);
+                }
+            } catch (error) {
+                log('❌ Emergency script test failed: ' + error.message);
+            }
+        }
+        
+        async function testMainScript() {
+            log('📜 Testing original main script...');
+            try {
+                const response = await fetch('/src/main.tsx');
+                if (response.ok) {
+                    log('✅ Original main.tsx accessible');
+                } else {
+                    log('❌ Original main.tsx not accessible: ' + response.status);
+                }
+            } catch (error) {
+                log('❌ Main script test failed: ' + error.message);
+            }
+        }
+        
+        // Auto-run tests
+        setTimeout(() => {
+            log('🤖 Auto-running diagnostic tests...');
+            testReactApp();
+            testEmergencyScript();
+            testMainScript();
+        }, 1000);
+        
+        // Monitor for any global errors
+        window.addEventListener('error', (event) => {
+            log('🚨 Global error detected: ' + event.error.message);
+        });
+        
+        window.addEventListener('unhandledrejection', (event) => {
+            log('🚨 Unhandled promise rejection: ' + event.reason);
+        });
+    </script>
+</body>
+</html>

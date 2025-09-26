@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Non-Module Test</title>
+</head>
+<body>
+    <div id="root">Loading...</div>
+    
+    <!-- Load React from CDN without modules -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <script>
+        console.log('🧪 Non-module script executing...');
+        
+        const { createElement: h, useState } = React;
+        const { createRoot } = ReactDOM;
+        
+        function App() {
+            const [message, setMessage] = useState('React is working!');
+            
+            return h('div', { style: { padding: '20px', fontFamily: 'Arial, sans-serif' } },
+                h('h1', null, '🚀 IV RELIFE Nexus - Non-Module Test'),
+                h('p', null, '✅ ' + message),
+                h('p', null, '✅ CDN React loaded successfully!'),
+                h('button', { 
+                    onClick: () => setMessage('State update works too!'),
+                    style: { padding: '10px', margin: '10px 0' }
+                }, 'Test State Update'),
+                h('p', null, 'Current time: ' + new Date().toLocaleTimeString())
+            );
+        }
+        
+        const root = createRoot(document.getElementById('root'));
+        root.render(h(App));
+        
+        console.log('✅ Non-module React app rendered successfully');
+    </script>
+</body>
+</html>

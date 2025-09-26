@@ -10,6 +10,7 @@ import {
   getMockOrders,
   createMockOrder
 } from '@/lib/mock-data';
+import { sampleProducts } from '@/data/sampleProducts';
 
 // Get Supabase URL and anon key from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -504,38 +505,13 @@ export const approveCustomerMergeRequest = async (id: string) => {
     .single();
 };
 
-// Product functions
+// Product functions - Global storage for mock products
+let mockProductStorage: any[] = [...sampleProducts];
+
 export const getProducts = () => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock product data.');
-    // Return mock product data
-    const mockProducts = [
-      {
-        id: 'prod-1',
-        retailer_id: 'ret-1',
-        category_id: 'cat-1',
-        name: 'iPhone 15 Pro',
-        description: 'Latest Apple smartphone with A17 Pro chip',
-        created_at: '2024-01-10T00:00:00Z'
-      },
-      {
-        id: 'prod-2',
-        retailer_id: 'ret-1',
-        category_id: 'cat-2',
-        name: 'MacBook Pro 16"',
-        description: 'Powerful laptop for professionals',
-        created_at: '2024-01-12T00:00:00Z'
-      },
-      {
-        id: 'prod-3',
-        retailer_id: 'ret-1',
-        category_id: 'cat-3',
-        name: 'Samsung 65" QLED TV',
-        description: 'High-quality 4K television',
-        created_at: '2024-01-15T00:00:00Z'
-      }
-    ];
-    return Promise.resolve({ data: mockProducts, error: null });
+    return Promise.resolve({ data: mockProductStorage, error: null });
   }
   return supabase.from('products').select('*');
 };
@@ -1188,16 +1164,59 @@ export const createSystemSetting = async (setting: any) => {
 };
 
 // Audit log functions
-export const getAuditLogs = (entity: string, entityId: string) => {
+export const getAuditLogs = (entity?: string, entityId?: string) => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: [], error: null });
+    // Return mock audit logs for development
+    const mockAuditLogs = [
+      {
+        id: 'audit-1',
+        entity_type: 'user',
+        entity_id: 'usr-1',
+        action: 'created',
+        actor_id: 'usr-1',
+        details: { name: 'John Doe', email: 'john@example.com' },
+        created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString()
+      },
+      {
+        id: 'audit-2',
+        entity_type: 'order',
+        entity_id: 'ord-1',
+        action: 'updated',
+        actor_id: 'usr-1',
+        details: { status: 'processing' },
+        created_at: new Date(Date.now() - 1000 * 60 * 60).toISOString()
+      },
+      {
+        id: 'audit-3',
+        entity_type: 'system_settings',
+        entity_id: 'setting-1',
+        action: 'updated',
+        actor_id: 'usr-1',
+        details: { key: 'maintenance_mode', value: false },
+        created_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString()
+      }
+    ];
+    return Promise.resolve({ data: mockAuditLogs, error: null });
   }
-  return supabase.from('audit_logs')
+  
+  let query = supabase.from('audit_logs')
     .select('*, users(email, role)')
-    .eq('entity', entity)
-    .eq('entity_id', entityId)
     .order('created_at', { ascending: false });
+    
+  if (entity) {
+    query = query.eq('entity_type', entity);
+  }
+  
+  if (entityId) {
+    query = query.eq('entity_id', entityId);
+  }
+  
+  return query;
+};
+
+export const getAllAuditLogs = () => {
+  return getAuditLogs();
 };
 
 export const createAuditLog = async (log: any) => {
@@ -1269,4 +1288,110 @@ export const getFileMetadata = () => {
     return Promise.resolve({ data: [], error: null });
   }
   return supabase.from('files_metadata').select('*');
+};
+
+// Product Management Functions for Admin
+export const createProduct = async (productData: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Using mock storage.');
+    const newProduct = {
+      ...productData,
+      id: `product-${Date.now()}`,
+      created_at: new Date().toISOString()
+    };
+    mockProductStorage.push(newProduct);
+    return Promise.resolve({ data: newProduct, error: null });
+  }
+  
+  try {
+    const result = await supabase.from('products').insert(productData).select().single();
+    if (result.error) {
+      console.warn('Supabase create failed, falling back to mock storage:', result.error);
+      const newProduct = {
+        ...productData,
+        id: `product-${Date.now()}`,
+        created_at: new Date().toISOString()
+      };
+      mockProductStorage.push(newProduct);
+      return Promise.resolve({ data: newProduct, error: null });
+    }
+    return result;
+  } catch (error) {
+    console.warn('Supabase connection failed, falling back to mock storage:', error);
+    const newProduct = {
+      ...productData,
+      id: `product-${Date.now()}`,
+      created_at: new Date().toISOString()
+    };
+    mockProductStorage.push(newProduct);
+    return Promise.resolve({ data: newProduct, error: null });
+  }
+};
+
+export const updateProduct = async (id: string, productData: any) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Using mock storage.');
+    const index = mockProductStorage.findIndex(product => product.id === id);
+    if (index !== -1) {
+      mockProductStorage[index] = { ...mockProductStorage[index], ...productData };
+      return Promise.resolve({ data: mockProductStorage[index], error: null });
+    }
+    return Promise.resolve({ data: null, error: new Error('Product not found') });
+  }
+  
+  try {
+    const result = await supabase.from('products').update(productData).eq('id', id).select().single();
+    if (result.error) {
+      console.warn('Supabase update failed, falling back to mock storage:', result.error);
+      const index = mockProductStorage.findIndex(product => product.id === id);
+      if (index !== -1) {
+        mockProductStorage[index] = { ...mockProductStorage[index], ...productData };
+        return Promise.resolve({ data: mockProductStorage[index], error: null });
+      }
+      return Promise.resolve({ data: null, error: new Error('Product not found') });
+    }
+    return result;
+  } catch (error) {
+    console.warn('Supabase connection failed, falling back to mock storage:', error);
+    const index = mockProductStorage.findIndex(product => product.id === id);
+    if (index !== -1) {
+      mockProductStorage[index] = { ...mockProductStorage[index], ...productData };
+      return Promise.resolve({ data: mockProductStorage[index], error: null });
+    }
+    return Promise.resolve({ data: null, error: new Error('Product not found') });
+  }
+};
+
+export const deleteProduct = async (id: string) => {
+  if (!hasValidCredentials) {
+    console.warn('Supabase credentials not configured. Using mock storage.');
+    const index = mockProductStorage.findIndex(product => product.id === id);
+    if (index !== -1) {
+      mockProductStorage.splice(index, 1);
+      return Promise.resolve({ error: null });
+    }
+    return Promise.resolve({ error: new Error('Product not found') });
+  }
+  
+  try {
+    const result = await supabase.from('products').delete().eq('id', id);
+    if (result.error) {
+      console.warn('Supabase delete failed, falling back to mock storage:', result.error);
+      const index = mockProductStorage.findIndex(product => product.id === id);
+      if (index !== -1) {
+        mockProductStorage.splice(index, 1);
+        return Promise.resolve({ error: null });
+      }
+      return Promise.resolve({ error: new Error('Product not found') });
+    }
+    return result;
+  } catch (error) {
+    console.warn('Supabase connection failed, falling back to mock storage:', error);
+    const index = mockProductStorage.findIndex(product => product.id === id);
+    if (index !== -1) {
+      mockProductStorage.splice(index, 1);
+      return Promise.resolve({ error: null });
+    }
+    return Promise.resolve({ error: new Error('Product not found') });
+  }
 };

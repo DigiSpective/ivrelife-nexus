@@ -1,14 +1,14 @@
 import React from "react";
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { DashboardLayout } from "./components/layout/DashboardLayout";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthGuard } from "./components/layout/AuthGuard";
 import { AuthProvider } from "./components/auth/AuthProvider";
 import { CartProvider } from "./components/cart/CartManager";
-import Login from "./pages/Login";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
 import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
@@ -22,8 +22,14 @@ import Customers from "./pages/Customers";
 import CustomerDetail from "./pages/CustomerDetail";
 import Products from "./pages/Products";
 import ProductDetail from "./pages/ProductDetail";
-// Lazy load shipping pages to prevent heavy ShipStation API imports during app initialization
-const Shipping = React.lazy(() => import("./pages/ShippingNew"));
+// Import test shipping page to debug
+import ShippingTest from "./pages/ShippingTest";
+import ShippingDebug from "./pages/ShippingDebug";
+import ShippingNewWorking from "./pages/ShippingNewWorking";
+// Import simple shipping page that works without heavy dependencies
+import ShippingSimple from "./pages/ShippingSimple";
+// Lazy load heavy shipping pages 
+const ShippingNew = React.lazy(() => import("./pages/ShippingNew"));
 const ShippingAdmin = React.lazy(() => import("./pages/admin/ShippingAdmin"));
 import ProductsAdmin from "./pages/admin/ProductsAdmin";
 import GiftRulesAdmin from "./pages/admin/GiftRulesAdmin";
@@ -43,21 +49,27 @@ import Settings from "./pages/Settings";
 import OrderDetail from "./pages/OrderDetail";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// Create simple QueryClient
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000,
+    },
+  },
+});
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
+  <AuthProvider>
+    <QueryClientProvider client={queryClient}>
       <CartProvider>
         <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
           <Routes>
-            {/* Legacy login route - redirects to new auth */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* New auth routes */}
+            {/* Auth routes */}
+            <Route path="/login" element={<Navigate to="/auth/login" replace />} />
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/register" element={<RegisterPage />} />
             <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
@@ -128,16 +140,18 @@ const App = () => (
             <Route path="/shipping" element={
               <AuthGuard>
                 <DashboardLayout>
-                  <React.Suspense fallback={<div>Loading Shipping...</div>}>
-                    <Shipping />
-                  </React.Suspense>
+                  <ErrorBoundary>
+                    <React.Suspense fallback={<div className="p-8"><div className="text-center">Loading Shipping...</div></div>}>
+                      <ShippingNew />
+                    </React.Suspense>
+                  </ErrorBoundary>
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/admin/shipping" element={
               <AuthGuard allowedRoles={['owner', 'backoffice']}>
                 <DashboardLayout>
-                  <React.Suspense fallback={<div>Loading Shipping Admin...</div>}>
+                  <React.Suspense fallback={<div className="p-8"><div className="text-center">Loading Shipping Admin...</div></div>}>
                     <ShippingAdmin />
                   </React.Suspense>
                 </DashboardLayout>
@@ -269,8 +283,8 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
       </CartProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+    </QueryClientProvider>
+  </AuthProvider>
 );
 
 export default App;

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IV RELIFE Nexus - Text Interface</title>
+    <style>
+        body { 
+            font-family: 'Courier New', monospace; 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background: #1e1e1e; 
+            color: #00ff00; 
+        }
+        .header { 
+            text-align: center; 
+            border-bottom: 2px solid #00ff00; 
+            padding-bottom: 20px; 
+            margin-bottom: 20px; 
+        }
+        .status { 
+            background: #2d2d2d; 
+            padding: 15px; 
+            border-left: 4px solid #00ff00; 
+            margin: 10px 0; 
+        }
+        .menu { 
+            background: #2d2d2d; 
+            padding: 20px; 
+            margin: 20px 0; 
+        }
+        .menu button { 
+            background: #00ff00; 
+            color: #1e1e1e; 
+            border: none; 
+            padding: 10px 20px; 
+            margin: 5px; 
+            cursor: pointer; 
+            font-family: inherit; 
+        }
+        .menu button:hover { background: #00cc00; }
+        .output { 
+            background: #2d2d2d; 
+            padding: 20px; 
+            height: 400px; 
+            overflow-y: auto; 
+            border: 1px solid #00ff00; 
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 IV RELIFE NEXUS - COMMAND INTERFACE</h1>
+        <p>Alternative text-based interface for system administration</p>
+    </div>
+
+    <div class="status">
+        <h3>📊 SYSTEM STATUS</h3>
+        <div id="status-display">Initializing...</div>
+    </div>
+
+    <div class="menu">
+        <h3>🎯 AVAILABLE COMMANDS</h3>
+        <button onclick="loadMainApp()">🚀 LOAD MAIN DASHBOARD</button>
+        <button onclick="loadFallbackApp()">🔄 LOAD FALLBACK DASHBOARD</button>
+        <button onclick="testComponents()">🧪 TEST COMPONENTS</button>
+        <button onclick="showDiagnostics()">🔍 SHOW DIAGNOSTICS</button>
+        <button onclick="openInNewWindow()">🌐 OPEN IN NEW WINDOW</button>
+    </div>
+
+    <div class="output" id="output">
+        <div>IV RELIFE Nexus Command Interface v1.0</div>
+        <div>Ready for commands...</div>
+    </div>
+
+    <script>
+        const output = document.getElementById('output');
+        const statusDisplay = document.getElementById('status-display');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            output.innerHTML += `<div>[${timestamp}] ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        function updateStatus() {
+            statusDisplay.innerHTML = `
+                <div>🌐 Server: localhost:8084 (Main Application)</div>
+                <div>🔧 Debug: localhost:8086 (Debug Server)</div>
+                <div>📋 Interface: localhost:8084/text-interface.html (Current)</div>
+                <div>⚛️ React Components: Available</div>
+                <div>📊 Dashboard: Ready for loading</div>
+                <div>🕒 Last Update: ${new Date().toLocaleTimeString()}</div>
+            `;
+        }
+        
+        function loadMainApp() {
+            log('🚀 Loading main IV RELIFE Dashboard...');
+            window.open('http://localhost:8084/', '_blank');
+            log('✅ Main dashboard opened in new window');
+        }
+        
+        function loadFallbackApp() {
+            log('🔄 Loading fallback dashboard...');
+            // Create fallback in this window
+            const fallbackWindow = window.open('', '_blank');
+            fallbackWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head><title>IV RELIFE Nexus - Fallback</title></head>
+                <body style="font-family: Arial, sans-serif; padding: 20px;">
+                    <h1>🚀 IV RELIFE Nexus - Fallback Dashboard</h1>
+                    <p>✅ Fallback system activated successfully!</p>
+                    <div id="fallback-root">Loading...</div>
+                    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+                    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+                    <script>
+                        setTimeout(() => {
+                            const { createElement: h, useState } = React;
+                            const { createRoot } = ReactDOM;
+                            
+                            function FallbackDashboard() {
+                                const [page, setPage] = useState('dashboard');
+                                return h('div', null,
+                                    h('h2', null, '📊 Dashboard Navigation'),
+                                    h('div', null,
+                                        h('button', { onClick: () => setPage('products') }, '📦 Products'),
+                                        h('button', { onClick: () => setPage('orders') }, '📋 Orders'),
+                                        h('button', { onClick: () => setPage('customers') }, '👥 Customers'),
+                                        h('button', { onClick: () => setPage('admin') }, '⚙️ Admin')
+                                    ),
+                                    h('div', { style: { marginTop: '20px', padding: '20px', border: '1px solid #ccc' } },
+                                        h('h3', null, page.charAt(0).toUpperCase() + page.slice(1) + ' Page'),
+                                        h('p', null, \`Real \${page}.tsx component would be loaded here.\`)
+                                    )
+                                );
+                            }
+                            
+                            const root = createRoot(document.getElementById('fallback-root'));
+                            root.render(h(FallbackDashboard));
+                        }, 1000);
+                    </script>
+                </body>
+                </html>
+            `);
+            log('✅ Fallback dashboard created and opened');
+        }
+        
+        function testComponents() {
+            log('🧪 Testing component availability...');
+            fetch('http://localhost:8084/src/pages/Dashboard.tsx')
+                .then(response => response.text())
+                .then(content => {
+                    log(\`✅ Dashboard.tsx: \${content.length} characters\`);
+                    log('✅ Real Dashboard component is available');
+                })
+                .catch(error => {
+                    log(\`❌ Dashboard.tsx error: \${error.message}\`);
+                });
+                
+            fetch('http://localhost:8084/src/pages/admin/AdminDashboard.tsx')
+                .then(response => response.text())
+                .then(content => {
+                    log(\`✅ AdminDashboard.tsx: \${content.length} characters\`);
+                    log('✅ Real Admin Dashboard component is available');
+                })
+                .catch(error => {
+                    log(\`❌ AdminDashboard.tsx error: \${error.message}\`);
+                });
+        }
+        
+        function showDiagnostics() {
+            log('🔍 Running comprehensive diagnostics...');
+            
+            // Test JavaScript execution
+            log('✅ JavaScript execution: Working');
+            log('✅ DOM manipulation: Working');
+            log('✅ Event handling: Working');
+            log(\`✅ Browser: \${navigator.userAgent}\`);
+            log(\`✅ Local storage: \${!!localStorage}\`);
+            log(\`✅ Fetch API: \${!!fetch}\`);
+            log(\`✅ ES6 modules: \${typeof importMaps !== 'undefined' || 'import' in window}\`);
+            
+            // Test server connectivity
+            fetch('http://localhost:8084/')
+                .then(response => {
+                    log(\`✅ Main server connectivity: HTTP \${response.status}\`);
+                })
+                .catch(error => {
+                    log(\`❌ Main server error: \${error.message}\`);
+                });
+        }
+        
+        function openInNewWindow() {
+            log('🌐 Opening main application in new window...');
+            const newWindow = window.open('http://localhost:8084/', '_blank', 'width=1200,height=800');
+            if (newWindow) {
+                log('✅ New window opened successfully');
+                // Monitor the new window
+                setTimeout(() => {
+                    try {
+                        const content = newWindow.document.body.innerHTML;
+                        if (content.includes('Loading application')) {
+                            log('⚠️ Main app still showing loading message');
+                            log('🔄 Triggering fallback in new window...');
+                            newWindow.forceCDNFallback && newWindow.forceCDNFallback();
+                        } else {
+                            log('✅ Main app appears to be loaded');
+                        }
+                    } catch (e) {
+                        log('ℹ️ Cannot inspect new window content (security policy)');
+                    }
+                }, 2000);
+            } else {
+                log('❌ Failed to open new window (popup blocked?)');
+            }
+        }
+        
+        // Initialize
+        log('🚀 IV RELIFE Nexus Command Interface initialized');
+        log('📋 All real dashboard components are preserved and ready');
+        log('🎯 Choose a command from the menu above');
+        updateStatus();
+        
+        // Update status every 5 seconds
+        setInterval(updateStatus, 5000);
+    </script>
+</body>
+</html>

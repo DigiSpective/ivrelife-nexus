@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Safari ES6 Module Diagnostic</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test { margin: 10px 0; padding: 15px; border-radius: 5px; }
+        .pass { background: #d4edda; border: 1px solid #c3e6cb; }
+        .fail { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .warn { background: #fff3cd; border: 1px solid #ffeaa7; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Safari ES6 Module Diagnostic</h1>
+    <p>Specific tests for Safari browser and ES6 module compatibility</p>
+    
+    <div id="results"></div>
+    
+    <h2>📋 Test Results Log</h2>
+    <pre id="log"></pre>
+    
+    <script>
+        const results = document.getElementById('results');
+        const logElement = document.getElementById('log');
+        const logs = [];
+        
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            logs.push(\`[\${timestamp.split('T')[1].split('.')[0]}] \${message}\`);
+            logElement.textContent = logs.join('\\n');
+            console.log(message);
+        }
+        
+        function addResult(title, success, details = '') {
+            const div = document.createElement('div');
+            div.className = \`test \${success ? 'pass' : 'fail'}\`;
+            div.innerHTML = \`
+                <strong>\${title}</strong>: \${success ? '✅ PASS' : '❌ FAIL'}
+                \${details ? \`<br><small>\${details}</small>\` : ''}
+            \`;
+            results.appendChild(div);
+            log(\`\${title}: \${success ? 'PASS' : 'FAIL'} \${details}\`);
+        }
+        
+        function addWarning(title, details) {
+            const div = document.createElement('div');
+            div.className = 'test warn';
+            div.innerHTML = \`
+                <strong>\${title}</strong>: ⚠️ WARNING
+                <br><small>\${details}</small>
+            \`;
+            results.appendChild(div);
+            log(\`\${title}: WARNING - \${details}\`);
+        }
+        
+        // Test 1: Basic Safari detection
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        addResult('Safari Browser Detection', isSafari, navigator.userAgent);
+        
+        // Test 2: ES6 Module support detection
+        const moduleSupport = 'noModule' in HTMLScriptElement.prototype;
+        addResult('ES6 Module Support', moduleSupport, 'Browser supports ES6 modules');
+        
+        // Test 3: Dynamic import support
+        let dynamicImportSupport = false;
+        try {
+            new Function('import("")');
+            dynamicImportSupport = true;
+        } catch (e) {
+            log(\`Dynamic import test error: \${e.message}\`);
+        }
+        addResult('Dynamic Import Support', dynamicImportSupport);
+        
+        // Test 4: Fetch API
+        addResult('Fetch API Available', !!window.fetch);
+        
+        // Test 5: Test actual module loading
+        log('🔍 Testing actual ES6 module loading...');
+        
+        // Test with a simple data URI module
+        import('data:text/javascript,export default "test"')
+            .then(module => {
+                addResult('Data URI Module Import', true, \`Imported: \${module.default}\`);
+                
+                // Test with actual Vite module
+                log('🔍 Testing Vite module import...');
+                return import('http://localhost:8084/src/main-emergency.tsx');
+            })
+            .then(module => {
+                addResult('Vite Module Import', true, 'Successfully imported main-emergency.tsx');
+                log('✅ Vite module import successful');
+                
+                // If we get here, modules work - the issue is elsewhere
+                addWarning('Module Import Analysis', 'ES6 modules work fine - issue may be in React rendering or component execution');
+                
+            })
+            .catch(error => {
+                addResult('Vite Module Import', false, error.message);
+                log(\`❌ Vite module import failed: \${error.message}\`);
+                
+                // Test CORS issues
+                fetch('http://localhost:8084/src/main-emergency.tsx')
+                    .then(response => response.text())
+                    .then(content => {
+                        addResult('Vite Module Fetch', true, \`Content length: \${content.length}\`);
+                        
+                        // Check if it's a CORS or module execution issue
+                        if (content.includes('import')) {
+                            addWarning('Module Content Analysis', 'Module content is accessible, but import failed - likely Safari ES6 module execution issue');
+                            
+                            // Trigger alternative loading
+                            testAlternativeLoading();
+                        }
+                    })
+                    .catch(fetchError => {
+                        addResult('Vite Module Fetch', false, fetchError.message);
+                    });
+            });
+        
+        function testAlternativeLoading() {
+            log('🔄 Testing alternative loading strategies...');
+            
+            // Strategy 1: Non-module script tag
+            fetch('http://localhost:8084/src/main-emergency.tsx')
+                .then(response => response.text())
+                .then(content => {
+                    log('📦 Attempting to transform module to non-module format...');
+                    
+                    // Create a non-module version
+                    const nonModuleContent = \`
+                        // Safari-compatible non-module version
+                        (function() {
+                            console.log('🔄 Non-module loader executing...');
+                            
+                            // Load React from CDN first
+                            if (!window.React) {
+                                console.log('📦 Loading React from CDN...');
+                                const reactScript = document.createElement('script');
+                                reactScript.src = 'https://unpkg.com/react@18/umd/react.development.js';
+                                reactScript.onload = function() {
+                                    const reactDomScript = document.createElement('script');
+                                    reactDomScript.src = 'https://unpkg.com/react-dom@18/umd/react-dom.development.js';
+                                    reactDomScript.onload = function() {
+                                        console.log('✅ React CDN loaded, initializing app...');
+                                        initializeSafariCompatibleApp();
+                                    };
+                                    document.head.appendChild(reactDomScript);
+                                };
+                                document.head.appendChild(reactScript);
+                            } else {
+                                initializeSafariCompatibleApp();
+                            }
+                            
+                            function initializeSafariCompatibleApp() {
+                                console.log('🚀 Initializing Safari-compatible app...');
+                                
+                                const { createElement: h, useState } = React;
+                                const { createRoot } = ReactDOM;
+                                
+                                function SafariApp() {
+                                    const [status, setStatus] = useState('Initializing...');
+                                    
+                                    React.useEffect(() => {
+                                        setStatus('Safari-Compatible IV RELIFE Dashboard Ready!');
+                                    }, []);
+                                    
+                                    return h('div', { style: { padding: '20px', fontFamily: 'Arial, sans-serif' } },
+                                        h('h1', { style: { color: '#0066cc' } }, '🚀 IV RELIFE Nexus'),
+                                        h('div', { style: { background: '#d4edda', padding: '15px', borderRadius: '5px', margin: '20px 0' } },
+                                            h('strong', null, '✅ Safari Compatibility Mode Active'),
+                                            h('p', { style: { margin: '5px 0' } }, status)
+                                        ),
+                                        h('div', { style: { marginTop: '20px' } },
+                                            h('p', null, '📊 Real Dashboard components available for integration'),
+                                            h('p', null, '🔧 Module loading bypassed for Safari compatibility'),
+                                            h('button', { 
+                                                onClick: () => setStatus('Dashboard navigation ready!'),
+                                                style: { padding: '10px 20px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }
+                                            }, '🎯 Activate Dashboard')
+                                        )
+                                    );
+                                }
+                                
+                                // Find or create root element
+                                let rootElement = document.getElementById('root');
+                                if (!rootElement) {
+                                    rootElement = document.createElement('div');
+                                    rootElement.id = 'root';
+                                    document.body.appendChild(rootElement);
+                                }
+                                
+                                const root = createRoot(rootElement);
+                                root.render(h(SafariApp));
+                                
+                                console.log('✅ Safari-compatible app rendered');
+                                
+                                // Send success signal to parent window if in iframe
+                                if (window.parent !== window) {
+                                    window.parent.postMessage({ type: 'safari-app-loaded' }, '*');
+                                }
+                            }
+                        })();
+                    \`;
+                    
+                    addResult('Alternative Loading Strategy', true, 'Non-module approach prepared');
+                    
+                    // Execute the alternative loading
+                    const script = document.createElement('script');
+                    script.textContent = nonModuleContent;
+                    document.head.appendChild(script);
+                    
+                })
+                .catch(error => {
+                    addResult('Alternative Loading Strategy', false, error.message);
+                });
+        }
+        
+        // Test 6: Check if we're in an iframe
+        if (window !== window.top) {
+            addWarning('Iframe Detection', 'Running inside iframe - may have restrictions');
+        }
+        
+        // Test 7: Network connectivity to main app
+        fetch('http://localhost:8084/')
+            .then(response => response.text())
+            .then(html => {
+                addResult('Main App Connectivity', true, \`HTML length: \${html.length}\`);
+                
+                // Check if the HTML contains our expected elements
+                if (html.includes('main-emergency.tsx')) {
+                    addResult('Main App Configuration', true, 'Emergency module script found in HTML');
+                } else {
+                    addResult('Main App Configuration', false, 'Emergency module script not found in HTML');
+                }
+            })
+            .catch(error => {
+                addResult('Main App Connectivity', false, error.message);
+            });
+        
+        log('🚀 Safari diagnostic initialized');
+    </script>
+</body>
+</html>

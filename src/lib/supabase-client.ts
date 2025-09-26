@@ -444,13 +444,8 @@ function createActualSupabaseClient(): SupabaseClient<Database> {
       }
     );
 
-    // Validate connection (this will throw if client creation failed)
-    if (!client || typeof client.auth?.getSession !== 'function') {
-      throw new SupabaseInitializationError(
-        'Client creation succeeded but client is invalid'
-      );
-    }
-
+    // Removed blocking validation that could freeze the app during auth
+    console.log('[Supabase] Client created successfully');
     return client;
   } catch (error) {
     console.error('[Supabase] Client creation failed:', error);

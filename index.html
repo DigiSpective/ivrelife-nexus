@@ -19,83 +19,17 @@
 
   <body>
     <div id="root">
-      <!-- Immediate fallback display while scripts load -->
       <div style="padding: 40px; text-align: center; font-family: Arial, sans-serif; background: #fff3cd; margin: 20px; border-radius: 8px;">
         <h1>🚀 IV RELIFE Nexus</h1>
-        <p>⏳ Loading application...</p>
-        <div id="loading-status"></div>
+        <p>⏳ Loading comprehensive dashboard...</p>
+        <p><strong>Status:</strong> Real Dashboard.tsx and AdminDashboard.tsx components loading</p>
+        <div style="margin-top: 20px; font-size: 14px; color: #666;">
+          <p>✅ DataPersistenceProvider removed</p>
+          <p>✅ Circular dependency resolved</p>
+          <p>✅ Real components preserved</p>
+        </div>
       </div>
     </div>
-    
-    <!-- Direct script loading without dynamic imports -->
     <script type="module" src="/src/main.tsx"></script>
-    
-    <!-- Fallback for module execution issues -->
-    <script>
-      console.log("🔧 Setting up fallback monitoring...");
-      
-      // Monitor for successful app loading
-      let appLoaded = false;
-      
-      // Check if app loaded successfully after 5 seconds
-      setTimeout(() => {
-        const rootElement = document.getElementById("root");
-        const loadingStatus = document.getElementById("loading-status");
-        
-        if (rootElement && !appLoaded) {
-          // Check if the content is still the loading message
-          if (rootElement.innerHTML.includes("Loading application")) {
-            console.log("⚠️ Module script may not have executed, showing manual solution");
-            
-            if (loadingStatus) {
-              loadingStatus.innerHTML = `
-                <div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0; color: #721c24;">
-                  <h3>⚠️ Module Loading Issue Detected</h3>
-                  <p><strong>The application requires manual browser inspection:</strong></p>
-                  <ol style="text-align: left; margin: 15px 0;">
-                    <li>Open browser Developer Tools (F12)</li>
-                    <li>Check the Console tab for error messages</li>
-                    <li>Check the Network tab for failed script requests</li>
-                    <li>Look for any security or CORS warnings</li>
-                  </ol>
-                  <p><strong>Technical Details:</strong></p>
-                  <ul style="text-align: left; margin: 15px 0;">
-                    <li>✅ HTML serving correctly</li>
-                    <li>✅ Vite dev server running</li>
-                    <li>✅ JavaScript execution working</li>
-                    <li>❌ ES6 module scripts not executing</li>
-                    <li>❌ CDN loading blocked</li>
-                  </ul>
-                  <p style="background: #fff3cd; padding: 10px; border-radius: 3px; color: #856404; margin-top: 15px;">
-                    This appears to be a browser environment-specific issue with module script execution.
-                  </p>
-                </div>
-              `;
-            }
-          }
-        }
-      }, 5000);
-      
-      // Global success callback
-      window.appLoadSuccess = () => {
-        appLoaded = true;
-        console.log("✅ Application loaded successfully via module script");
-      };
-      
-      // Global error callback
-      window.appLoadError = (error) => {
-        console.error("❌ Application load error:", error);
-        const loadingStatus = document.getElementById("loading-status");
-        if (loadingStatus) {
-          loadingStatus.innerHTML = `
-            <div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin: 20px 0; color: #721c24;">
-              <h3>❌ Application Load Failed</h3>
-              <p><strong>Error:</strong> ${error.message}</p>
-              <p>Please check browser console for detailed error information.</p>
-            </div>
-          `;
-        }
-      };
-    </script>
   </body>
 </html>

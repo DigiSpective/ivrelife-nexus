@@ -48,6 +48,8 @@ import { ShipmentManagementDialog } from '@/components/shipping/ShipmentManageme
 import { OrderCustomerLink } from '@/components/shared/OrderCustomerLink';
 
 export default function ShippingNew() {
+  console.log('[ShippingNew] Component rendering...');
+  
   const [activeTab, setActiveTab] = useState('dashboard');
   const [filters, setFilters] = useState<ShippingFilters>({});
   const [searchQuery, setSearchQuery] = useState('');

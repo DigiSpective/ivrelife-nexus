@@ -18,14 +18,26 @@ import {
 } from '@/components/ui/table';
 import { Product, ProductFilters } from '@/types/products';
 import { sampleProducts, shippingProfiles, giftRules } from '@/data/sampleProducts';
+import { useToast } from '@/hooks/use-toast';
+import { ProductEditDialog } from '@/components/products/ProductEditDialog';
+import { useCart } from '@/components/cart/CartManager';
 
 export default function Products() {
+  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>(sampleProducts);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
   const [filters, setFilters] = useState<ProductFilters>({
     price_range: { min: 0, max: 30000 }
   });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'price' | 'category'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  // Use the cart manager instead of local state
+  const { cart, addToCart } = useCart();
+
 
   // Get unique categories and tags for filter options
   const categories = useMemo(() => 
@@ -36,9 +48,65 @@ export default function Products() {
     Array.from(new Set(products.flatMap(p => p.tags || []))), [products]
   );
 
-  // Filter products based on current filters
+  // Product action handlers
+  const handleAddToCart = (product: Product) => {
+    // Use the CartManager's addToCart function
+    addToCart(product, { quantity: 1 });
+    
+    toast({
+      title: 'Added to Cart',
+      description: `${product.name} has been added to your cart.`,
+    });
+  };
+
+  const handleRemoveFromCart = (itemId: string) => {
+    // This function is handled by the CartSidebar directly
+    // We don't need it here since we're using the CartManager
+    console.log('Remove from cart called with itemId:', itemId);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveProduct = (updatedProduct: Product) => {
+    setProducts(prevProducts => 
+      prevProducts.map(p => p.id === updatedProduct.id ? updatedProduct : p)
+    );
+    
+    toast({
+      title: 'Product Updated',
+      description: `${updatedProduct.name} has been updated successfully.`,
+    });
+  };
+
+  const handleCloseEditDialog = () => {
+    setIsEditDialogOpen(false);
+    setSelectedProduct(null);
+  };
+
+  const handleViewProduct = (productId: string) => {
+    // This is handled by the Link component, but we can add analytics
+    console.log(`Viewing product: ${productId}`);
+  };
+
+  // Filter products based on current filters and search
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
+      // Search filter (from searchTerm state)
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const matchesName = product.name.toLowerCase().includes(search);
+        const matchesDescription = product.description?.toLowerCase().includes(search);
+        const matchesTags = product.tags?.some(tag => tag.toLowerCase().includes(search));
+        const matchesCategory = product.category.toLowerCase().includes(search);
+        
+        if (!matchesName && !matchesDescription && !matchesTags && !matchesCategory) {
+          return false;
+        }
+      }
+
       // Category filter
       if (filters.category?.length && !filters.category.includes(product.category)) {
         return false;
@@ -63,19 +131,35 @@ export default function Products() {
         if (filters.availability === 'out_of_stock' && product.available) return false;
       }
 
-      // Search filter
-      if (filters.search) {
-        const searchTerm = filters.search.toLowerCase();
-        return (
-          product.name.toLowerCase().includes(searchTerm) ||
-          product.description?.toLowerCase().includes(searchTerm) ||
-          product.tags?.some(tag => tag.toLowerCase().includes(searchTerm))
-        );
-      }
-
       return true;
+    }).sort((a, b) => {
+      // Sorting logic
+      let aValue: any, bValue: any;
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'price':
+          aValue = a.sale_price_usd || a.price_usd;
+          bValue = b.sale_price_usd || b.price_usd;
+          break;
+        case 'category':
+          aValue = a.category.toLowerCase();
+          bValue = b.category.toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
     });
-  }, [products, filters]);
+  }, [products, filters, searchTerm, sortBy, sortOrder]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -92,6 +176,22 @@ export default function Products() {
 
   const getGiftRule = (ruleId?: string) => {
     return ruleId ? giftRules.find(r => r.id === ruleId) : null;
+  };
+
+  // Cart utilities
+  const getTotalCartItems = () => {
+    return cart?.line_items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+  };
+
+  const hasCartItems = (cart?.line_items?.length || 0) > 0;
+
+  const getTotalCartValue = () => {
+    return cart?.total || 0;
+  };
+
+  const clearCart = () => {
+    // This function is handled by the CartManager
+    console.log('Clear cart called');
   };
 
   const renderTableView = () => (
@@ -212,11 +312,26 @@ export default function Products() {
                           <Eye className="w-4 h-4" />
                         </Link>
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleEditProduct(product)}
+                        title="Edit Product"
+                      >
                         <Edit className="w-4 h-4" />
                       </Button>
-                      <Button variant="default" size="sm">
+                      <Button 
+                        variant="default" 
+                        size="sm"
+                        onClick={() => handleAddToCart(product)}
+                        title="Add to Cart"
+                      >
                         <ShoppingCart className="w-4 h-4" />
+                        {(() => {
+                          const cartItem = cart?.line_items?.find(item => item.product_id === product.id);
+                          const quantity = cartItem?.quantity || 0;
+                          return quantity > 0 ? <span className="ml-1 text-xs">({quantity})</span> : null;
+                        })()}
                       </Button>
                     </div>
                   </TableCell>
@@ -287,9 +402,18 @@ export default function Products() {
                     View
                   </Link>
                 </Button>
-                <Button size="sm" className="flex-1">
+                <Button 
+                  size="sm" 
+                  className="flex-1"
+                  onClick={() => handleAddToCart(product)}
+                >
                   <ShoppingCart className="w-4 h-4 mr-1" />
                   Add to Cart
+                  {(() => {
+                    const cartItem = cart?.line_items?.find(item => item.product_id === product.id);
+                    const quantity = cartItem?.quantity || 0;
+                    return quantity > 0 ? <span className="ml-1 text-xs">({quantity})</span> : null;
+                  })()}
                 </Button>
               </div>
             </CardContent>
@@ -301,11 +425,82 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Products</h1>
-        <p className="text-muted-foreground">
-          Manage your product catalog, shipping profiles, and gift rules
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold">Products</h1>
+          <p className="text-muted-foreground">
+            Browse and manage your product catalog
+          </p>
+        </div>
+        
+        {/* Cart Summary */}
+        {hasCartItems && (
+          <Card className="min-w-[250px] max-w-[350px]">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium">Shopping Cart</span>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearCart}
+                  className="text-xs p-1 h-6"
+                >
+                  Clear
+                </Button>
+              </div>
+              
+              {/* Cart Items */}
+              <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">
+                {(cart?.line_items || []).map((item) => {
+                  const product = item.product;
+                  if (!product) return null;
+                  
+                  const price = item.price_override !== undefined ? item.price_override : (product.sale_price_usd || product.price_usd);
+                  return (
+                    <div key={item.id} className="flex items-center justify-between text-xs bg-muted/50 p-2 rounded">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{product.name}</div>
+                        <div className="text-muted-foreground">
+                          {formatPrice(price)} × {item.quantity}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveFromCart(item.id)}
+                          className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+                        >
+                          −
+                        </Button>
+                        <span className="min-w-[1rem] text-center">{item.quantity}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleAddToCart(product)}
+                          className="h-5 w-5 p-0 text-muted-foreground hover:text-primary"
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="space-y-1 pt-2 border-t">
+                <div className="flex justify-between text-sm">
+                  <span>Items:</span>
+                  <span>{getTotalCartItems()}</span>
+                </div>
+                <div className="flex justify-between text-sm font-medium">
+                  <span>Total:</span>
+                  <span>{formatPrice(getTotalCartValue())}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Filters Section */}
@@ -325,8 +520,8 @@ export default function Products() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   placeholder="Search products..."
-                  value={filters.search || ''}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
@@ -395,6 +590,31 @@ export default function Products() {
                 </Button>
               </div>
             </div>
+
+            {/* Sort Controls */}
+            <div>
+              <label className="text-sm font-medium mb-2 block">Sort</label>
+              <div className="flex gap-2">
+                <Select value={sortBy} onValueChange={(value: 'name' | 'price' | 'category') => setSortBy(value)}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Name</SelectItem>
+                    <SelectItem value="price">Price</SelectItem>
+                    <SelectItem value="category">Category</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                  title={`Sort ${sortOrder === 'asc' ? 'Descending' : 'Ascending'}`}
+                >
+                  {sortOrder === 'asc' ? '↑' : '↓'}
+                </Button>
+              </div>
+            </div>
           </div>
 
           {/* Price Range */}
@@ -457,12 +677,20 @@ export default function Products() {
           Showing {filteredProducts.length} of {products.length} products
         </p>
         <Button asChild>
-          <Link to="/admin/products/new">Add New Product</Link>
+          <Link to="/admin/products">Manage Products</Link>
         </Button>
       </div>
 
       {/* Products List */}
       {viewMode === 'table' ? renderTableView() : renderGridView()}
+      
+      {/* Product Edit Dialog */}
+      <ProductEditDialog
+        isOpen={isEditDialogOpen}
+        onClose={handleCloseEditDialog}
+        product={selectedProduct}
+        onSave={handleSaveProduct}
+      />
     </div>
   );
 }

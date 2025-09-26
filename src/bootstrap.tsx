@@ -22,18 +22,24 @@ window.addEventListener('unhandledrejection', (e) => {
 export async function initApp() {
   try {
     console.log("📱 Initializing React application...");
+    console.log("🔍 Current location:", window.location.href);
     
     // Dynamic import of the main app to defer heavy loading
+    // Back to original App to test if our changes broke it
     const { default: App } = await import('./App');
     const { createRoot } = await import('react-dom/client');
     
     const rootElement = document.getElementById("root");
+    console.log("🎯 Root element:", rootElement);
     
     if (!rootElement) {
       throw new Error("Root element not found");
     }
 
+    console.log("🚀 Creating React root...");
     const root = createRoot(rootElement);
+    
+    console.log("🎨 Rendering App component...");
     root.render(<App />);
     
     console.log("✅ Application started successfully");

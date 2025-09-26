@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   ShoppingCart, 
   X, 
@@ -26,6 +27,7 @@ interface CartSidebarProps {
 }
 
 export const CartSidebar: React.FC<CartSidebarProps> = ({ trigger }) => {
+  const navigate = useNavigate();
   const { 
     cart, 
     removeFromCart, 
@@ -50,6 +52,34 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ trigger }) => {
     } else {
       updateCartItem(itemId, { quantity: newQuantity });
     }
+  };
+
+  const handleProceedToCheckout = () => {
+    if (!cart?.line_items?.length) {
+      return; // Don't proceed if cart is empty
+    }
+
+    // Convert cart items to the format expected by NewOrder form
+    const orderItems = cart.line_items.map((item) => ({
+      product: item.product,
+      qty: item.quantity,
+      color: item.color,
+      white_glove_selected: item.white_glove_selected,
+      extended_warranty_selected: item.extended_warranty_selected,
+      price_override: item.price_override
+    }));
+
+    console.log('Proceeding to checkout with items:', orderItems);
+
+    // Navigate to the new order form with the cart data
+    navigate('/orders/new', {
+      state: {
+        fromCart: true,
+        cartItems: orderItems,
+        cartTotal: cart.total || 0,
+        cartId: cart.id
+      }
+    });
   };
 
   const getItemPrice = (item: any) => {
@@ -260,7 +290,7 @@ export const CartSidebar: React.FC<CartSidebarProps> = ({ trigger }) => {
               </div>
 
               <div className="space-y-2">
-                <Button className="w-full" size="lg">
+                <Button className="w-full" size="lg" onClick={handleProceedToCheckout}>
                   Proceed to Checkout
                 </Button>
                 <Button 

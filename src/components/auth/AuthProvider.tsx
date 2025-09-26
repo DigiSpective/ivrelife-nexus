@@ -3,8 +3,16 @@ import { User, AuthSession, AuthError, LoginCredentials, RegisterData } from '@/
 import { createSupabaseClient } from '@/lib/supabase-client';
 import { useToast } from '@/hooks/use-toast';
 
-// Create single Supabase client instance
-const supabase = createSupabaseClient();
+// Lazy Supabase client creation to prevent module-level blocking
+let supabaseInstance: ReturnType<typeof createSupabaseClient> | null = null;
+const getSupabase = () => {
+  if (!supabaseInstance) {
+    console.log('[Auth] Creating Supabase client...');
+    supabaseInstance = createSupabaseClient();
+    console.log('[Auth] Supabase client created successfully');
+  }
+  return supabaseInstance;
+};
 
 // Convert Supabase user to our User type
 const mapUser = (supabaseUser: any): User => ({
@@ -54,8 +62,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initAuth = async () => {
       try {
-        // Check existing session
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        // Check existing session with timeout protection
+        const supabase = getSupabase();
+        
+        // Add timeout to prevent hanging during auth init
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Auth initialization timeout')), 10000)
+        );
+        
+        const { data: { session }, error: sessionError } = await Promise.race([
+          sessionPromise, 
+          timeoutPromise
+        ]) as any;
         
         if (!mounted) return;
 
@@ -84,6 +103,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     // Set up auth state listener
+    const supabase = getSupabase();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('[Auth] Auth state change:', event, session?.user?.email);
       
@@ -114,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
 
+      const supabase = getSupabase();
       const { data, error: authError } = await supabase.auth.signInWithPassword(credentials);
 
       if (authError) {
@@ -168,6 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setError(null);
 
+      const supabase = getSupabase();
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
         password: data.password,
@@ -199,6 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = useCallback(async () => {
     try {
       setLoading(true);
+      const supabase = getSupabase();
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
@@ -215,6 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const resetPassword = useCallback(async (email: string) => {
     try {
       setLoading(true);
+      const supabase = getSupabase();
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
 
       if (resetError) {
@@ -240,6 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     try {
       setLoading(true);
+      const supabase = getSupabase();
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
 
       if (updateError) {
@@ -266,6 +291,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const refreshUser = useCallback(async () => {
     try {
+      const supabase = getSupabase();
       const { data: { user }, error } = await supabase.auth.getUser();
       
       if (error) {

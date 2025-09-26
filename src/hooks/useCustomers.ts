@@ -39,13 +39,8 @@ export const useCustomers = (filters?: {
 }) => {
   return useQuery({
     queryKey: ['customers', filters],
-    queryFn: () => {
-      const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}] ⚠️  useCustomers queryFn called - THIS SHOULD NOT HAPPEN AFTER DIRECT UPDATE!`);
-      console.log('Call stack:', new Error().stack);
-      return getCustomers();
-    },
-    // Prevent automatic refetches that could overwrite our direct updates
+    queryFn: () => getCustomers(),
+    // Prevent excessive refetches during auth state changes
     staleTime: 5 * 60 * 1000, // 5 minutes
     refetchOnMount: false,
     refetchOnWindowFocus: false,

@@ -141,9 +141,9 @@ export const sampleCarrierSettings: CarrierSettings[] = [
     carrier_name: 'UPS',
     enabled: true,
     api_credentials: {
-      api_key: process.env.UPS_API_KEY || '',
-      api_secret: process.env.UPS_API_SECRET || '',
-      account_number: process.env.UPS_ACCOUNT_NUMBER || ''
+      api_key: import.meta.env.VITE_UPS_API_KEY || '',
+      api_secret: import.meta.env.VITE_UPS_API_SECRET || '',
+      account_number: import.meta.env.VITE_UPS_ACCOUNT_NUMBER || ''
     },
     service_levels: [
       {
@@ -181,9 +181,9 @@ export const sampleCarrierSettings: CarrierSettings[] = [
     carrier_name: 'FedEx',
     enabled: true,
     api_credentials: {
-      api_key: process.env.FEDEX_API_KEY || '',
-      api_secret: process.env.FEDEX_API_SECRET || '',
-      account_number: process.env.FEDEX_ACCOUNT_NUMBER || ''
+      api_key: import.meta.env.VITE_FEDEX_API_KEY || '',
+      api_secret: import.meta.env.VITE_FEDEX_API_SECRET || '',
+      account_number: import.meta.env.VITE_FEDEX_ACCOUNT_NUMBER || ''
     },
     service_levels: [
       {
@@ -221,9 +221,9 @@ export const sampleCarrierSettings: CarrierSettings[] = [
     carrier_name: 'DHL',
     enabled: false,
     api_credentials: {
-      api_key: process.env.DHL_API_KEY || '',
-      api_secret: process.env.DHL_API_SECRET || '',
-      account_number: process.env.DHL_ACCOUNT_NUMBER || ''
+      api_key: import.meta.env.VITE_DHL_API_KEY || '',
+      api_secret: import.meta.env.VITE_DHL_API_SECRET || '',
+      account_number: import.meta.env.VITE_DHL_ACCOUNT_NUMBER || ''
     },
     service_levels: [
       {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,12 +18,13 @@ import {
   Camera,
   PenTool
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { sampleProducts } from '@/data/sampleProducts';
 import { useAvailableProducts } from '@/hooks/useOrderProducts';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useToast } from '@/hooks/use-toast';
+import { useCart } from '@/components/cart/CartManager';
 
 const customerSchema = z.object({
   customer_id: z.string().min(1, 'Please select a customer'),
@@ -52,7 +53,9 @@ export default function NewOrder() {
   const [orderData, setOrderData] = useState<any>({});
   const [selectedItems, setSelectedItems] = useState<any[]>([]);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const { clearCart } = useCart();
   
   // Get dynamic customers instead of static mock data
   const { data: customersData } = useCustomers();
@@ -61,6 +64,24 @@ export default function NewOrder() {
   
   // Order creation hook
   const { mutate: createOrderMutation, isPending: isCreatingOrder } = useCreateOrder();
+
+  // Initialize cart data if coming from cart checkout
+  useEffect(() => {
+    const locationState = location.state as any;
+    if (locationState?.fromCart && locationState?.cartItems) {
+      console.log('Initializing order form with cart data:', locationState.cartItems);
+      setSelectedItems(locationState.cartItems);
+      
+      // Show success message
+      toast({
+        title: 'Cart Items Loaded',
+        description: `${locationState.cartItems.length} items loaded from your cart.`,
+      });
+      
+      // If we have cart items, skip directly to step 2 (products already selected)
+      // setCurrentStep(2);
+    }
+  }, [location.state, toast]);
 
   const customerForm = useForm<CustomerForm>({
     resolver: zodResolver(customerSchema)
@@ -168,6 +189,14 @@ export default function NewOrder() {
     createOrderMutation(newOrderData, {
       onSuccess: (data) => {
         const orderNumber = `ORD-${String(Date.now()).slice(-4)}`;
+        
+        // Clear cart if this order came from cart checkout
+        const locationState = location.state as any;
+        if (locationState?.fromCart) {
+          clearCart();
+          console.log('Cart cleared after successful order creation');
+        }
+        
         toast({
           title: "Order created successfully!",
           description: `Order #${orderNumber} has been created and contract generated.`
@@ -290,6 +319,11 @@ export default function NewOrder() {
                 <Package className="w-5 h-5" />
                 Select Products
               </CardTitle>
+              {location.state?.fromCart && (
+                <div className="text-sm text-green-600 bg-green-50 p-3 rounded-lg border border-green-200">
+                  ✅ <strong>{selectedItems.length} items</strong> loaded from your cart
+                </div>
+              )}
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

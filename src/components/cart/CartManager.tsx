@@ -35,43 +35,33 @@ interface CartItemOptions {
 
 const CartContext = createContext<CartContextType | null>(null);
 
-export const useCart = () => {
+// Consistent export pattern for Fast Refresh
+export function useCart() {
   const context = useContext(CartContext);
   if (!context) {
     throw new Error('useCart must be used within a CartProvider');
   }
   return context;
-};
+}
 
 interface CartProviderProps {
   children: React.ReactNode;
 }
 
-export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
-  const [cart, setCart] = useState<Cart | null>(null);
+export function CartProvider({ children }: CartProviderProps) {
+  const initialCart: Cart = {
+    id: `cart-${Date.now()}`,
+    line_items: [],
+    shipments: [],
+    subtotal: 0,
+    shipping_total: 0,
+    tax_total: 0,
+    total: 0,
+    gift_suggestions: []
+  };
 
-  useEffect(() => {
-    // Load cart from localStorage on mount
-    const savedCart = localStorage.getItem('iv-relife-cart');
-    if (savedCart) {
-      try {
-        const parsedCart = JSON.parse(savedCart);
-        setCart(parsedCart);
-      } catch (error) {
-        console.error('Error loading cart from localStorage:', error);
-        initializeCart();
-      }
-    } else {
-      initializeCart();
-    }
-  }, []);
-
-  useEffect(() => {
-    // Save cart to localStorage whenever it changes
-    if (cart) {
-      localStorage.setItem('iv-relife-cart', JSON.stringify(cart));
-    }
-  }, [cart]);
+  // Use React state for cart
+  const [cart, setCart] = useState<Cart>(initialCart);
 
   const initializeCart = () => {
     const newCart: Cart = {
@@ -402,6 +392,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       {children}
     </CartContext.Provider>
   );
-};
+}
 
-export default CartProvider;
+// Export as default to maintain compatibility
+export { CartProvider as default };

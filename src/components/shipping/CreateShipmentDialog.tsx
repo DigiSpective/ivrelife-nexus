@@ -15,6 +15,7 @@ import { OrderCustomerLink } from '../shared/OrderCustomerLink';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useOrders } from '@/hooks/useOrders';
 import { sampleProducts } from '@/data/sampleProducts';
+import { sampleCarrierSettings } from '@/data/sampleShippingData';
 import { 
   Loader2, 
   Save, 
@@ -137,8 +138,25 @@ export function CreateShipmentDialog({ open, onOpenChange, orderId }: CreateShip
   const { data: ordersData } = useOrders();
   const orders = ordersData?.data || [];
 
-  const providers = providersData?.data || [];
-  const methods = methodsData?.data || [];
+  // Use fallback providers and methods if no data from API
+  const providers = providersData?.data?.length > 0 ? providersData.data : 
+    sampleCarrierSettings.filter(carrier => carrier.enabled).map(carrier => ({
+      id: carrier.carrier_name.toLowerCase(),
+      name: carrier.carrier_name,
+      enabled: carrier.enabled
+    }));
+  
+  const methods = methodsData?.data?.length > 0 ? methodsData.data :
+    sampleCarrierSettings.flatMap(carrier => 
+      carrier.service_levels.filter(service => service.enabled).map(service => ({
+        id: service.service_code,
+        name: service.service_name,
+        provider_id: carrier.carrier_name.toLowerCase(),
+        estimated_days_min: service.estimated_days_min,
+        estimated_days_max: service.estimated_days_max
+      }))
+    );
+  
   const availableMethods = methods.filter(method => method.provider_id === formData.provider_id);
 
   // Get available orders with order numbers and customer info

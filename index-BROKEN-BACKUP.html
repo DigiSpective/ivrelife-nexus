@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ivrelife-nexus</title>
+    <meta name="description" content="Lovable Generated Project" />
+    <meta name="author" content="Lovable" />
+
+    <meta property="og:title" content="ivrelife-nexus" />
+    <meta property="og:description" content="Lovable Generated Project" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@lovable_dev" />
+    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+  </head>
+
+  <body>
+    <div id="root">
+      <!-- Immediate fallback display while scripts load -->
+      <div style="padding: 40px; text-align: center; font-family: Arial, sans-serif; background: #fff3cd; margin: 20px; border-radius: 8px;">
+        <h1>🚀 IV RELIFE Nexus</h1>
+        <p>⏳ Loading application...</p>
+        <p><strong>Debug Info:</strong> <span id="debug-timestamp"></span></p>
+        <div id="loading-status"></div>
+        <div style="margin-top: 20px;">
+          <button onclick="window.forceCDNFallback()" style="padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+            🔄 Load Dashboard Now (Force CDN)
+          </button>
+        </div>
+        <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px; text-align: left;">
+          <h4>🔧 Manual Instructions:</h4>
+          <p>If the dashboard doesn't load automatically:</p>
+          <ol style="text-align: left;">
+            <li>Click "Load Dashboard Now" button above</li>
+            <li>Or wait 3 seconds for auto-fallback</li>
+            <li>Or open browser console (F12) for diagnostics</li>
+          </ol>
+          <p><strong>Server Status:</strong> ✅ Running on localhost:8084</p>
+          <p><strong>Components:</strong> ✅ Real Dashboard.tsx available</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Emergency restoration - bypass complex bootstrap -->
+    <script type="module" src="/src/main-emergency.tsx"></script>
+    <!-- Progressive dashboard loader - fallback and diagnostic system -->
+    <script src="/src/progressive-dashboard-loader.js"></script>
+    <!-- Emergency bridge - immediate diagnostic and force-load system -->
+    <script src="/src/emergency-bridge.js"></script>
+    <!-- Safari-specific emergency app loader -->
+    <script src="/src/safari-emergency-app.js"></script>
+    <!-- This should load the real comprehensive dashboard -->
+    
+    <!-- Comprehensive Browser Diagnostics and Fallback System -->
+    <script>
+      console.log("🔧 IV RELIFE Nexus - Comprehensive Diagnostics Starting...");
+      
+      // Capture all console output for analysis
+      const diagnosticLogs = [];
+      const originalConsole = {
+        log: console.log,
+        error: console.error,
+        warn: console.warn,
+        info: console.info
+      };
+      
+      function captureLog(type, ...args) {
+        const timestamp = new Date().toISOString();
+        const message = args.map(arg => 
+          typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' ');
+        
+        diagnosticLogs.push({ timestamp, type, message });
+        originalConsole[type].apply(console, args);
+        
+        // Update diagnostic display
+        updateDiagnosticDisplay();
+      }
+      
+      console.log = (...args) => captureLog('log', ...args);
+      console.error = (...args) => captureLog('error', ...args);
+      console.warn = (...args) => captureLog('warn', ...args);
+      console.info = (...args) => captureLog('info', ...args);
+      
+      // Global error handler
+      window.addEventListener('error', (event) => {
+        console.error('🚨 Global Error:', {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          error: event.error
+        });
+      });
+      
+      // Unhandled promise rejection handler
+      window.addEventListener('unhandledrejection', (event) => {
+        console.error('🚨 Unhandled Promise Rejection:', event.reason);
+      });
+      
+      // Module script error handler
+      window.addEventListener('error', (event) => {
+        if (event.target && event.target.tagName === 'SCRIPT') {
+          console.error('🚨 Script Error:', {
+            src: event.target.src,
+            type: event.target.type,
+            message: event.message
+          });
+        }
+      }, true);
+      
+      // Update debug timestamp immediately
+      const debugEl = document.getElementById('debug-timestamp');
+      if (debugEl) {
+        debugEl.textContent = new Date().toLocaleTimeString();
+      }
+      
+      function updateDiagnosticDisplay() {
+        const loadingStatus = document.getElementById("loading-status");
+        if (loadingStatus && diagnosticLogs.length > 0) {
+          const errorCount = diagnosticLogs.filter(log => log.type === 'error').length;
+          const warnCount = diagnosticLogs.filter(log => log.type === 'warn').length;
+          
+          loadingStatus.innerHTML = `
+            <div style="background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #0066cc;">
+              <h4>🔍 Live Diagnostics</h4>
+              <p><strong>Console Activity:</strong> ${diagnosticLogs.length} messages (${errorCount} errors, ${warnCount} warnings)</p>
+              <div style="max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border-radius: 3px; font-family: monospace; font-size: 12px;">
+                ${diagnosticLogs.slice(-10).map(log => 
+                  `<div style="color: ${log.type === 'error' ? '#dc3545' : log.type === 'warn' ? '#fd7e14' : '#28a745'};">
+                    [${log.timestamp.split('T')[1].split('.')[0]}] ${log.type.toUpperCase()}: ${log.message}
+                  </div>`
+                ).join('')}
+              </div>
+              <button onclick="window.triggerFallbackRestart()" style="margin-top: 10px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                🔄 Trigger Fallback Restart
+              </button>
+            </div>
+          `;
+        }
+      }
+      
+      // Monitor for successful app loading
+      let appLoaded = false;
+      let moduleLoadAttempted = false;
+      
+      // Global success callback
+      window.appLoadSuccess = () => {
+        appLoaded = true;
+        console.log("✅ Application loaded successfully via module script");
+        const rootElement = document.getElementById("root");
+        if (rootElement) {
+          // Clear the loading message since app loaded
+          const loadingDiv = rootElement.querySelector('[style*="Loading application"]');
+          if (loadingDiv) {
+            loadingDiv.remove();
+          }
+        }
+      };
+      
+      // Global error callback
+      window.appLoadError = (error) => {
+        console.error("❌ Application load error:", error);
+        window.triggerFallbackRestart();
+      };
+      
+      // Force CDN fallback immediately
+      window.forceCDNFallback = () => {
+        console.log("🚀 Force CDN fallback triggered by user");
+        window.triggerFallbackRestart();
+      };
+      
+      // Fallback restart system
+      window.triggerFallbackRestart = () => {
+        console.log("🔄 Triggering fallback restart...");
+        
+        // Load React from CDN as fallback
+        if (!window.React) {
+          console.log("📦 Loading React from CDN...");
+          const reactScript = document.createElement('script');
+          reactScript.src = 'https://unpkg.com/react@18/umd/react.development.js';
+          reactScript.crossOrigin = 'anonymous';
+          
+          reactScript.onload = () => {
+            console.log("✅ React CDN loaded");
+            const reactDomScript = document.createElement('script');
+            reactDomScript.src = 'https://unpkg.com/react-dom@18/umd/react-dom.development.js';
+            reactDomScript.crossOrigin = 'anonymous';
+            
+            reactDomScript.onload = () => {
+              console.log("✅ ReactDOM CDN loaded");
+              window.initializeFallbackApp();
+            };
+            
+            reactDomScript.onerror = () => {
+              console.error("❌ Failed to load ReactDOM from CDN");
+            };
+            
+            document.head.appendChild(reactDomScript);
+          };
+          
+          reactScript.onerror = () => {
+            console.error("❌ Failed to load React from CDN");
+          };
+          
+          document.head.appendChild(reactScript);
+        } else {
+          window.initializeFallbackApp();
+        }
+      };
+      
+      // Initialize fallback app with CDN React
+      window.initializeFallbackApp = () => {
+        console.log("🚀 Initializing fallback app with CDN React...");
+        
+        const { createElement: h, useState } = React;
+        const { createRoot } = ReactDOM;
+        
+        function FallbackApp() {
+          const [currentPage, setCurrentPage] = useState('dashboard');
+          
+          const pages = {
+            dashboard: () => h('div', null,
+              h('h1', { style: { color: '#0066cc' } }, '🚀 IV RELIFE Nexus Dashboard'),
+              h('p', null, '✅ Fallback React application running successfully!'),
+              h('p', null, '📊 Real dashboard components will be restored once module loading is fixed.'),
+              h('div', { style: { marginTop: '20px' } },
+                h('button', { 
+                  onClick: () => setCurrentPage('products'),
+                  style: { margin: '5px', padding: '10px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }
+                }, '📦 Products'),
+                h('button', { 
+                  onClick: () => setCurrentPage('orders'),
+                  style: { margin: '5px', padding: '10px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }
+                }, '📋 Orders'),
+                h('button', { 
+                  onClick: () => setCurrentPage('customers'),
+                  style: { margin: '5px', padding: '10px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }
+                }, '👥 Customers'),
+                h('button', { 
+                  onClick: () => setCurrentPage('admin'),
+                  style: { margin: '5px', padding: '10px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '4px' }
+                }, '⚙️ Admin')
+              )
+            ),
+            products: () => h('div', null,
+              h('h1', null, '📦 Products Management'),
+              h('p', null, 'Real Products.tsx component will be loaded here.'),
+              h('button', { onClick: () => setCurrentPage('dashboard'), style: { padding: '8px 16px' } }, '← Back to Dashboard')
+            ),
+            orders: () => h('div', null,
+              h('h1', null, '📋 Orders Management'),
+              h('p', null, 'Real Orders.tsx component will be loaded here.'),
+              h('button', { onClick: () => setCurrentPage('dashboard'), style: { padding: '8px 16px' } }, '← Back to Dashboard')
+            ),
+            customers: () => h('div', null,
+              h('h1', null, '👥 Customer Management'),
+              h('p', null, 'Real Customers.tsx component will be loaded here.'),
+              h('button', { onClick: () => setCurrentPage('dashboard'), style: { padding: '8px 16px' } }, '← Back to Dashboard')
+            ),
+            admin: () => h('div', null,
+              h('h1', null, '⚙️ Admin Dashboard'),
+              h('p', null, 'Real AdminDashboard.tsx component will be loaded here.'),
+              h('button', { onClick: () => setCurrentPage('dashboard'), style: { padding: '8px 16px' } }, '← Back to Dashboard')
+            )
+          };
+          
+          return h('div', { style: { padding: '20px', fontFamily: 'Arial, sans-serif' } },
+            h('div', { style: { background: '#d4edda', padding: '15px', borderRadius: '5px', marginBottom: '20px', border: '1px solid #c3e6cb' } },
+              h('strong', null, '🔄 Fallback Mode Active'),
+              h('p', { style: { margin: '5px 0 0 0' } }, 'Using CDN React while resolving module loading issues. Real dashboard components are preserved.')
+            ),
+            pages[currentPage]()
+          );
+        }
+        
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+          const root = createRoot(rootElement);
+          root.render(h(FallbackApp));
+          console.log("✅ Fallback app rendered successfully");
+        }
+      };
+      
+      // Check if app loaded successfully after 500ms (very aggressive for Safari)
+      setTimeout(() => {
+        const rootElement = document.getElementById("root");
+        
+        if (rootElement && !appLoaded) {
+          // Check if the content is still the loading message
+          if (rootElement.innerHTML.includes("Loading application")) {
+            console.warn("⚠️ Module script execution timeout - triggering fallback");
+            
+            // Try Safari-specific loader first if available
+            if (window.SafariEmergencyApp && typeof window.SafariEmergencyApp.init === 'function') {
+              console.log("🍎 Activating Safari Emergency App...");
+              window.SafariEmergencyApp.init();
+            } else {
+              window.triggerFallbackRestart();
+            }
+          }
+        }
+      }, 500);
+      
+      console.log("✅ Diagnostic system initialized");
+    </script>
+  </body>
+</html>

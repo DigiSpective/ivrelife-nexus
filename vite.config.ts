@@ -7,7 +7,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8084,
     headers: {
       // Ensure no restrictive CSP in development
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
@@ -40,13 +40,13 @@ export default defineConfig(({ mode }) => ({
     target: 'es2020'
   },
   optimizeDeps: {
-    entries: ['src/bootstrap.tsx'],
+    entries: ['src/main-emergency.tsx'],
     include: [
       'react',
       'react-dom',
       '@supabase/supabase-js'
     ]
   },
-  // Use relative base for better compatibility
-  base: './'
+  // Use absolute base for Vite dev server
+  base: '/'
 }));
