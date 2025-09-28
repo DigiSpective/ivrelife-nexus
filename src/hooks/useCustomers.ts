@@ -40,10 +40,19 @@ export const useCustomers = (filters?: {
   return useQuery({
     queryKey: ['customers', filters],
     queryFn: () => getCustomers(),
-    // Prevent excessive refetches during auth state changes
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    // Allow initial data fetch but prevent excessive refetches
+    staleTime: 2 * 60 * 1000, // 2 minutes (reduced for better data freshness)
+    refetchOnMount: true, // Allow refetch on mount to get fresh data after refresh
+    refetchOnWindowFocus: false, // Prevent refetch on window focus
+    refetchOnReconnect: true, // Refetch when coming back online
+    // Enable retries for better reliability
+    retry: (failureCount, error) => {
+      // Don't retry if it's a known persistent storage issue
+      if (error?.message?.includes('user_storage')) {
+        return false;
+      }
+      return failureCount < 3;
+    },
   });
 };
 

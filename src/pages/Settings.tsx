@@ -5,7 +5,8 @@ import {
   User,
   Key,
   Bell,
-  Database
+  Database,
+  Bug
 } from 'lucide-react';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useUserProfile } from '@/hooks/useSettings';
@@ -17,6 +18,7 @@ import { FeatureToggleList } from '@/components/settings/FeatureToggleList';
 import { NotificationSettingsForm } from '@/components/settings/NotificationSettingsForm';
 import { SystemSettingsForm } from '@/components/settings/SystemSettingsForm';
 import { SettingsAuthGuard } from '@/components/settings/SettingsAuthGuard';
+import { PersistenceStatusPanel } from '@/components/debug/PersistenceStatusPanel';
 
 export default function Settings() {
   const { data: currentUser } = useCurrentUser();
@@ -35,6 +37,7 @@ export default function Settings() {
     { id: 'features', name: 'Features', icon: Key },
     { id: 'notifications', name: 'Notifications', icon: Bell },
     ...(isAdmin ? [{ id: 'system', name: 'System', icon: Database }] : []),
+    { id: 'debug', name: 'Debug Persistence', icon: Bug },
   ];
 
   if (!currentUser) {
@@ -104,6 +107,20 @@ export default function Settings() {
             {activeTab === 'system' && isAdmin && (
               <div className="space-y-6">
                 <SystemSettingsForm settings={systemSettings?.data || []} />
+              </div>
+            )}
+
+            {/* Debug Persistence */}
+            {activeTab === 'debug' && (
+              <div className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Persistence Debug Panel</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <PersistenceStatusPanel />
+                  </CardContent>
+                </Card>
               </div>
             )}
           </div>

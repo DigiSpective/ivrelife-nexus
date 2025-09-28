@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Persistence Test</title>
+</head>
+<body>
+    <h1>Persistence Debugging</h1>
+    <div id="results"></div>
+    
+    <script>
+        function displayResults() {
+            const results = document.getElementById('results');
+            let html = '<h2>Current localStorage Data:</h2>';
+            
+            // Check localStorage for any iv-relife data
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.includes('iv-relife')) {
+                    const value = localStorage.getItem(key);
+                    html += `<p><strong>${key}:</strong><br><pre>${value}</pre></p>`;
+                }
+            }
+            
+            results.innerHTML = html;
+        }
+        
+        // Test persistence
+        console.log('Testing localStorage...');
+        localStorage.setItem('iv-relife-test', JSON.stringify({test: 'data', timestamp: new Date().toISOString()}));
+        
+        displayResults();
+        
+        // Auto-refresh every 2 seconds
+        setInterval(displayResults, 2000);
+    </script>
+</body>
+</html>

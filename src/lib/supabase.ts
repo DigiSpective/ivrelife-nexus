@@ -250,13 +250,19 @@ export const deleteLocation = async (id: string) => {
 export const getCustomers = async () => {
   try {
     console.log('getCustomers: Starting...');
+    
+    // Get current user ID for proper data scoping
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+    console.log('getCustomers: Current user ID:', userId);
+    
     const result = await supabase.from('customers').select('*');
     console.log('getCustomers: Supabase result:', result);
     
     // If the query succeeds but there's an error (like table doesn't exist), fall back to mock
     if (result.error) {
       console.warn('Supabase customers query failed, falling back to persistent storage:', result.error);
-      const mockCustomers = await getMockCustomers();
+      const mockCustomers = await getMockCustomers(userId);
       const safeCustomers = Array.isArray(mockCustomers) ? mockCustomers : [];
       console.log('getCustomers: Returning mock customers due to error:', safeCustomers.length);
       return Promise.resolve({ data: safeCustomers, error: null });
@@ -265,7 +271,7 @@ export const getCustomers = async () => {
     // If we get empty results from Supabase but have mock data, merge them
     if (result.data && result.data.length === 0) {
       console.log('No customers in Supabase, getting mock data...');
-      const mockCustomers = await getMockCustomers();
+      const mockCustomers = await getMockCustomers(userId);
       const safeCustomers = Array.isArray(mockCustomers) ? mockCustomers : [];
       console.log('getCustomers: Got mock customers:', safeCustomers.length);
       
@@ -277,10 +283,20 @@ export const getCustomers = async () => {
     return result;
   } catch (error) {
     console.warn('Supabase connection failed, falling back to persistent storage:', error);
-    const mockCustomers = await getMockCustomers();
-    const safeCustomers = Array.isArray(mockCustomers) ? mockCustomers : [];
-    console.log('getCustomers: Exception fallback, returning mock customers:', safeCustomers.length);
-    return Promise.resolve({ data: safeCustomers, error: null });
+    // Try to get user ID even in error case
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id;
+      const mockCustomers = await getMockCustomers(userId);
+      const safeCustomers = Array.isArray(mockCustomers) ? mockCustomers : [];
+      console.log('getCustomers: Exception fallback, returning mock customers:', safeCustomers.length);
+      return Promise.resolve({ data: safeCustomers, error: null });
+    } catch (authError) {
+      console.warn('Could not get user ID, using fallback without user context:', authError);
+      const mockCustomers = await getMockCustomers();
+      const safeCustomers = Array.isArray(mockCustomers) ? mockCustomers : [];
+      return Promise.resolve({ data: safeCustomers, error: null });
+    }
   }
 };
 
@@ -308,12 +324,17 @@ export const createCustomer = async (customer: any) => {
   console.log('Creating customer with data:', customer);
   
   try {
+    // Get current user ID for proper data scoping
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+    console.log('createCustomer: Current user ID:', userId);
+    
     // Try Supabase first
     const result = await supabase.from('customers').insert(customer).select().single();
     
     if (result.error) {
       console.warn('Supabase customer create failed, falling back to persistent storage:', result.error);
-      const newCustomer = await createMockCustomer(customer);
+      const newCustomer = await createMockCustomer(customer, userId);
       return Promise.resolve({ data: newCustomer, error: null });
     }
     
@@ -321,7 +342,7 @@ export const createCustomer = async (customer: any) => {
     
     // Also add to persistent storage for offline access
     try {
-      await createMockCustomer(customer);
+      await createMockCustomer(customer, userId);
     } catch (mockError) {
       console.warn('Failed to backup customer to persistent storage:', mockError);
     }
@@ -329,9 +350,18 @@ export const createCustomer = async (customer: any) => {
     return result;
   } catch (error) {
     console.warn('Supabase connection failed, using persistent storage only:', error);
-    const newCustomer = await createMockCustomer(customer);
-    console.log('Customer created in persistent storage:', newCustomer);
-    return Promise.resolve({ data: newCustomer, error: null });
+    // Try to get user ID even in error case for consistency
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const fallbackUserId = user?.id || userId;
+      const newCustomer = await createMockCustomer(customer, fallbackUserId);
+      console.log('Customer created in persistent storage:', newCustomer);
+      return Promise.resolve({ data: newCustomer, error: null });
+    } catch (authError) {
+      console.warn('Could not get user ID for fallback, using no user context:', authError);
+      const newCustomer = await createMockCustomer(customer);
+      return Promise.resolve({ data: newCustomer, error: null });
+    }
   }
 };
 

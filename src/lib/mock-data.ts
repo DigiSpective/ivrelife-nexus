@@ -212,30 +212,43 @@ declare global {
   var __mockCustomerStorage: Customer[] | undefined;
 }
 
-// Helper functions for mock customer storage using persistent dataManager
+// Helper functions for mock customer storage using smart persistence
 export const getMockCustomers = async (userId?: string) => {
   try {
-    // Import persistentStorage here to avoid circular dependency issues
-    const { persistentStorage, STORAGE_KEYS } = await import('./persistent-storage');
+    console.log('📦 getMockCustomers called with userId:', userId);
     
-    // Get customers directly from persistent storage to avoid circular dependency
-    const rawCustomers = await persistentStorage.get(STORAGE_KEYS.CUSTOMERS, userId);
+    // Use smart persistence instead of direct storage access
+    const { smartPersistence } = await import('./smart-persistence');
+    const { STORAGE_KEYS } = await import('./persistent-storage');
+    
+    // Get customers from smart persistence (will try Supabase first, then localStorage)
+    const rawCustomers = await smartPersistence.get(STORAGE_KEYS.CUSTOMERS, userId);
     const customers = Array.isArray(rawCustomers) ? rawCustomers : [];
-    console.log('getMockCustomers called, found in storage:', customers.length, 'customers');
+    console.log('📊 Found in storage:', customers.length, 'customers for userId:', userId);
     
-    // If no customers in persistent storage, initialize with mock data
+    // CRITICAL FIX: Only initialize if we have NO stored data AND no userId context
+    // This prevents overwriting user data on refresh
     if (customers.length === 0) {
-      console.log('No customers found, initializing with mock data...');
-      // Initialize storage directly to avoid dataManager circular dependency
-      await persistentStorage.set(STORAGE_KEYS.CUSTOMERS, mockCustomers, userId);
-      console.log('Initialized', mockCustomers.length, 'mock customers in storage');
-      return mockCustomers;
+      console.log('🔧 No customers found, checking if we should initialize...');
+      
+      // If we have a userId, this means user is logged in but has no data yet
+      // Only initialize with mock data if this is truly a first-time setup
+      if (userId) {
+        console.log('🆕 First-time setup for user:', userId);
+        await smartPersistence.set(STORAGE_KEYS.CUSTOMERS, mockCustomers, userId);
+        console.log('✅ Initialized', mockCustomers.length, 'mock customers for new user:', userId);
+        return mockCustomers;
+      } else {
+        console.log('🚫 No userId provided, returning empty array (will not overwrite data)');
+        return [];
+      }
     }
     
+    console.log('♻️ Returning existing customers from storage:', customers.map(c => ({ id: c.id, name: c.name })));
     return customers;
   } catch (error) {
-    console.warn('Error getting customers from persistent storage, falling back to static mock data:', error);
-    console.log('Returning', mockCustomers.length, 'static mock customers');
+    console.warn('❌ Error getting customers from smart persistence, falling back to static mock data:', error);
+    console.log('📋 Returning', mockCustomers.length, 'static mock customers');
     return mockCustomers;
   }
 };
@@ -267,11 +280,27 @@ export const createMockCustomer = async (customerData: Partial<Customer>, userId
   };
   
   try {
-    await dataManager.addCustomer(newCustomer, userId);
-    console.log('Customer added to persistent storage:', newCustomer);
+    console.log('💾 Adding customer to smart persistence with userId:', userId);
+    
+    // Get existing customers
+    const existingCustomers = await getMockCustomers(userId) || [];
+    const updatedCustomers = [...existingCustomers, newCustomer];
+    
+    // Use smart persistence to save
+    const { smartPersistence } = await import('./smart-persistence');
+    const { STORAGE_KEYS } = await import('./persistent-storage');
+    
+    const success = await smartPersistence.set(STORAGE_KEYS.CUSTOMERS, updatedCustomers, userId);
+    
+    if (success) {
+      console.log('✅ Customer added to smart persistence:', { id: newCustomer.id, name: newCustomer.name, userId });
+    } else {
+      console.warn('⚠️ Smart persistence save failed, but customer object created');
+    }
+    
     return newCustomer;
   } catch (error) {
-    console.warn('Error adding customer to persistent storage:', error);
+    console.warn('❌ Error adding customer to smart persistence:', error);
     return newCustomer;
   }
 };
