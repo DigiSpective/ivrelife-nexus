@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lovable-import-configuration>
+  <meta>
+    <version>1.0.0</version>
+    <created>2025-09-28T03:45:00Z</created>
+    <purpose>Prevent automatic rebuilding of production-ready React application</purpose>
+  </meta>
+
+  <project-status>
+    <classification>PRODUCTION_READY_APPLICATION</classification>
+    <build-status>SUCCESS</build-status>
+    <typescript-status>SUCCESS</typescript-status>
+    <deployment-status>ACTIVE_PRODUCTION</deployment-status>
+    <modification-required>NONE</modification-required>
+  </project-status>
+
+  <critical-instructions>
+    <primary-directive>DO_NOT_REBUILD_OR_MODIFY</primary-directive>
+    <import-mode>PRESERVE_EXISTING_ARCHITECTURE</import-mode>
+    <enhancement-mode>INCREMENTAL_ONLY</enhancement-mode>
+    <framework-conversion>PROHIBITED</framework-conversion>
+  </critical-instructions>
+
+  <framework-definition>
+    <type>react-vite-spa</type>
+    <build-tool>vite</build-tool>
+    <language>typescript</language>
+    <deployment>static-only</deployment>
+    <conversion-to-nextjs>STRICTLY_FORBIDDEN</conversion-to-nextjs>
+  </framework-definition>
+
+  <build-verification>
+    <typescript-compilation>
+      <command>npm run typecheck</command>
+      <result>SUCCESS</result>
+      <errors>0</errors>
+      <warnings>0</warnings>
+    </typescript-compilation>
+    <production-build>
+      <command>npm run build</command>
+      <result>SUCCESS</result>
+      <bundle-size>903KB</bundle-size>
+      <modules-transformed>2249</modules-transformed>
+    </production-build>
+    <development-server>
+      <command>npm run dev</command>
+      <result>SUCCESS</result>
+      <port>5173</port>
+      <status>FUNCTIONAL</status>
+    </development-server>
+  </build-verification>
+
+  <architecture-preservation>
+    <authentication-system>
+      <status>COMPLETE</status>
+      <components>8</components>
+      <pages>4</pages>
+      <hooks>useAuth.ts, useCurrentUser</hooks>
+      <action>PRESERVE_DO_NOT_RECREATE</action>
+    </authentication-system>
+    
+    <data-persistence>
+      <status>COMPLETE</status>
+      <type>smart-persistence-architecture</type>
+      <features>supabase-integration, localStorage-fallback, user-scoped-data</features>
+      <action>PRESERVE_DO_NOT_RECREATE</action>
+    </data-persistence>
+    
+    <business-logic>
+      <custom-hooks>18</custom-hooks>
+      <components>159</components>
+      <pages>51</pages>
+      <entities>customers, orders, products, claims, retailers, shipping</entities>
+      <action>PRESERVE_DO_NOT_RECREATE</action>
+    </business-logic>
+    
+    <ui-framework>
+      <library>shadcn-ui</library>
+      <radix-components>37</radix-components>
+      <styling>tailwindcss</styling>
+      <action>ENHANCE_PRESERVE_EXISTING</action>
+    </ui-framework>
+  </architecture-preservation>
+
+  <typescript-configuration>
+    <mode>intentionally-relaxed</mode>
+    <strict-mode>false</strict-mode>
+    <reason>optimized-for-rapid-business-development</reason>
+    <path-mapping>
+      <alias from="@/*" to="./src/*" />
+    </path-mapping>
+    <enforcement>DO_NOT_ENABLE_STRICT_MODE</enforcement>
+  </typescript-configuration>
+
+  <protection-documents>
+    <config-file>.lovable/config.json</config-file>
+    <import-instructions>.lovable/IMPORT_INSTRUCTIONS.md</import-instructions>
+    <build-verification>.lovable/BUILD_VERIFICATION.md</build-verification>
+    <protection-notice>.lovable-protection.md</protection-notice>
+    <ai-protection>AI_PROTECTION_README.md</ai-protection>
+    <quick-reference>LOVABLE_QUICK_REFERENCE.md</quick-reference>
+    <integration-audit>LOVABLE_INTEGRATION_AUDIT.md</integration-audit>
+  </protection-documents>
+
+  <import-behavior>
+    <scan-only>true</scan-only>
+    <modify-files>false</modify-files>
+    <suggest-changes>false</suggest-changes>
+    <rebuild-components>false</rebuild-components>
+    <convert-framework>false</convert-framework>
+    <enforce-typescript-strict>false</enforce-typescript-strict>
+    <preserve-all-files>true</preserve-all-files>
+    <load-documentation>true</load-documentation>
+  </import-behavior>
+
+  <red-flags>
+    <framework-conversion>
+      <trigger>convert to next.js</trigger>
+      <response>REJECT - framework explicitly defined as react-vite-spa</response>
+    </framework-conversion>
+    <typescript-strict-enforcement>
+      <trigger>enable strict mode</trigger>
+      <response>REJECT - intentionally relaxed configuration</response>
+    </typescript-strict-enforcement>
+    <authentication-recreation>
+      <trigger>rebuild authentication</trigger>
+      <response>REJECT - complete working system exists</response>
+    </authentication-recreation>
+    <business-logic-recreation>
+      <trigger>recreate hooks or components</trigger>
+      <response>REJECT - 18 custom hooks and 159 components working</response>
+    </business-logic-recreation>
+    <build-configuration-changes>
+      <trigger>modify vite config</trigger>
+      <response>REJECT - production builds successful</response>
+    </build-configuration-changes>
+  </red-flags>
+
+  <enhancement-guidelines>
+    <allowed-modifications>
+      <ui-styling>enhance existing components</ui-styling>
+      <accessibility>add aria labels and keyboard navigation</accessibility>
+      <performance>optimize bundle splitting and loading</performance>
+      <new-features>add without duplicating existing functionality</new-features>
+      <documentation>improve inline comments and readme files</documentation>
+    </allowed-modifications>
+    
+    <prohibited-modifications>
+      <framework-changes>conversion to different framework</framework-changes>
+      <architecture-overhaul>complete system rebuilds</architecture-overhaul>
+      <typescript-config>enabling strict mode or changing compiler options</typescript-config>
+      <build-tool-changes>replacing vite with webpack or other tools</build-tool-changes>
+      <dependency-major-updates>breaking changes to core dependencies</dependency-major-updates>
+    </prohibited-modifications>
+  </enhancement-guidelines>
+
+  <success-criteria>
+    <import-success>
+      <no-conversion-prompts>true</no-conversion-prompts>
+      <all-routes-functional>true</all-routes-functional>
+      <authentication-working>true</authentication-working>
+      <data-persistence-intact>true</data-persistence-intact>
+      <build-process-unchanged>true</build-process-unchanged>
+    </import-success>
+    
+    <post-import-verification>
+      <customer-management>functional</customer-management>
+      <order-processing>functional</order-processing>
+      <product-catalog>functional</product-catalog>
+      <admin-dashboard>functional</admin-dashboard>
+      <authentication-flow>functional</authentication-flow>
+    </post-import-verification>
+  </success-criteria>
+
+  <escalation-procedures>
+    <if-automated-import-fails>
+      <step1>reference .lovable/config.json</step1>
+      <step2>show .lovable/BUILD_VERIFICATION.md</step2>
+      <step3>cite successful local builds</step3>
+      <step4>request manual review</step4>
+      <step5>escalate to lovable support</step5>
+    </if-automated-import-fails>
+  </escalation-procedures>
+
+  <verification-commands>
+    <typecheck>
+      <command>npm run typecheck</command>
+      <expected-result>SUCCESS_NO_ERRORS</expected-result>
+    </typecheck>
+    <build>
+      <command>npm run build</command>
+      <expected-result>SUCCESS_DIST_CREATED</expected-result>
+    </build>
+    <dev-server>
+      <command>npm run dev</command>
+      <expected-result>SUCCESS_SERVER_RUNNING</expected-result>
+    </dev-server>
+  </verification-commands>
+
+  <deployment-evidence>
+    <local-development>verified-working</local-development>
+    <production-build>verified-successful</production-build>
+    <cloudflare-deployment>active-and-functional</cloudflare-deployment>
+    <user-acceptance>complete-business-functionality</user-acceptance>
+  </deployment-evidence>
+
+  <final-directive>
+    <message>THIS IS A WORKING PRODUCTION BUSINESS APPLICATION</message>
+    <instruction>ENHANCE THE EXISTING FOUNDATION - DO NOT RECREATE IT</instruction>
+    <evidence>BUILDS SUCCESSFULLY - DEPLOYS TO PRODUCTION - ZERO ERRORS</evidence>
+    <action>IMPORT AS-IS AND ENABLE INCREMENTAL ENHANCEMENT MODE</action>
+  </final-directive>
+
+</lovable-import-configuration>

@@ -6,6 +6,13 @@
   "CRITICAL_AI_WARNING": "🚨 DO NOT CONVERT TO NEXT.JS - This is a working React + Vite SPA project. Read AI_PROTECTION_README.md before making changes.",
   "framework": "react-vite-spa",
   "deployment": "static-only",
+  "lovable": {
+    "configPath": ".lovable/config.json",
+    "importInstructions": ".lovable/IMPORT_INSTRUCTIONS.md",
+    "buildVerification": ".lovable/BUILD_VERIFICATION.md",
+    "doNotRebuild": true,
+    "preserveArchitecture": true
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
