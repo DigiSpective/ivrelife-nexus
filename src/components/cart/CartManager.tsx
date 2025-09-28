@@ -12,6 +12,8 @@ import {
   getGiftSuggestions, 
   calculateGiftSavings 
 } from '@/lib/gift-rules';
+import { persistentStorage, STORAGE_KEYS } from '@/lib/persistent-storage';
+import { useAuth } from '@/components/auth/AuthProvider';
 // Removed shipping engine dependency to avoid module loading issues
 // Shipping integration will be handled at checkout
 
@@ -49,6 +51,7 @@ interface CartProviderProps {
 }
 
 export function CartProvider({ children }: CartProviderProps) {
+  const { user } = useAuth();
   const initialCart: Cart = {
     id: `cart-${Date.now()}`,
     line_items: [],
@@ -62,6 +65,38 @@ export function CartProvider({ children }: CartProviderProps) {
 
   // Use React state for cart
   const [cart, setCart] = useState<Cart>(initialCart);
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Load cart from persistent storage on mount
+  useEffect(() => {
+    const loadCart = async () => {
+      try {
+        const persistedCart = await persistentStorage.get<Cart>(STORAGE_KEYS.CART, user?.id);
+        if (persistedCart) {
+          setCart(persistedCart);
+        }
+      } catch (error) {
+        console.warn('Error loading persisted cart:', error);
+      } finally {
+        setIsLoaded(true);
+      }
+    };
+
+    if (user) {
+      loadCart();
+    } else {
+      setIsLoaded(true);
+    }
+  }, [user?.id]);
+
+  // Persist cart changes
+  const persistCart = async (cartData: Cart) => {
+    try {
+      await persistentStorage.set(STORAGE_KEYS.CART, cartData, user?.id);
+    } catch (error) {
+      console.warn('Error persisting cart:', error);
+    }
+  };
 
   const initializeCart = () => {
     const newCart: Cart = {
@@ -75,6 +110,7 @@ export function CartProvider({ children }: CartProviderProps) {
       gift_suggestions: []
     };
     setCart(newCart);
+    if (isLoaded) persistCart(newCart);
   };
 
   const calculateCartTotals = (lineItems: CartLineItem[], shipments: CartShipment[]) => {
@@ -160,13 +196,15 @@ export function CartProvider({ children }: CartProviderProps) {
     // Get gift suggestions
     const giftSuggestions = getGiftSuggestions(uniqueItems.filter(item => !item.is_gift));
 
-    setCart({
+    const updatedCart = {
       ...cart,
       line_items: uniqueItems,
       shipments,
       gift_suggestions: giftSuggestions,
       ...totals
-    });
+    };
+    setCart(updatedCart);
+    if (isLoaded) persistCart(updatedCart);
   };
 
   const addToCart = (product: Product, options: CartItemOptions = {}) => {
@@ -243,13 +281,15 @@ export function CartProvider({ children }: CartProviderProps) {
     // Get gift suggestions
     const giftSuggestions = getGiftSuggestions(allItems.filter(item => !item.is_gift));
 
-    setCart({
+    const updatedCart = {
       ...cart,
       line_items: allItems,
       shipments,
       gift_suggestions: giftSuggestions,
       ...totals
-    });
+    };
+    setCart(updatedCart);
+    if (isLoaded) persistCart(updatedCart);
   };
 
   const removeFromCart = (itemId: string) => {
@@ -298,13 +338,15 @@ export function CartProvider({ children }: CartProviderProps) {
     // Get gift suggestions
     const giftSuggestions = getGiftSuggestions(finalItems.filter(item => !item.is_gift));
 
-    setCart({
+    const updatedCart = {
       ...cart,
       line_items: finalItems,
       shipments,
       gift_suggestions: giftSuggestions,
       ...totals
-    });
+    };
+    setCart(updatedCart);
+    if (isLoaded) persistCart(updatedCart);
   };
 
   const updateCartItem = (itemId: string, updates: Partial<CartLineItem>) => {
@@ -354,13 +396,15 @@ export function CartProvider({ children }: CartProviderProps) {
     // Get gift suggestions
     const giftSuggestions = getGiftSuggestions(updatedItems.filter(item => !item.is_gift));
 
-    setCart({
+    const updatedCart = {
       ...cart,
       line_items: updatedItems,
       shipments,
       gift_suggestions: giftSuggestions,
       ...totals
-    });
+    };
+    setCart(updatedCart);
+    if (isLoaded) persistCart(updatedCart);
   };
 
   const clearCart = () => {
@@ -377,7 +421,7 @@ export function CartProvider({ children }: CartProviderProps) {
   };
 
   const contextValue: CartContextType = {
-    cart,
+    cart: isLoaded ? cart : null,
     addToCart,
     removeFromCart,
     updateCartItem,

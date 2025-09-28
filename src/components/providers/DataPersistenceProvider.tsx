@@ -5,37 +5,10 @@
  */
 
 import React, { createContext, useContext, useEffect, ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { persistentStorage, syncPersistedData } from '@/lib/persistent-storage';
 import { dataManager } from '@/lib/data-manager';
-import { useAuthFixed } from '@/components/auth/AuthProviderFixed';
+import { useAuth } from '@/components/auth/AuthProvider';
 
-// Create a QueryClient with persistent cache configuration
-const createPersistentQueryClient = () => {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        // Cache queries for 1 hour
-        staleTime: 1000 * 60 * 60,
-        // Keep cache for 24 hours
-        cacheTime: 1000 * 60 * 60 * 24,
-        // Retry failed queries
-        retry: 2,
-        // Refetch on window focus for fresh data
-        refetchOnWindowFocus: true,
-        // Background refetch every 30 minutes
-        refetchInterval: 1000 * 60 * 30,
-      },
-      mutations: {
-        retry: 1,
-        // Auto-invalidate related queries on mutation
-        onSuccess: (data, variables, context) => {
-          // This will be handled by individual mutations
-        },
-      },
-    },
-  });
-};
 
 interface DataPersistenceContextValue {
   isOnline: boolean;
@@ -64,12 +37,11 @@ interface DataPersistenceProviderProps {
 }
 
 export function DataPersistenceProvider({ children }: DataPersistenceProviderProps) {
-  const { user } = useAuthFixed();
+  const { user } = useAuth();
   const [isOnline, setIsOnline] = React.useState(navigator.onLine);
   const [lastSyncTime, setLastSyncTime] = React.useState<number | null>(null);
   const [syncStatus, setSyncStatus] = React.useState<'idle' | 'syncing' | 'error'>('idle');
   const [isInitialized, setIsInitialized] = React.useState(false);
-  const queryClient = React.useMemo(() => createPersistentQueryClient(), []);
 
   // Handle online/offline status
   useEffect(() => {
@@ -103,25 +75,19 @@ export function DataPersistenceProvider({ children }: DataPersistenceProviderPro
     }
   }, [user?.id, isOnline]);
 
-  // Initialize flag after first render with longer delay to prevent auth interference
+  // Initialize flag immediately but sync data after short delay
   useEffect(() => {
-    const initTimeout = setTimeout(() => {
-      console.log('[DataPersistence] Enabling sync operations');
-      setIsInitialized(true);
-    }, 5000); // Wait 5 seconds after mount before enabling sync
-
-    return () => clearTimeout(initTimeout);
+    setIsInitialized(true);
   }, []);
 
-  // Sync data when user changes or comes back online (debounced, only after initialization)
+  // Sync data when user changes or comes back online (with minimal delay)
   useEffect(() => {
     if (!user || !isOnline || !isInitialized) return;
     
-    // Debounce sync to prevent rapid-fire syncs during auth
+    // Small delay to allow auth to settle
     const syncTimeout = setTimeout(() => {
-      console.log('[DataPersistence] Starting delayed sync for user:', user.id);
       performDataSync();
-    }, 3000); // 3 second delay to allow auth to settle
+    }, 1000); // 1 second delay
 
     return () => clearTimeout(syncTimeout);
   }, [user?.id, isOnline, isInitialized, performDataSync]);
@@ -174,9 +140,7 @@ export function DataPersistenceProvider({ children }: DataPersistenceProviderPro
 
   return (
     <DataPersistenceContext.Provider value={contextValue}>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
+      {children}
     </DataPersistenceContext.Provider>
   );
 }

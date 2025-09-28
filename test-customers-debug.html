@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Customers Route Debug</title>
+</head>
+<body>
+    <h1>Testing Customers Route</h1>
+    <p>Click button to test route:</p>
+    <button onclick="testRoute()">Test /customers</button>
+    <div id="result"></div>
+    
+    <script>
+        async function testRoute() {
+            const result = document.getElementById('result');
+            result.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('http://localhost:8084/customers');
+                const text = await response.text();
+                
+                console.log('Status:', response.status);
+                console.log('Response:', text);
+                
+                if (text.includes('Customers')) {
+                    result.innerHTML = '<p style="color: green;">✅ Route responded with customer content</p>';
+                } else if (text.includes('Loading')) {
+                    result.innerHTML = '<p style="color: orange;">⚠️ Route stuck in loading state</p>';
+                } else {
+                    result.innerHTML = '<p style="color: red;">❌ Route returned unexpected content</p>';
+                }
+                
+                // Check for JavaScript errors
+                const iframe = document.createElement('iframe');
+                iframe.src = 'http://localhost:8084/customers';
+                iframe.style.width = '100%';
+                iframe.style.height = '400px';
+                iframe.style.border = '1px solid #ccc';
+                iframe.onload = function() {
+                    setTimeout(() => {
+                        try {
+                            const doc = iframe.contentDocument || iframe.contentWindow.document;
+                            const content = doc.body.innerText;
+                            console.log('Iframe content:', content);
+                            
+                            if (content.includes('Loading')) {
+                                result.innerHTML += '<br><p style="color: red;">❌ App stuck in loading state - likely JavaScript error</p>';
+                            } else if (content.trim() === '') {
+                                result.innerHTML += '<br><p style="color: red;">❌ Completely blank page - render error</p>';
+                            } else {
+                                result.innerHTML += '<br><p style="color: green;">✅ Content loaded successfully</p>';
+                            }
+                        } catch (e) {
+                            result.innerHTML += '<br><p>Cross-origin restriction - cannot inspect iframe content</p>';
+                        }
+                    }, 2000);
+                };
+                result.appendChild(iframe);
+                
+            } catch (error) {
+                result.innerHTML = '<p style="color: red;">❌ Error: ' + error.message + '</p>';
+                console.error('Test error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

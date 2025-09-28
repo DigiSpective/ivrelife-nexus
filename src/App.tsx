@@ -8,6 +8,8 @@ import { DashboardLayout } from "./components/layout/DashboardLayout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AuthGuard } from "./components/layout/AuthGuard";
 import { AuthProvider } from "./components/auth/AuthProvider";
+import { DataPersistenceProvider } from "./components/providers/DataPersistenceProvider";
+import { PersistenceErrorBoundary } from "./components/providers/PersistenceErrorBoundary";
 import { CartProvider } from "./components/cart/CartManager";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
@@ -61,9 +63,11 @@ const queryClient = new QueryClient({
 
 const App = () => (
   <AuthProvider>
-    <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <TooltipProvider>
+    <PersistenceErrorBoundary>
+      <DataPersistenceProvider>
+        <QueryClientProvider client={queryClient}>
+        <CartProvider>
+          <TooltipProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -280,10 +284,12 @@ const App = () => (
             } />
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-      </CartProvider>
-    </QueryClientProvider>
+          </BrowserRouter>
+          </TooltipProvider>
+        </CartProvider>
+      </QueryClientProvider>
+    </DataPersistenceProvider>
+    </PersistenceErrorBoundary>
   </AuthProvider>
 );
 

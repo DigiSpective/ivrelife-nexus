@@ -43,13 +43,13 @@ export default function Customers() {
   const { data: customersData, isLoading, error, dataUpdatedAt } = useCustomers();
   const customers = customersData?.data || [];
   
-  // Debug logging to trace component re-renders
+  // Debug logging to trace component re-renders with proper null checks
   console.log(`[${new Date().toISOString()}] Customers component render:`, {
-    customersCount: customers.length,
+    customersCount: Array.isArray(customers) ? customers.length : 0,
     isLoading,
     error: error?.message,
     dataUpdatedAt: new Date(dataUpdatedAt),
-    customers: customers.map(c => ({ id: c.id, name: c.name, created_at: c.created_at }))
+    customers: Array.isArray(customers) ? customers.map(c => ({ id: c.id, name: c.name, created_at: c.created_at })) : 'not an array'
   });
 
   const handleAddCustomer = () => {

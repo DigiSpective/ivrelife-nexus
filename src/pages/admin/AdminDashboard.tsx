@@ -24,6 +24,7 @@ import {
 import { Link } from 'react-router-dom';
 import { mockUsers, mockOrders, mockCustomers } from '@/lib/mock-data';
 import { sampleProducts } from '@/data/sampleProducts';
+import { PersistenceDebugPanel } from '@/components/debug/PersistenceDebugPanel';
 
 interface AdminStats {
   totalUsers: number;
@@ -45,6 +46,8 @@ interface RecentActivity {
 }
 
 export default function AdminDashboard() {
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
+  
   // Calculate admin statistics
   const stats: AdminStats = {
     totalUsers: mockUsers.length,
@@ -147,8 +150,23 @@ export default function AdminDashboard() {
               System Settings
             </Link>
           </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowDebugPanel(!showDebugPanel)}
+          >
+            <Database className="w-4 h-4 mr-2" />
+            Debug Persistence
+          </Button>
         </div>
       </div>
+
+      {/* Persistence Debug Panel */}
+      {showDebugPanel && (
+        <div className="mb-6">
+          <PersistenceDebugPanel />
+        </div>
+      )}
 
       {/* Statistics Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

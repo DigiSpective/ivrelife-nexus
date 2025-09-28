@@ -11,18 +11,24 @@ import {
   createMockOrder
 } from '@/lib/mock-data';
 import { sampleProducts } from '@/data/sampleProducts';
+import { dataManager } from '@/lib/data-manager';
 
 // Get Supabase URL and anon key from environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 // Check if we have valid Supabase credentials
-const hasValidCredentials = supabaseUrl && supabaseAnonKey && supabaseUrl !== 'https://your-supabase-url.supabase.co' && supabaseAnonKey !== 'your-anon-key';
+const hasValidCredentials = supabaseUrl && supabaseAnonKey && 
+  supabaseUrl !== 'https://your-supabase-url.supabase.co' && 
+  supabaseAnonKey !== 'your-anon-key' &&
+  !supabaseUrl.includes('localhost') &&
+  !supabaseUrl.includes('example');
 
-// Use shared Supabase client instead of creating a new one
-export const supabase = hasValidCredentials 
-  ? getSupabaseClient()
-  : {
+// Always try to use the real Supabase client first
+export const supabase = getSupabaseClient();
+
+// Mock client fallback (only used when Supabase operations fail)
+const mockSupabaseClient = {
       // Mock client for development without Supabase credentials
       from: (table: string) => {
         // Return mock data based on table
@@ -104,53 +110,58 @@ export const supabase = hasValidCredentials
 
 // Auth functions
 export const signIn = async (email: string, password: string) => {
-  if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured. Authentication will not work.');
-    return { data: { user: null, session: null }, error: new Error('Supabase not configured') };
+  try {
+    const result = await supabase.auth.signInWithPassword({ email, password });
+    return result;
+  } catch (error) {
+    console.warn('Supabase authentication failed:', error);
+    return { data: { user: null, session: null }, error: error instanceof Error ? error : new Error('Authentication failed') };
   }
-  return await supabase.auth.signInWithPassword({ email, password });
 };
 
 export const signOutLegacy = async () => {
-  if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured. Sign out will not work.');
-    return { error: new Error('Supabase not configured') };
+  try {
+    return await supabase.auth.signOut();
+  } catch (error) {
+    console.warn('Supabase sign out failed:', error);
+    return { error: error instanceof Error ? error : new Error('Sign out failed') };
   }
-  return await supabase.auth.signOut();
 };
 
 export const getCurrentUser = async (): Promise<User | null> => {
-  if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured. Returning mock user.');
-    // Return mock user when no valid credentials
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      console.log('No authenticated user found, returning mock user for development');
+      return mockUser;
+    }
+    
+    // Get user data directly from the users table
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, email, role, retailer_id, location_id')
+      .eq('id', user.id)
+      .single();
+    
+    if (userError) {
+      console.warn('Error fetching user data from Supabase, falling back to mock user:', userError);
+      return mockUser;
+    }
+    
+    return {
+      id: userData.id,
+      email: userData.email || '',
+      role: userData.role || 'location_user',
+      retailer_id: userData.retailer_id,
+      location_id: userData.location_id,
+      name: user.user_metadata?.name || user.email || '',
+      avatar: user.user_metadata?.avatar_url
+    };
+  } catch (error) {
+    console.warn('Supabase getCurrentUser failed, returning mock user:', error);
     return mockUser;
   }
-  
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) return null;
-  
-  // Get user data directly from the users table
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('id, email, role, retailer_id, location_id')
-    .eq('id', user.id)
-    .single();
-  
-  if (userError) {
-    console.error('Error fetching user data:', userError);
-    return null;
-  }
-  
-  return {
-    id: userData.id,
-    email: userData.email || '',
-    role: userData.role || 'location_user',
-    retailer_id: userData.retailer_id,
-    location_id: userData.location_id,
-    name: user.user_metadata?.name || user.email || '',
-    avatar: user.user_metadata?.avatar_url
-  };
 };
 
 // Retailer functions
@@ -237,23 +248,39 @@ export const deleteLocation = async (id: string) => {
 
 // Customer functions
 export const getCustomers = async () => {
-  if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured. Returning mock data.');
-    console.log('Mock customers being returned:', getMockCustomers());
-    return Promise.resolve({ data: getMockCustomers(), error: null });
-  }
-  
   try {
+    console.log('getCustomers: Starting...');
     const result = await supabase.from('customers').select('*');
+    console.log('getCustomers: Supabase result:', result);
+    
     // If the query succeeds but there's an error (like table doesn't exist), fall back to mock
     if (result.error) {
-      console.warn('Supabase query failed, falling back to mock data:', result.error);
-      return Promise.resolve({ data: getMockCustomers(), error: null });
+      console.warn('Supabase customers query failed, falling back to persistent storage:', result.error);
+      const mockCustomers = await getMockCustomers();
+      const safeCustomers = Array.isArray(mockCustomers) ? mockCustomers : [];
+      console.log('getCustomers: Returning mock customers due to error:', safeCustomers.length);
+      return Promise.resolve({ data: safeCustomers, error: null });
     }
+    
+    // If we get empty results from Supabase but have mock data, merge them
+    if (result.data && result.data.length === 0) {
+      console.log('No customers in Supabase, getting mock data...');
+      const mockCustomers = await getMockCustomers();
+      const safeCustomers = Array.isArray(mockCustomers) ? mockCustomers : [];
+      console.log('getCustomers: Got mock customers:', safeCustomers.length);
+      
+      // Simplify sync - just return mock data for now to fix white page
+      return Promise.resolve({ data: safeCustomers, error: null });
+    }
+    
+    console.log('getCustomers: Returning Supabase data:', result.data?.length);
     return result;
   } catch (error) {
-    console.warn('Supabase connection failed, falling back to mock data:', error);
-    return Promise.resolve({ data: getMockCustomers(), error: null });
+    console.warn('Supabase connection failed, falling back to persistent storage:', error);
+    const mockCustomers = await getMockCustomers();
+    const safeCustomers = Array.isArray(mockCustomers) ? mockCustomers : [];
+    console.log('getCustomers: Exception fallback, returning mock customers:', safeCustomers.length);
+    return Promise.resolve({ data: safeCustomers, error: null });
   }
 };
 
@@ -266,10 +293,11 @@ export const getCustomerById = (id: string) => {
   return supabase.from('customers').select('*').eq('id', id).single();
 };
 
-export const getCustomersByRetailer = (retailerId: string) => {
+export const getCustomersByRetailer = async (retailerId: string) => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    const customers = getMockCustomers().filter(customer => customer.retailer_id === retailerId);
+    const mockCustomers = await getMockCustomers();
+    const customers = mockCustomers.filter(customer => customer.retailer_id === retailerId);
     return Promise.resolve({ data: customers, error: null });
   }
   return supabase.from('customers').select('*').eq('retailer_id', retailerId);
@@ -277,31 +305,32 @@ export const getCustomersByRetailer = (retailerId: string) => {
 
 // Add new customer-related functions after the existing customer functions
 export const createCustomer = async (customer: any) => {
-  if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured. Using mock storage.');
-    console.log('Creating customer with data:', customer);
-    const newCustomer = createMockCustomer(customer);
-    console.log('New customer created:', newCustomer);
-    console.log('All customers after creation:', getMockCustomers());
-    return Promise.resolve({ data: newCustomer, error: null });
-  }
+  console.log('Creating customer with data:', customer);
   
   try {
+    // Try Supabase first
     const result = await supabase.from('customers').insert(customer).select().single();
-    // If the query succeeds but there's an error (like table doesn't exist), fall back to mock
+    
     if (result.error) {
-      console.warn('Supabase create failed, falling back to mock storage:', result.error);
-      console.log('Creating customer with data:', customer);
-      const newCustomer = createMockCustomer(customer);
-      console.log('New customer created:', newCustomer);
+      console.warn('Supabase customer create failed, falling back to persistent storage:', result.error);
+      const newCustomer = await createMockCustomer(customer);
       return Promise.resolve({ data: newCustomer, error: null });
     }
+    
+    console.log('Customer successfully created in Supabase:', result.data);
+    
+    // Also add to persistent storage for offline access
+    try {
+      await createMockCustomer(customer);
+    } catch (mockError) {
+      console.warn('Failed to backup customer to persistent storage:', mockError);
+    }
+    
     return result;
   } catch (error) {
-    console.warn('Supabase connection failed, falling back to mock storage:', error);
-    console.log('Creating customer with data:', customer);
-    const newCustomer = createMockCustomer(customer);
-    console.log('New customer created:', newCustomer);
+    console.warn('Supabase connection failed, using persistent storage only:', error);
+    const newCustomer = await createMockCustomer(customer);
+    console.log('Customer created in persistent storage:', newCustomer);
     return Promise.resolve({ data: newCustomer, error: null });
   }
 };
@@ -700,10 +729,11 @@ export const getProductVariantsByProduct = (productId: string) => {
 };
 
 // Order functions
-export const getOrders = () => {
+export const getOrders = async () => {
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: getMockOrders(), error: null });
+    const mockOrders = await getMockOrders();
+    return Promise.resolve({ data: mockOrders, error: null });
   }
   
   try {
@@ -714,7 +744,8 @@ export const getOrders = () => {
     `);
   } catch (error) {
     console.error('Error fetching orders from Supabase, falling back to mock data:', error);
-    return Promise.resolve({ data: getMockOrders(), error: null });
+    const mockOrders = await getMockOrders();
+    return Promise.resolve({ data: mockOrders, error: null });
   }
 };
 
@@ -761,7 +792,7 @@ export const createOrder = async (orderData: Partial<Order>) => {
     console.warn('Supabase credentials not configured. Using mock data.');
     // Create order in mock storage
     console.log('Calling createMockOrder with:', orderData);
-    const newOrder = createMockOrder(orderData);
+    const newOrder = await createMockOrder(orderData);
     console.log('createMockOrder returned:', newOrder);
     return Promise.resolve({ data: newOrder, error: null });
   }
@@ -770,13 +801,13 @@ export const createOrder = async (orderData: Partial<Order>) => {
     const result = await supabase.from('orders').insert([orderData]).select().single();
     if (result.error) {
       console.error('Supabase order creation failed, falling back to mock data:', result.error);
-      const newOrder = createMockOrder(orderData);
+      const newOrder = await createMockOrder(orderData);
       return Promise.resolve({ data: newOrder, error: null });
     }
     return result;
   } catch (error) {
     console.error('Error creating order in Supabase, falling back to mock data:', error);
-    const newOrder = createMockOrder(orderData);
+    const newOrder = await createMockOrder(orderData);
     return Promise.resolve({ data: newOrder, error: null });
   }
 };
@@ -879,20 +910,89 @@ export const createShippingQuote = async (quote: any) => {
   return supabase.from('shipping_quotes').insert(quote).select().single();
 };
 
-export const getFulfillments = () => {
-  if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured. Returning mock data.');
-    return Promise.resolve({ data: [], error: null });
+export const getFulfillments = async () => {
+  try {
+    // Try Supabase first
+    const result = await supabase.from('fulfillments').select('*');
+    
+    if (result.error) {
+      console.warn('Supabase fulfillments query failed, falling back to persistent storage:', result.error);
+      const fulfillments = await dataManager.getFulfillments();
+      console.log('Fulfillments from persistent storage:', fulfillments.length);
+      return Promise.resolve({ data: fulfillments, error: null });
+    }
+    
+    // If we get empty results from Supabase but have local data, merge them
+    if (result.data && result.data.length === 0) {
+      console.log('No fulfillments in Supabase, checking persistent storage for existing data');
+      const localFulfillments = await dataManager.getFulfillments();
+      if (localFulfillments.length > 0) {
+        console.log('Found fulfillments in persistent storage, syncing to Supabase');
+        // Sync local fulfillments to Supabase
+        for (const fulfillment of localFulfillments) {
+          try {
+            await supabase.from('fulfillments').insert(fulfillment);
+          } catch (syncError) {
+            console.warn('Failed to sync fulfillment to Supabase:', syncError);
+          }
+        }
+      }
+      return Promise.resolve({ data: localFulfillments, error: null });
+    }
+    
+    console.log('Successfully retrieved fulfillments from Supabase:', result.data?.length);
+    return result;
+  } catch (error) {
+    console.warn('Supabase connection failed, falling back to persistent storage:', error);
+    const fulfillments = await dataManager.getFulfillments();
+    console.log('Fulfillments from persistent storage fallback:', fulfillments.length);
+    return Promise.resolve({ data: fulfillments, error: null });
   }
-  return supabase.from('fulfillments').select('*');
 };
 
 export const createFulfillment = async (fulfillment: any) => {
-  if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured.');
-    return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
+  console.log('Creating fulfillment with data:', fulfillment);
+  
+  // Ensure fulfillment has required fields
+  const newFulfillment = {
+    id: fulfillment.id || `fulfillment-${Date.now()}`,
+    created_at: fulfillment.created_at || new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    ...fulfillment
+  };
+  
+  try {
+    // Try Supabase first
+    const result = await supabase.from('fulfillments').insert(newFulfillment).select().single();
+    
+    if (result.error) {
+      console.warn('Supabase fulfillment creation failed, falling back to persistent storage:', result.error);
+      await dataManager.addFulfillment(newFulfillment);
+      console.log('Fulfillment added to persistent storage:', newFulfillment);
+      return Promise.resolve({ data: newFulfillment, error: null });
+    }
+    
+    console.log('Fulfillment successfully created in Supabase:', result.data);
+    
+    // Also add to persistent storage for offline access
+    try {
+      await dataManager.addFulfillment(newFulfillment);
+    } catch (mockError) {
+      console.warn('Failed to backup fulfillment to persistent storage:', mockError);
+    }
+    
+    return result;
+  } catch (error) {
+    console.warn('Supabase connection failed, using persistent storage only:', error);
+    try {
+      await dataManager.addFulfillment(newFulfillment);
+      console.log('Fulfillment created in persistent storage:', newFulfillment);
+      return Promise.resolve({ data: newFulfillment, error: null });
+    } catch (storageError) {
+      console.error('Failed to create fulfillment in persistent storage:', storageError);
+      return Promise.resolve({ data: null, error: storageError });
+    }
   }
-  return supabase.from('fulfillments').insert(fulfillment).select().single();
 };
 
 export const updateFulfillment = async (id: string, fulfillment: any) => {

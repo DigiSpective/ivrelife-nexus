@@ -1,0 +1,591 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<application-audit>
+  <metadata>
+    <framework>React 18.3.1 + Vite 5.4.19 SPA</framework>
+    <language>TypeScript</language>
+    <build-tool>Vite</build-tool>
+    <ui-library>shadcn/ui + Radix UI</ui-library>
+    <styling>Tailwind CSS</styling>
+    <generated-date>2025-09-27</generated-date>
+  </metadata>
+
+  <directory-structure>
+    <root-files>
+      <file>package.json</file>
+      <file>vite.config.ts</file>
+      <file>tsconfig.json</file>
+      <file>tailwind.config.ts</file>
+      <file>index.html</file>
+      <file>vercel.json</file>
+      <file>jest.config.js</file>
+      <file>components.json</file>
+    </root-files>
+    
+    <src-structure>
+      <folder name="components">
+        <subfolder name="ui">45 components (shadcn/ui components)</subfolder>
+        <subfolder name="auth">15 authentication-related components</subfolder>
+        <subfolder name="layout">Dashboard layout and navigation</subfolder>
+        <subfolder name="common">Shared utility components</subfolder>
+        <subfolder name="customers">Customer management components</subfolder>
+        <subfolder name="products">Product management components</subfolder>
+        <subfolder name="orders">Order management components</subfolder>
+        <subfolder name="shipping">Shipping and fulfillment components</subfolder>
+        <subfolder name="claims">Warranty claims components</subfolder>
+        <subfolder name="retailers">Retailer management components</subfolder>
+        <subfolder name="settings">Settings and configuration components</subfolder>
+        <subfolder name="subscription">Subscription management components</subfolder>
+        <subfolder name="admin">Administrative components</subfolder>
+      </folder>
+      
+      <folder name="pages">
+        <subfolder name="auth">Authentication pages</subfolder>
+        <subfolder name="admin">Administrative pages</subfolder>
+        <subfolder name="settings">Settings pages</subfolder>
+        <business-pages>
+          <page>Dashboard.tsx</page>
+          <page>Orders.tsx</page>
+          <page>Customers.tsx</page>
+          <page>Products.tsx</page>
+          <page>Shipping.tsx</page>
+          <page>Claims.tsx</page>
+          <page>Retailers.tsx</page>
+        </business-pages>
+      </folder>
+      
+      <folder name="lib">
+        <file>supabase.ts</file>
+        <file>supabase-client.ts</file>
+        <file>supabase-auth.ts</file>
+        <file>auth.ts</file>
+        <file>persistent-storage.ts</file>
+        <file>session-manager.ts</file>
+        <file>audit-logger.ts</file>
+        <file>monitoring.ts</file>
+        <file>shipping-engine.ts</file>
+        <file>subscription-api.ts</file>
+      </folder>
+      
+      <folder name="types">
+        <file>index.ts (Core business types)</file>
+        <file>database.ts (Supabase schema types)</file>
+        <file>shipping.ts</file>
+        <file>products.ts</file>
+      </folder>
+      
+      <folder name="hooks">
+        <file>useCart.ts</file>
+        <file>useProducts.ts</file>
+        <file>useRetailers.ts</file>
+        <file>useSubscription.ts</file>
+        <file>usePersistentState.ts</file>
+        <file>useSessionActivity.ts</file>
+        <file>use-toast.ts</file>
+        <file>use-mobile.tsx</file>
+      </folder>
+    </src-structure>
+  </directory-structure>
+
+  <dependencies>
+    <core-framework>
+      <dependency name="react" version="18.3.1" />
+      <dependency name="react-dom" version="18.3.1" />
+      <dependency name="react-router-dom" version="6.30.1" />
+      <dependency name="vite" version="5.4.19" />
+      <dependency name="typescript" version="5.8.3" />
+    </core-framework>
+    
+    <ui-components>
+      <dependency name="@radix-ui/*" description="45+ Radix UI primitives" />
+      <dependency name="tailwindcss" version="3.4.17" />
+      <dependency name="lucide-react" version="0.462.0" />
+      <dependency name="class-variance-authority" version="0.7.1" />
+      <dependency name="clsx" version="2.1.1" />
+      <dependency name="tailwind-merge" version="2.6.0" />
+    </ui-components>
+    
+    <data-management>
+      <dependency name="@supabase/supabase-js" version="2.57.4" />
+      <dependency name="@tanstack/react-query" version="5.83.0" />
+      <dependency name="zod" version="3.25.76" />
+    </data-management>
+    
+    <forms-validation>
+      <dependency name="react-hook-form" version="7.61.1" />
+      <dependency name="@hookform/resolvers" version="3.10.0" />
+    </forms-validation>
+    
+    <utilities>
+      <dependency name="date-fns" version="3.6.0" />
+      <dependency name="recharts" version="2.15.4" />
+      <dependency name="sonner" version="1.7.4" />
+      <dependency name="next-themes" version="0.3.0" />
+    </utilities>
+    
+    <testing>
+      <dependency name="jest" version="29.7.0" />
+      <dependency name="@testing-library/react" version="14.1.2" />
+      <dependency name="@testing-library/jest-dom" version="6.1.4" />
+    </testing>
+  </dependencies>
+
+  <state-management>
+    <patterns>
+      <pattern name="React Context + useReducer">
+        <files>
+          <file>/src/components/auth/AuthProvider.tsx</file>
+          <file>/src/components/cart/CartManager.tsx</file>
+          <file>/src/components/providers/DataPersistenceProvider.tsx</file>
+        </files>
+        <description>Primary state management for authentication, cart, and data persistence</description>
+      </pattern>
+      
+      <pattern name="React Query (@tanstack/react-query)">
+        <description>Server state management and caching</description>
+        <usage>API data fetching, caching, synchronization</usage>
+      </pattern>
+      
+      <pattern name="Local useState">
+        <description>Component-level state management</description>
+        <files-count>117</files-count>
+        <usage>Form state, UI state, temporary data</usage>
+      </pattern>
+      
+      <pattern name="Custom Hooks">
+        <hooks>
+          <hook name="useCart">Shopping cart state</hook>
+          <hook name="useProducts">Product data management</hook>
+          <hook name="useRetailers">Retailer data management</hook>
+          <hook name="useSubscription">Subscription state</hook>
+          <hook name="usePersistentState">Persistent state across sessions</hook>
+          <hook name="useSessionActivity">Session activity tracking</hook>
+        </hooks>
+      </pattern>
+    </patterns>
+  </state-management>
+
+  <data-models>
+    <core-business-types>
+      <type name="User">
+        <properties>id, email, role, retailer_id, location_id, name, avatar</properties>
+        <roles>owner, backoffice, retailer, location_user</roles>
+      </type>
+      
+      <type name="Customer">
+        <properties>id, retailer_id, primary_location_id, name, email, phone, default_address, notes</properties>
+        <relationships>addresses, contacts, documents, activity</relationships>
+      </type>
+      
+      <type name="Product">
+        <properties>id, retailer_id, category_id, name, description</properties>
+        <relationships>variants, categories</relationships>
+      </type>
+      
+      <type name="ProductVariant">
+        <properties>id, product_id, sku, price, dimensions, weight, color, ltl_flag, inventory_qty</properties>
+      </type>
+      
+      <type name="Order">
+        <properties>id, retailer_id, location_id, customer_id, created_by, status, total_amount</properties>
+        <statuses>draft, pending, processing, shipped, delivered, cancelled, returned, completed</statuses>
+        <relationships>order_items, customer, fulfillments</relationships>
+      </type>
+      
+      <type name="Claim">
+        <properties>id, retailer_id, location_id, order_id, product_id, reason, status, resolution_notes</properties>
+        <statuses>submitted, in_review, approved, rejected, resolved</statuses>
+      </type>
+      
+      <type name="Retailer">
+        <properties>id, name, email, phone, status, contract_url</properties>
+        <statuses>active, inactive, suspended</statuses>
+        <relationships>locations, users</relationships>
+      </type>
+      
+      <type name="Location">
+        <properties>id, retailer_id, name, address, contact_info, status</properties>
+        <statuses>active, inactive</statuses>
+      </type>
+    </core-business-types>
+    
+    <shipping-types>
+      <type name="ShippingProvider">
+        <properties>id, name, api_identifier, config</properties>
+      </type>
+      
+      <type name="ShippingMethod">
+        <properties>id, provider_id, name, speed_estimate, supports_ltl</properties>
+      </type>
+      
+      <type name="Fulfillment">
+        <properties>id, order_id, provider_id, method_id, tracking_number, status</properties>
+        <statuses>label_created, in_transit, out_for_delivery, delivered, exception, returned, cancelled</statuses>
+      </type>
+    </shipping-types>
+    
+    <security-types>
+      <type name="AuthSession">
+        <properties>user, access_token, refresh_token, expires_at</properties>
+      </type>
+      
+      <type name="AuditLog">
+        <properties>id, user_id, action, entity, entity_id, details, ip_address, user_agent</properties>
+      </type>
+      
+      <type name="InviteToken">
+        <properties>id, email, role, retailer_id, location_id, expires_at, used_at</properties>
+      </type>
+    </security-types>
+  </data-models>
+
+  <components>
+    <ui-components count="45">
+      <category name="Layout">Button, Card, Dialog, Sheet, Tabs</category>
+      <category name="Forms">Input, Select, Checkbox, Radio Group, Form</category>
+      <category name="Navigation">Navigation Menu, Breadcrumb, Pagination</category>
+      <category name="Feedback">Alert, Toast, Progress, Skeleton</category>
+      <category name="Data Display">Table, Chart, Badge, Avatar</category>
+      <category name="Overlays">Tooltip, Popover, Dropdown Menu, Context Menu</category>
+    </ui-components>
+    
+    <business-components>
+      <category name="Authentication">
+        <component>AuthProvider - Main auth context</component>
+        <component>AuthGuard - Route protection</component>
+        <component>LoginForm - User login</component>
+        <component>RegisterForm - User registration</component>
+        <component>MFASetup - Multi-factor authentication</component>
+      </category>
+      
+      <category name="Customer Management">
+        <component>CustomerForm - Customer creation/editing</component>
+        <component>CustomerSelect - Customer selection</component>
+        <component>CustomerDialog - Customer management modal</component>
+        <component>AddressDialog - Address management</component>
+        <component>ContactDialog - Contact information</component>
+        <component>IDUploadWidget - ID document upload</component>
+        <component>SignaturePad - Digital signatures</component>
+        <component>MergeTool - Customer deduplication</component>
+      </category>
+      
+      <category name="Product Management">
+        <component>ProductCard - Product display</component>
+        <component>ProductModal - Product details</component>
+        <component>ProductSelect - Product selection</component>
+        <component>ProductEditDialog - Product editing</component>
+        <component>Filters - Product filtering</component>
+        <component>Sorting - Product sorting</component>
+      </category>
+      
+      <category name="Order Management">
+        <component>OrderStatusBadge - Order status display</component>
+        <component>CartPreview - Shopping cart preview</component>
+      </category>
+      
+      <category name="Shipping & Fulfillment">
+        <component>QuoteRequestForm - Shipping quote requests</component>
+        <component>FulfillmentModal - Fulfillment management</component>
+        <component>TrackingTimeline - Package tracking</component>
+        <component>ShipmentsTable - Shipment listing</component>
+        <component>ProvidersTable - Shipping provider management</component>
+        <component>FulfillmentStatusBadge - Shipping status display</component>
+      </category>
+      
+      <category name="Claims Management">
+        <component>ClaimForm - Claim creation</component>
+        <component>ClaimDetail - Claim details view</component>
+        <component>ClaimList - Claims listing</component>
+        <component>ClaimStatusBadge - Claim status display</component>
+      </category>
+      
+      <category name="Settings & Administration">
+        <component>ProfileForm - User profile management</component>
+        <component>SystemSettingsForm - System configuration</component>
+        <component>NotificationSettingsForm - Notification preferences</component>
+        <component>FeatureToggleList - Feature flag management</component>
+        <component>AuditLogViewer - Security audit logs</component>
+        <component>SecurityDashboard - Security monitoring</component>
+      </category>
+    </business-components>
+  </components>
+
+  <pages-routes>
+    <authentication-routes>
+      <route path="/auth/login" component="LoginPage" />
+      <route path="/auth/register" component="RegisterPage" />
+      <route path="/auth/reset-password" component="ResetPasswordPage" />
+      <route path="/auth/logout" component="LogoutPage" />
+      <route path="/auth/debug" component="AuthDebug" />
+      <route path="/auth/test" component="AuthTest" />
+    </authentication-routes>
+    
+    <main-application-routes>
+      <route path="/" redirect="/dashboard" />
+      <route path="/dashboard" component="Dashboard" protected="true" />
+      
+      <route path="/orders" component="Orders" protected="true" />
+      <route path="/orders/new" component="NewOrder" protected="true" />
+      <route path="/orders/:id" component="OrderDetail" protected="true" />
+      
+      <route path="/customers" component="Customers" protected="true" />
+      <route path="/customers/:id" component="CustomerDetail" protected="true" />
+      
+      <route path="/products" component="Products" protected="true" />
+      <route path="/products/:id" component="ProductDetail" protected="true" />
+      
+      <route path="/shipping" component="ShippingNew" protected="true" />
+      
+      <route path="/claims" component="Claims" protected="true" />
+      <route path="/claims/new" component="NewClaim" protected="true" />
+      <route path="/claims/:id" component="ClaimDetailPage" protected="true" />
+      
+      <route path="/retailers" component="Retailers" protected="true" roles="owner,backoffice" />
+      <route path="/retailers/new" component="NewRetailer" protected="true" roles="owner,backoffice" />
+      <route path="/retailers/:id" component="RetailerDetail" protected="true" roles="owner,backoffice" />
+      <route path="/retailers/:id/edit" component="EditRetailer" protected="true" roles="owner,backoffice" />
+      
+      <route path="/settings" component="Settings" protected="true" />
+      <route path="/settings/subscription" component="SubscriptionSettings" protected="true" />
+    </main-application-routes>
+    
+    <admin-routes>
+      <route path="/admin" component="AdminDashboard" protected="true" roles="owner,backoffice" />
+      <route path="/admin/dashboard" component="AdminDashboard" protected="true" roles="owner,backoffice" />
+      <route path="/admin/users" component="UsersAdmin" protected="true" roles="owner,backoffice" />
+      <route path="/admin/orders" component="OrdersAdmin" protected="true" roles="owner,backoffice" />
+      <route path="/admin/customers" component="CustomersAdmin" protected="true" roles="owner,backoffice" />
+      <route path="/admin/products" component="ProductsAdmin" protected="true" roles="owner,backoffice" />
+      <route path="/admin/shipping" component="ShippingAdmin" protected="true" roles="owner,backoffice" />
+      <route path="/admin/gift-rules" component="GiftRulesAdmin" protected="true" roles="owner,backoffice" />
+      <route path="/admin/test" component="AdminTest" protected="true" roles="owner,backoffice" />
+    </admin-routes>
+    
+    <fallback-routes>
+      <route path="*" component="NotFound" />
+    </fallback-routes>
+  </pages-routes>
+
+  <api-endpoints>
+    <data-access-pattern>Supabase Client + Mock Fallback</data-access-pattern>
+    
+    <supabase-tables>
+      <table name="app_users">User management and authentication</table>
+      <table name="auth_sessions">Session management</table>
+      <table name="roles">Role-based access control</table>
+      <table name="invite_tokens">User invitation system</table>
+      <table name="audit_logs">Security and activity logging</table>
+      <table name="mfa_devices">Multi-factor authentication</table>
+      <table name="retailers">Retailer management</table>
+      <table name="locations">Location management</table>
+      <table name="customers">Customer data</table>
+      <table name="products">Product catalog</table>
+      <table name="product_variants">Product variations</table>
+      <table name="orders">Order management</table>
+      <table name="order_items">Order line items</table>
+      <table name="claims">Warranty claims</table>
+      <table name="shipping_providers">Shipping integration</table>
+      <table name="fulfillments">Order fulfillment tracking</table>
+      <table name="user_storage">Persistent user preferences</table>
+    </supabase-tables>
+    
+    <api-functions>
+      <function name="Authentication">
+        <endpoint>signIn(email, password)</endpoint>
+        <endpoint>signOut()</endpoint>
+        <endpoint>getCurrentUser()</endpoint>
+      </function>
+      
+      <function name="Customer Management">
+        <endpoint>getCustomers()</endpoint>
+        <endpoint>getCustomerById(id)</endpoint>
+        <endpoint>createCustomer(customer)</endpoint>
+        <endpoint>updateCustomer(id, customer)</endpoint>
+        <endpoint>deleteCustomer(id)</endpoint>
+        <endpoint>getCustomerContacts(customerId)</endpoint>
+        <endpoint>getCustomerAddresses(customerId)</endpoint>
+      </function>
+      
+      <function name="Product Management">
+        <endpoint>getProducts()</endpoint>
+        <endpoint>getProductById(id)</endpoint>
+        <endpoint>createProduct(product)</endpoint>
+        <endpoint>updateProduct(id, product)</endpoint>
+        <endpoint>deleteProduct(id)</endpoint>
+        <endpoint>getProductVariants()</endpoint>
+      </function>
+      
+      <function name="Order Management">
+        <endpoint>getOrders()</endpoint>
+        <endpoint>getOrderById(id)</endpoint>
+        <endpoint>createOrder(order)</endpoint>
+        <endpoint>getOrderItems(orderId)</endpoint>
+      </function>
+      
+      <function name="Shipping & Fulfillment">
+        <endpoint>getShippingProviders()</endpoint>
+        <endpoint>createShippingQuote(quote)</endpoint>
+        <endpoint>getFulfillments()</endpoint>
+        <endpoint>createFulfillment(fulfillment)</endpoint>
+        <endpoint>updateFulfillment(id, fulfillment)</endpoint>
+      </function>
+      
+      <function name="Claims Management">
+        <endpoint>getClaims()</endpoint>
+        <endpoint>getClaimById(id)</endpoint>
+        <endpoint>createClaim(claim)</endpoint>
+        <endpoint>updateClaim(id, claim)</endpoint>
+      </function>
+      
+      <function name="Administrative">
+        <endpoint>getUsers()</endpoint>
+        <endpoint>createUser(user)</endpoint>
+        <endpoint>updateUser(id, user)</endpoint>
+        <endpoint>getAuditLogs()</endpoint>
+        <endpoint>createAuditLog(log)</endpoint>
+      </function>
+    </api-functions>
+    
+    <mock-data-system>
+      <description>Comprehensive mock data system for development without Supabase</description>
+      <location>/src/lib/supabase.ts</location>
+      <features>
+        <feature>Automatic fallback when Supabase unavailable</feature>
+        <feature>In-memory storage for mock data</feature>
+        <feature>Consistent API interface</feature>
+        <feature>Sample data for all entities</feature>
+      </features>
+    </mock-data-system>
+  </api-endpoints>
+
+  <current-storage>
+    <persistent-storage-system>
+      <location>/src/lib/persistent-storage.ts</location>
+      <description>Comprehensive storage system with Supabase + localStorage fallback</description>
+      
+      <storage-keys>
+        <user-data>
+          <key>iv-relife-user-session</key>
+          <key>iv-relife-user-preferences</key>
+        </user-data>
+        
+        <business-data>
+          <key>iv-relife-customers</key>
+          <key>iv-relife-orders</key>
+          <key>iv-relife-products</key>
+          <key>iv-relife-retailers</key>
+          <key>iv-relife-locations</key>
+          <key>iv-relife-claims</key>
+          <key>iv-relife-shipments</key>
+        </business-data>
+        
+        <ui-state>
+          <key>iv-relife-cart</key>
+          <key>iv-relife-notifications</key>
+          <key>iv-relife-filter-settings</key>
+          <key>iv-relife-view-preferences</key>
+        </ui-state>
+        
+        <app-metadata>
+          <key>iv-relife-last-sync</key>
+          <key>iv-relife-offline-changes</key>
+        </app-metadata>
+      </storage-keys>
+      
+      <features>
+        <feature name="Dual Storage">Automatic sync between Supabase and localStorage</feature>
+        <feature name="Offline Support">Queue changes when offline, sync when online</feature>
+        <feature name="Versioning">Data versioning and migration support</feature>
+        <feature name="User Isolation">User-specific data separation</feature>
+        <feature name="Fallback Strategy">Graceful degradation to localStorage</feature>
+        <feature name="Sync Management">Last sync tracking and conflict resolution</feature>
+      </features>
+    </persistent-storage-system>
+    
+    <other-storage-usage>
+      <localStorage>
+        <usage>Cart state persistence</usage>
+        <usage>User preferences</usage>
+        <usage>Session management</usage>
+        <usage>Device fingerprinting</usage>
+        <usage>Monitoring data</usage>
+        <files-using>11 files</files-using>
+      </localStorage>
+      
+      <sessionStorage>
+        <usage>Temporary UI state</usage>
+        <usage>Form data backup</usage>
+        <files-using>Limited usage</files-using>
+      </sessionStorage>
+      
+      <supabase-storage>
+        <usage>User-specific preferences sync</usage>
+        <usage>Cross-device data synchronization</usage>
+        <usage>Offline change queuing</usage>
+      </supabase-storage>
+    </other-storage-usage>
+    
+    <custom-hooks>
+      <hook name="usePersistentState">
+        <location>/src/hooks/usePersistentState.ts</location>
+        <description>Hook for persistent state management with automatic sync</description>
+      </hook>
+      
+      <hook name="useCart">
+        <location>/src/hooks/useCart.ts</location>
+        <description>Shopping cart state with localStorage persistence</description>
+      </hook>
+    </custom-hooks>
+  </current-storage>
+
+  <architecture-notes>
+    <strengths>
+      <item>Comprehensive TypeScript type system</item>
+      <item>Robust authentication and authorization</item>
+      <item>Sophisticated persistent storage with offline support</item>
+      <item>Modern React patterns with hooks and context</item>
+      <item>Comprehensive error handling and fallbacks</item>
+      <item>Role-based access control</item>
+      <item>Audit logging and security monitoring</item>
+      <item>Mock data system for development</item>
+      <item>Responsive design with shadcn/ui components</item>
+      <item>Comprehensive business domain coverage</item>
+    </strengths>
+    
+    <persistence-readiness>
+      <status>Advanced</status>
+      <existing-system>
+        <component>PersistentStorage class with Supabase + localStorage</component>
+        <component>Offline change queuing</component>
+        <component>Data synchronization</component>
+        <component>User-specific data isolation</component>
+        <component>Versioning support</component>
+      </existing-system>
+      
+      <recommendations>
+        <item>The application already has a sophisticated persistence system</item>
+        <item>Focus on optimizing existing storage patterns rather than adding new ones</item>
+        <item>Consider implementing data migration tools for schema changes</item>
+        <item>Add more granular cache invalidation strategies</item>
+        <item>Implement background sync for better performance</item>
+      </recommendations>
+    </persistence-readiness>
+    
+    <security-features>
+      <feature>Multi-factor authentication support</feature>
+      <feature>Session management with device tracking</feature>
+      <feature>Comprehensive audit logging</feature>
+      <feature>Role-based access control</feature>
+      <feature>CSRF protection</feature>
+      <feature>Rate limiting</feature>
+      <feature>Security event monitoring</feature>
+    </security-features>
+    
+    <scalability-considerations>
+      <item>React Query for efficient data caching and synchronization</item>
+      <item>Lazy loading for heavy components</item>
+      <item>Modular component architecture</item>
+      <item>Efficient state management patterns</item>
+      <item>Mock data system for development scalability</item>
+    </scalability-considerations>
+  </architecture-notes>
+</application-audit>

@@ -60,7 +60,11 @@ export default function ShippingNew() {
 
   // Use real data from hooks
   const { data: fulfillmentsData, isLoading: loading, refetch: refetchFulfillments } = useFulfillments();
-  const fulfillments = fulfillmentsData?.data || [];
+  // Ensure fulfillments is always an array
+  const fulfillments = Array.isArray(fulfillmentsData?.data) ? fulfillmentsData.data : 
+                      Array.isArray(fulfillmentsData) ? fulfillmentsData : [];
+
+  console.log('Fulfillments data:', { fulfillmentsData, fulfillments });
 
   // Convert fulfillments to shipments format for compatibility
   const convertFulfillmentToShipment = (fulfillment: any): Shipment => {

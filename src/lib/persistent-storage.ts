@@ -53,6 +53,13 @@ export interface OfflineChange {
 export class PersistentStorage {
   private static instance: PersistentStorage;
   private readonly version = '1.0.0';
+  private syncQueue: Array<{
+    operation: 'set' | 'remove';
+    key: string;
+    data?: any;
+    userId?: string;
+    timestamp: number;
+  }> = [];
   
   private constructor() {}
   
@@ -78,12 +85,24 @@ export class PersistentStorage {
         if (!error && data) {
           return JSON.parse(data.data);
         }
+        
+        // If there's a 404 error or table doesn't exist, it's expected during initial setup
+        if (error && (error.code === 'PGRST116' || error.message?.includes('user_storage'))) {
+          console.log(`ℹ️ user_storage table not set up yet. Using localStorage for ${key}.`);
+        } else if (error) {
+          console.warn(`Error accessing Supabase for key ${key}:`, error);
+        }
       }
       
       // Fallback to localStorage
       return this.getFromLocalStorage<T>(key);
     } catch (error) {
-      console.warn(`Error getting data for key ${key}:`, error);
+      // Check if it's a user_storage table issue
+      if (error instanceof Error && error.message?.includes('user_storage')) {
+        console.log(`ℹ️ user_storage table not available. Using localStorage for ${key}.`);
+      } else {
+        console.warn(`Error getting data for key ${key}:`, error);
+      }
       return this.getFromLocalStorage<T>(key);
     }
   }
@@ -104,15 +123,20 @@ export class PersistentStorage {
       // Also save to Supabase for syncing (non-blocking during auth)
       if (userId && this.shouldUseSupabase(key)) {
         this.saveToSupabase(key, storedData, userId).catch(error => {
-          console.warn(`Non-blocking Supabase save failed for key ${key}:`, error);
-          // Add to sync queue for retry
-          this.syncQueue.push({
-            operation: 'set',
-            key,
-            data: storedData,
-            userId,
-            timestamp: Date.now()
-          });
+          // Check if it's a user_storage table issue
+          if (error?.code === 'PGRST116' || error?.message?.includes('user_storage')) {
+            console.log(`ℹ️ user_storage table not set up yet. Skipping Supabase sync for ${key}.`);
+          } else {
+            console.warn(`Non-blocking Supabase save failed for key ${key}:`, error);
+            // Add to sync queue for retry
+            this.syncQueue.push({
+              operation: 'set',
+              key,
+              data: storedData,
+              userId,
+              timestamp: Date.now()
+            });
+          }
         });
       }
       
@@ -203,6 +227,9 @@ export class PersistentStorage {
 
       // Upload any offline changes to Supabase
       await this.uploadOfflineChanges(userId);
+
+      // Process any queued sync operations
+      await this.processSyncQueue();
       
     } catch (error) {
       console.warn('Error syncing data:', error);
@@ -225,6 +252,32 @@ export class PersistentStorage {
       timestamp: Date.now(),
       version: this.version
     });
+  }
+
+  // Process sync queue for failed operations
+  async processSyncQueue(): Promise<void> {
+    if (this.syncQueue.length === 0) return;
+
+    const queueCopy = [...this.syncQueue];
+    this.syncQueue = []; // Clear queue optimistically
+
+    for (const queueItem of queueCopy) {
+      try {
+        if (queueItem.operation === 'set') {
+          await this.saveToSupabase(queueItem.key, queueItem.data, queueItem.userId!);
+        } else if (queueItem.operation === 'remove') {
+          await supabase
+            .from('user_storage')
+            .delete()
+            .eq('user_id', queueItem.userId!)
+            .eq('storage_key', queueItem.key);
+        }
+      } catch (error) {
+        console.warn(`Failed to process sync queue item for key ${queueItem.key}:`, error);
+        // Re-add to queue for retry
+        this.syncQueue.push(queueItem);
+      }
+    }
   }
 
   // Upload offline changes when back online
@@ -297,10 +350,22 @@ export class PersistentStorage {
         });
 
       if (error) {
-        console.warn('Error saving to Supabase:', error);
+        // Check if it's a user_storage table issue
+        if (error.code === 'PGRST116' || error.message?.includes('user_storage')) {
+          console.log(`ℹ️ user_storage table not set up yet. Data saved locally for ${key}.`);
+        } else {
+          console.warn('Error saving to Supabase:', error);
+        }
+        throw error; // Re-throw to trigger retry queue
       }
     } catch (error) {
-      console.warn('Error in saveToSupabase:', error);
+      // Check if it's a user_storage table issue
+      if (error instanceof Error && error.message?.includes('user_storage')) {
+        console.log(`ℹ️ user_storage table not available. Data saved locally for ${key}.`);
+      } else {
+        console.warn('Error in saveToSupabase:', error);
+      }
+      throw error; // Re-throw to trigger retry queue
     }
   }
 

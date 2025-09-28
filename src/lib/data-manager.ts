@@ -129,8 +129,9 @@ export class DataManager {
   // Specific data type managers
   async getCustomers(userId?: string) {
     return this.getData(STORAGE_KEYS.CUSTOMERS, async () => {
-      const result = await getMockCustomers();
-      return result.data || [];
+      // Return empty array to avoid circular dependency with getMockCustomers
+      // Mock data initialization is handled directly in getMockCustomers function
+      return [];
     }, userId);
   }
 
@@ -148,8 +149,9 @@ export class DataManager {
 
   async getOrders(userId?: string) {
     return this.getData(STORAGE_KEYS.ORDERS, async () => {
-      const result = await getMockOrders();
-      return result.data || [];
+      // Return empty array to avoid circular dependency with getMockOrders
+      // Mock data initialization is handled directly in getMockOrders function
+      return [];
     }, userId);
   }
 
@@ -203,6 +205,42 @@ export class DataManager {
     return this.updateItem(STORAGE_KEYS.RETAILERS, retailerId, updates, userId);
   }
 
+  // Shipments/Fulfillments
+  async getShipments(userId?: string) {
+    return this.getData(STORAGE_KEYS.SHIPMENTS, async () => {
+      return []; // Empty initially
+    }, userId);
+  }
+
+  async addShipment(shipment: any, userId?: string) {
+    return this.addItem(STORAGE_KEYS.SHIPMENTS, shipment, userId);
+  }
+
+  async updateShipment(shipmentId: string, updates: any, userId?: string) {
+    return this.updateItem(STORAGE_KEYS.SHIPMENTS, shipmentId, updates, userId);
+  }
+
+  async removeShipment(shipmentId: string, userId?: string) {
+    return this.removeItem(STORAGE_KEYS.SHIPMENTS, shipmentId, userId);
+  }
+
+  // Alias methods for fulfillments (same data, different name)
+  async getFulfillments(userId?: string) {
+    return this.getShipments(userId);
+  }
+
+  async addFulfillment(fulfillment: any, userId?: string) {
+    return this.addShipment(fulfillment, userId);
+  }
+
+  async updateFulfillment(fulfillmentId: string, updates: any, userId?: string) {
+    return this.updateShipment(fulfillmentId, updates, userId);
+  }
+
+  async removeFulfillment(fulfillmentId: string, userId?: string) {
+    return this.removeShipment(fulfillmentId, userId);
+  }
+
   // Sync operations
   private async processSyncQueue(): Promise<void> {
     if (!this.isOnline || this.syncQueue.length === 0) return;
@@ -245,7 +283,8 @@ export class DataManager {
       STORAGE_KEYS.CUSTOMERS,
       STORAGE_KEYS.ORDERS,
       STORAGE_KEYS.CLAIMS,
-      STORAGE_KEYS.RETAILERS
+      STORAGE_KEYS.RETAILERS,
+      STORAGE_KEYS.SHIPMENTS
     ];
     return syncableKeys.includes(key as any);
   }

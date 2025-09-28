@@ -23,6 +23,7 @@ import {
   OutboxEvent, 
   FileMetadata 
 } from '@/types';
+import { dataManager } from './data-manager';
 
 export const mockUser: User = {
   id: 'usr-1',
@@ -211,28 +212,45 @@ declare global {
   var __mockCustomerStorage: Customer[] | undefined;
 }
 
-const initializeMockCustomers = () => {
-  if (!globalThis.__mockCustomerStorage) {
-    console.log('Initializing mock customer storage...');
-    globalThis.__mockCustomerStorage = [...mockCustomers];
+// Helper functions for mock customer storage using persistent dataManager
+export const getMockCustomers = async (userId?: string) => {
+  try {
+    // Import persistentStorage here to avoid circular dependency issues
+    const { persistentStorage, STORAGE_KEYS } = await import('./persistent-storage');
+    
+    // Get customers directly from persistent storage to avoid circular dependency
+    const rawCustomers = await persistentStorage.get(STORAGE_KEYS.CUSTOMERS, userId);
+    const customers = Array.isArray(rawCustomers) ? rawCustomers : [];
+    console.log('getMockCustomers called, found in storage:', customers.length, 'customers');
+    
+    // If no customers in persistent storage, initialize with mock data
+    if (customers.length === 0) {
+      console.log('No customers found, initializing with mock data...');
+      // Initialize storage directly to avoid dataManager circular dependency
+      await persistentStorage.set(STORAGE_KEYS.CUSTOMERS, mockCustomers, userId);
+      console.log('Initialized', mockCustomers.length, 'mock customers in storage');
+      return mockCustomers;
+    }
+    
+    return customers;
+  } catch (error) {
+    console.warn('Error getting customers from persistent storage, falling back to static mock data:', error);
+    console.log('Returning', mockCustomers.length, 'static mock customers');
+    return mockCustomers;
   }
-  return globalThis.__mockCustomerStorage;
 };
 
-// Helper functions for mock customer storage
-export const getMockCustomers = () => {
-  const storage = initializeMockCustomers();
-  console.log('getMockCustomers called, returning:', storage.length, 'customers');
-  return [...storage];
+export const getMockCustomerById = async (id: string, userId?: string) => {
+  try {
+    const customers = await getMockCustomers(userId);
+    return customers.find(customer => customer.id === id) || null;
+  } catch (error) {
+    console.warn('Error getting customer by ID, falling back to static mock data:', error);
+    return mockCustomers.find(customer => customer.id === id) || null;
+  }
 };
 
-export const getMockCustomerById = (id: string) => {
-  const storage = initializeMockCustomers();
-  return storage.find(customer => customer.id === id) || null;
-};
-
-export const createMockCustomer = (customerData: Partial<Customer>): Customer => {
-  const storage = initializeMockCustomers();
+export const createMockCustomer = async (customerData: Partial<Customer>, userId?: string): Promise<Customer> => {
   const newCustomer: Customer = {
     id: `cust-${Date.now()}`,
     retailer_id: customerData.retailer_id || 'ret-1',
@@ -248,10 +266,14 @@ export const createMockCustomer = (customerData: Partial<Customer>): Customer =>
     updated_at: new Date().toISOString()
   };
   
-  storage.push(newCustomer);
-  console.log('Customer added to storage. Total customers:', storage.length);
-  console.log('New customer:', newCustomer);
-  return newCustomer;
+  try {
+    await dataManager.addCustomer(newCustomer, userId);
+    console.log('Customer added to persistent storage:', newCustomer);
+    return newCustomer;
+  } catch (error) {
+    console.warn('Error adding customer to persistent storage:', error);
+    return newCustomer;
+  }
 };
 
 export const updateMockCustomer = (id: string, customerData: Partial<Customer>): Customer | null => {
@@ -285,17 +307,30 @@ declare global {
   var __mockOrderStorage: Order[] | undefined;
 }
 
-const initializeMockOrders = () => {
-  if (!globalThis.__mockOrderStorage) {
-    globalThis.__mockOrderStorage = [...mockOrders];
+// Helper functions for mock order storage using persistent dataManager
+export const getMockOrders = async (userId?: string): Promise<Order[]> => {
+  try {
+    // Import persistentStorage here to avoid circular dependency issues
+    const { persistentStorage, STORAGE_KEYS } = await import('./persistent-storage');
+    
+    // Get orders directly from persistent storage to avoid circular dependency
+    const orders = await persistentStorage.get(STORAGE_KEYS.ORDERS, userId) || [];
+    console.log('getMockOrders called, returning:', orders.length, 'orders');
+    
+    // If no orders in persistent storage, initialize with mock data
+    if (orders.length === 0) {
+      console.log('No orders found, initializing with mock data...');
+      for (const order of mockOrders) {
+        await dataManager.addOrder(order, userId);
+      }
+      return mockOrders;
+    }
+    
+    return orders;
+  } catch (error) {
+    console.warn('Error getting orders from persistent storage, falling back to mock data:', error);
+    return mockOrders;
   }
-  return globalThis.__mockOrderStorage;
-};
-
-export const getMockOrders = (): Order[] => {
-  const storage = initializeMockOrders();
-  console.log('getMockOrders called, returning:', storage.length, 'orders');
-  return [...storage];
 };
 
 export const getMockOrderById = (id: string): Order | null => {
@@ -303,13 +338,10 @@ export const getMockOrderById = (id: string): Order | null => {
   return storage.find(order => order.id === id) || null;
 };
 
-export const createMockOrder = (orderData: Partial<Order>): Order => {
+export const createMockOrder = async (orderData: Partial<Order>, userId?: string): Promise<Order> => {
   console.log('createMockOrder function called with:', orderData);
   
   try {
-    const storage = initializeMockOrders();
-    console.log('Storage initialized, current orders:', storage.length);
-    
     const newOrder: Order = {
       id: `ord-${Date.now()}`,
       retailer_id: orderData.retailer_id || 'ret-1',
@@ -326,9 +358,8 @@ export const createMockOrder = (orderData: Partial<Order>): Order => {
       ...orderData
     };
     
-    storage.push(newOrder);
-    console.log('Order added to storage. Total orders:', storage.length);
-    console.log('New order:', newOrder);
+    await dataManager.addOrder(newOrder, userId);
+    console.log('Order added to persistent storage:', newOrder);
     return newOrder;
   } catch (error) {
     console.error('Error in createMockOrder:', error);
