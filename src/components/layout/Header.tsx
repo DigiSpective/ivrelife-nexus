@@ -40,7 +40,11 @@ const sampleNotifications = [
   }
 ];
 
-export function Header() {
+interface HeaderProps {
+  onMenuClick?: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
   // Use React state for notifications
   const [notifications, setNotifications] = useState(sampleNotifications);
   const unreadCount = notifications.filter((n: any) => !n.read).length;
@@ -94,21 +98,26 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 bg-card border-b border-border px-6 flex items-center justify-between shadow-navbar">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" className="md:hidden">
+    <header className="h-16 bg-card border-b border-border px-4 md:px-6 flex items-center justify-between shadow-navbar">
+      <div className="flex items-center gap-2 md:gap-4 flex-1 min-w-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="md:hidden"
+          onClick={onMenuClick}
+        >
           <Menu className="w-5 h-5" />
         </Button>
-        <div className="relative">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input 
-            placeholder="Search orders, customers..." 
-            className="w-80 pl-10"
+          <Input
+            placeholder="Search..."
+            className="w-full pl-10 text-sm"
           />
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         <CartSidebar />
         
         <Popover>
@@ -202,15 +211,15 @@ export function Header() {
             )}
           </PopoverContent>
         </Popover>
-        
-        <div className="text-right">
+
+        <div className="text-right hidden lg:block">
           <p className="text-sm font-medium">Welcome back!</p>
           <p className="text-xs text-muted-foreground">
-            {new Date().toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+            {new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
           </p>
         </div>

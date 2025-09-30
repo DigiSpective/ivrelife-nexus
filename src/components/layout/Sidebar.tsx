@@ -1,19 +1,20 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  Package, 
-  Users, 
-  ShoppingCart, 
-  FileText, 
-  Truck, 
-  Settings, 
+import {
+  Package,
+  Users,
+  ShoppingCart,
+  FileText,
+  Truck,
+  Settings,
   BarChart3,
   Building2,
   User,
   ClipboardList,
   Shield,
   UserCog,
-  PackagePlus
+  PackagePlus,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { mockUser } from '@/lib/mock-data';
@@ -22,11 +23,31 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface SidebarProps {
   className?: string;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, isOpen = false, onClose }: SidebarProps) {
   const location = useLocation();
   const user = mockUser;
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    if (isOpen && onClose) {
+      onClose();
+    }
+  }, [location.pathname]);
+
+  // Close sidebar on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen && onClose) {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
 
   const navigation = [
     {
@@ -133,20 +154,44 @@ export function Sidebar({ className }: SidebarProps) {
   );
 
   return (
-    <div className={cn(
-      "flex h-full w-72 flex-col bg-card border-r border-border shadow-navbar",
-      className
-    )}>
-      {/* Header */}
-      <div className="flex items-center gap-3 px-6 py-6 border-b border-border">
-        <div className="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
-          <Package className="w-6 h-6 text-white" />
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={cn(
+        "flex h-full w-72 flex-col bg-card border-r border-border shadow-navbar transition-transform duration-300 ease-in-out",
+        // Mobile: fixed and slide in/out
+        "fixed md:relative inset-y-0 left-0 z-50",
+        !isOpen && "-translate-x-full md:translate-x-0",
+        className
+      )}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-6 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 gradient-primary rounded-lg flex items-center justify-center">
+              <Package className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">IV RELIFE</h1>
+              <p className="text-sm text-muted-foreground">Internal System</p>
+            </div>
+          </div>
+          {/* Close button - mobile only */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            className="md:hidden"
+          >
+            <X className="w-5 h-5" />
+          </Button>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-foreground">IV RELIFE</h1>
-          <p className="text-sm text-muted-foreground">Internal System</p>
-        </div>
-      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-6 space-y-4 overflow-y-auto">
@@ -225,6 +270,7 @@ export function Sidebar({ className }: SidebarProps) {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
