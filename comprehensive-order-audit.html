@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Order Persistence Audit</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .step {
+            margin: 15px 0;
+            padding: 10px;
+            border-left: 4px solid #007bff;
+            background: #f8f9fa;
+        }
+        .success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .warning {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        #testFrame {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .test-controls {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Comprehensive Order Persistence Audit</h1>
+    <p>This tool will test the complete order flow to identify persistence issues.</p>
+
+    <div class="test-section">
+        <h2>Application Access</h2>
+        <div class="test-controls">
+            <button onclick="loadApp()">Load Application</button>
+            <button onclick="checkConsole()">Check Console Errors</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+        <iframe id="testFrame" src="about:blank"></iframe>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="testResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Console Log</h2>
+        <div id="consoleLog" class="log"></div>
+    </div>
+
+    <script>
+        let testResults = [];
+        let consoleMessages = [];
+        let currentStep = 0;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            consoleMessages.push(logEntry);
+            updateConsoleDisplay();
+            console.log(logEntry);
+        }
+
+        function updateConsoleDisplay() {
+            document.getElementById('consoleLog').textContent = consoleMessages.join('\n');
+        }
+
+        function clearLog() {
+            consoleMessages = [];
+            updateConsoleDisplay();
+        }
+
+        function addTestResult(step, message, status = 'info') {
+            testResults.push({step, message, status, timestamp: new Date().toISOString()});
+            updateTestResults();
+        }
+
+        function updateTestResults() {
+            const container = document.getElementById('testResults');
+            container.innerHTML = testResults.map(result => 
+                `<div class="step ${result.status}">
+                    <strong>Step ${result.step}:</strong> ${result.message}
+                    <small style="display: block; color: #666; margin-top: 5px;">
+                        ${new Date(result.timestamp).toLocaleTimeString()}
+                    </small>
+                </div>`
+            ).join('');
+        }
+
+        function loadApp() {
+            log('Loading application at http://localhost:8085...');
+            addTestResult(1, 'Loading application', 'info');
+            
+            const frame = document.getElementById('testFrame');
+            frame.src = 'http://localhost:8085';
+            
+            frame.onload = function() {
+                log('Application loaded successfully');
+                addTestResult(1, 'Application loaded successfully', 'success');
+                setTimeout(checkInitialState, 2000);
+            };
+            
+            frame.onerror = function() {
+                log('Failed to load application', 'error');
+                addTestResult(1, 'Failed to load application', 'error');
+            };
+        }
+
+        function checkInitialState() {
+            log('Checking initial application state...');
+            addTestResult(2, 'Checking initial state', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                // Check if we can access the frame content
+                if (!frameDoc) {
+                    log('Cannot access frame content - possible CORS issue', 'error');
+                    addTestResult(2, 'Cannot access frame content - CORS restriction', 'error');
+                    return;
+                }
+
+                // Look for common elements
+                const body = frameDoc.body;
+                if (body) {
+                    log(`Page loaded with ${body.children.length} main elements`);
+                    addTestResult(2, `Page loaded with ${body.children.length} main elements`, 'success');
+                } else {
+                    log('No body element found', 'warning');
+                    addTestResult(2, 'No body element found', 'warning');
+                }
+
+                // Check for login form or authenticated state
+                setTimeout(checkAuthenticationState, 1000);
+                
+            } catch (error) {
+                log(`Error checking initial state: ${error.message}`, 'error');
+                addTestResult(2, `Error checking initial state: ${error.message}`, 'error');
+            }
+        }
+
+        function checkAuthenticationState() {
+            log('Checking authentication state...');
+            addTestResult(3, 'Checking authentication state', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot check authentication - frame not accessible', 'error');
+                    addTestResult(3, 'Cannot check authentication - frame not accessible', 'error');
+                    return;
+                }
+
+                // Look for login form elements
+                const emailInput = frameDoc.querySelector('input[type="email"], input[name="email"]');
+                const passwordInput = frameDoc.querySelector('input[type="password"], input[name="password"]');
+                const loginButton = frameDoc.querySelector('button[type="submit"], button:contains("Login"), button:contains("Sign in")');
+                
+                if (emailInput && passwordInput) {
+                    log('Login form detected');
+                    addTestResult(3, 'Login form detected - user not authenticated', 'info');
+                    
+                    // Attempt to login
+                    setTimeout(() => attemptLogin(emailInput, passwordInput), 1000);
+                } else {
+                    log('No login form found - checking if already authenticated');
+                    addTestResult(3, 'No login form found - checking authentication status', 'info');
+                    
+                    // Check for authenticated content
+                    setTimeout(checkForAuthenticatedContent, 1000);
+                }
+                
+            } catch (error) {
+                log(`Error checking authentication: ${error.message}`, 'error');
+                addTestResult(3, `Error checking authentication: ${error.message}`, 'error');
+            }
+        }
+
+        function attemptLogin(emailInput, passwordInput) {
+            log('Attempting to login with admin credentials...');
+            addTestResult(4, 'Attempting login with admin@iv-relife.com', 'info');
+            
+            try {
+                emailInput.value = 'admin@iv-relife.com';
+                passwordInput.value = '123456789';
+                
+                // Trigger change events
+                emailInput.dispatchEvent(new Event('input', { bubbles: true }));
+                passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+                
+                // Find and click login button
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                const loginButton = frameDoc.querySelector('button[type="submit"]') || 
+                                  frameDoc.querySelector('button:contains("Login")') ||
+                                  frameDoc.querySelector('button:contains("Sign in")') ||
+                                  frameDoc.querySelector('button');
+                
+                if (loginButton) {
+                    log('Clicking login button...');
+                    loginButton.click();
+                    
+                    // Wait for login to process
+                    setTimeout(checkLoginResult, 3000);
+                } else {
+                    log('No login button found', 'error');
+                    addTestResult(4, 'No login button found', 'error');
+                }
+                
+            } catch (error) {
+                log(`Error during login attempt: ${error.message}`, 'error');
+                addTestResult(4, `Error during login attempt: ${error.message}`, 'error');
+            }
+        }
+
+        function checkLoginResult() {
+            log('Checking login result...');
+            addTestResult(5, 'Checking login result', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot check login result - frame not accessible', 'error');
+                    addTestResult(5, 'Cannot check login result', 'error');
+                    return;
+                }
+
+                // Check current URL or page content to determine if logged in
+                const currentUrl = frame.contentWindow.location.href;
+                log(`Current URL: ${currentUrl}`);
+                
+                // Look for dashboard or authenticated content
+                setTimeout(checkForAuthenticatedContent, 2000);
+                
+            } catch (error) {
+                log(`Error checking login result: ${error.message}`, 'error');
+                addTestResult(5, `Error checking login result: ${error.message}`, 'error');
+            }
+        }
+
+        function checkForAuthenticatedContent() {
+            log('Checking for authenticated content...');
+            addTestResult(6, 'Checking for authenticated content', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot check authenticated content - frame not accessible', 'error');
+                    addTestResult(6, 'Cannot check authenticated content', 'error');
+                    return;
+                }
+
+                // Look for navigation or dashboard elements
+                const navElements = frameDoc.querySelectorAll('nav, .nav, [role="navigation"]');
+                const links = frameDoc.querySelectorAll('a');
+                
+                log(`Found ${navElements.length} navigation elements and ${links.length} links`);
+                
+                // Look for Orders link specifically
+                let ordersLink = null;
+                links.forEach(link => {
+                    if (link.textContent && link.textContent.toLowerCase().includes('order')) {
+                        ordersLink = link;
+                        log(`Found potential orders link: ${link.textContent} -> ${link.href}`);
+                    }
+                });
+                
+                if (ordersLink) {
+                    addTestResult(6, 'Found Orders navigation - user appears authenticated', 'success');
+                    setTimeout(() => navigateToOrders(ordersLink), 1000);
+                } else {
+                    addTestResult(6, 'No Orders navigation found - authentication unclear', 'warning');
+                    log('No orders link found. Looking for any navigation...');
+                    
+                    // Log all available links for debugging
+                    links.forEach((link, index) => {
+                        if (link.textContent.trim()) {
+                            log(`Link ${index}: "${link.textContent.trim()}" -> ${link.href}`);
+                        }
+                    });
+                }
+                
+            } catch (error) {
+                log(`Error checking authenticated content: ${error.message}`, 'error');
+                addTestResult(6, `Error checking authenticated content: ${error.message}`, 'error');
+            }
+        }
+
+        function navigateToOrders(ordersLink) {
+            log('Navigating to Orders page...');
+            addTestResult(7, 'Navigating to Orders page', 'info');
+            
+            try {
+                ordersLink.click();
+                
+                setTimeout(checkOrdersPage, 3000);
+                
+            } catch (error) {
+                log(`Error navigating to orders: ${error.message}`, 'error');
+                addTestResult(7, `Error navigating to orders: ${error.message}`, 'error');
+            }
+        }
+
+        function checkOrdersPage() {
+            log('Checking Orders page content...');
+            addTestResult(8, 'Checking Orders page content', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot check orders page - frame not accessible', 'error');
+                    addTestResult(8, 'Cannot check orders page', 'error');
+                    return;
+                }
+
+                // Look for orders table or list
+                const tables = frameDoc.querySelectorAll('table');
+                const lists = frameDoc.querySelectorAll('ul, ol');
+                const orderElements = frameDoc.querySelectorAll('[class*="order"], [id*="order"]');
+                
+                log(`Found ${tables.length} tables, ${lists.length} lists, ${orderElements.length} order-related elements`);
+                
+                // Count any displayed orders
+                let orderCount = 0;
+                
+                if (tables.length > 0) {
+                    tables.forEach((table, index) => {
+                        const rows = table.querySelectorAll('tr');
+                        log(`Table ${index} has ${rows.length} rows`);
+                        if (rows.length > 1) { // More than just header
+                            orderCount += rows.length - 1;
+                        }
+                    });
+                }
+                
+                addTestResult(8, `Orders page loaded - found ${orderCount} orders displayed`, orderCount > 0 ? 'success' : 'warning');
+                
+                // Look for "New Order" button or link
+                setTimeout(lookForNewOrderButton, 1000);
+                
+            } catch (error) {
+                log(`Error checking orders page: ${error.message}`, 'error');
+                addTestResult(8, `Error checking orders page: ${error.message}`, 'error');
+            }
+        }
+
+        function lookForNewOrderButton() {
+            log('Looking for New Order button...');
+            addTestResult(9, 'Looking for New Order functionality', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot look for new order button - frame not accessible', 'error');
+                    addTestResult(9, 'Cannot look for new order button', 'error');
+                    return;
+                }
+
+                // Look for new order button or link
+                const buttons = frameDoc.querySelectorAll('button');
+                const links = frameDoc.querySelectorAll('a');
+                
+                let newOrderElement = null;
+                
+                [...buttons, ...links].forEach(element => {
+                    const text = element.textContent.toLowerCase();
+                    if (text.includes('new order') || text.includes('create order') || text.includes('add order')) {
+                        newOrderElement = element;
+                        log(`Found new order element: ${element.textContent}`);
+                    }
+                });
+                
+                if (newOrderElement) {
+                    addTestResult(9, 'Found New Order button', 'success');
+                    setTimeout(() => testCreateNewOrder(newOrderElement), 1000);
+                } else {
+                    addTestResult(9, 'No New Order button found', 'warning');
+                    log('No new order button found. Available buttons:');
+                    buttons.forEach((btn, index) => {
+                        if (btn.textContent.trim()) {
+                            log(`Button ${index}: "${btn.textContent.trim()}"`);
+                        }
+                    });
+                }
+                
+            } catch (error) {
+                log(`Error looking for new order button: ${error.message}`, 'error');
+                addTestResult(9, `Error looking for new order button: ${error.message}`, 'error');
+            }
+        }
+
+        function testCreateNewOrder(newOrderElement) {
+            log('Testing create new order...');
+            addTestResult(10, 'Testing create new order', 'info');
+            
+            try {
+                newOrderElement.click();
+                
+                setTimeout(checkNewOrderForm, 2000);
+                
+            } catch (error) {
+                log(`Error testing create new order: ${error.message}`, 'error');
+                addTestResult(10, `Error testing create new order: ${error.message}`, 'error');
+            }
+        }
+
+        function checkNewOrderForm() {
+            log('Checking new order form...');
+            addTestResult(11, 'Checking new order form', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot check new order form - frame not accessible', 'error');
+                    addTestResult(11, 'Cannot check new order form', 'error');
+                    return;
+                }
+
+                // Look for form elements
+                const forms = frameDoc.querySelectorAll('form');
+                const inputs = frameDoc.querySelectorAll('input, select, textarea');
+                const submitButtons = frameDoc.querySelectorAll('button[type="submit"], input[type="submit"]');
+                
+                log(`Found ${forms.length} forms, ${inputs.length} inputs, ${submitButtons.length} submit buttons`);
+                
+                if (forms.length > 0 || inputs.length > 0) {
+                    addTestResult(11, `New order form found with ${inputs.length} inputs`, 'success');
+                    
+                    // Try to fill and submit a test order
+                    setTimeout(fillAndSubmitTestOrder, 1000);
+                } else {
+                    addTestResult(11, 'No order form found', 'error');
+                }
+                
+            } catch (error) {
+                log(`Error checking new order form: ${error.message}`, 'error');
+                addTestResult(11, `Error checking new order form: ${error.message}`, 'error');
+            }
+        }
+
+        function fillAndSubmitTestOrder() {
+            log('Filling and submitting test order...');
+            addTestResult(12, 'Filling and submitting test order', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot fill order form - frame not accessible', 'error');
+                    addTestResult(12, 'Cannot fill order form', 'error');
+                    return;
+                }
+
+                // Fill basic order information
+                const inputs = frameDoc.querySelectorAll('input, select, textarea');
+                let fieldsFound = 0;
+                
+                inputs.forEach(input => {
+                    const name = input.name || input.id || '';
+                    const type = input.type || '';
+                    
+                    // Fill common order fields
+                    if (name.toLowerCase().includes('customer') || name.toLowerCase().includes('name')) {
+                        input.value = 'Test Customer';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        fieldsFound++;
+                        log(`Filled customer field: ${name}`);
+                    } else if (name.toLowerCase().includes('email')) {
+                        input.value = 'test@example.com';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        fieldsFound++;
+                        log(`Filled email field: ${name}`);
+                    } else if (name.toLowerCase().includes('phone')) {
+                        input.value = '555-123-4567';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        fieldsFound++;
+                        log(`Filled phone field: ${name}`);
+                    } else if (type === 'number' && name.toLowerCase().includes('total')) {
+                        input.value = '100.00';
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        fieldsFound++;
+                        log(`Filled total field: ${name}`);
+                    }
+                });
+                
+                log(`Filled ${fieldsFound} form fields`);
+                
+                // Find and click submit button
+                const submitButton = frameDoc.querySelector('button[type="submit"]') ||
+                                   frameDoc.querySelector('input[type="submit"]') ||
+                                   frameDoc.querySelector('button:contains("Submit")') ||
+                                   frameDoc.querySelector('button:contains("Create")') ||
+                                   frameDoc.querySelector('button:contains("Save")');
+                
+                if (submitButton) {
+                    log('Submitting order form...');
+                    submitButton.click();
+                    
+                    setTimeout(checkOrderSubmissionResult, 3000);
+                } else {
+                    log('No submit button found', 'error');
+                    addTestResult(12, 'No submit button found', 'error');
+                }
+                
+            } catch (error) {
+                log(`Error filling and submitting order: ${error.message}`, 'error');
+                addTestResult(12, `Error filling and submitting order: ${error.message}`, 'error');
+            }
+        }
+
+        function checkOrderSubmissionResult() {
+            log('Checking order submission result...');
+            addTestResult(13, 'Checking order submission result', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot check submission result - frame not accessible', 'error');
+                    addTestResult(13, 'Cannot check submission result', 'error');
+                    return;
+                }
+
+                // Check for success/error messages
+                const alerts = frameDoc.querySelectorAll('.alert, .notification, .message, .toast');
+                const errorMessages = frameDoc.querySelectorAll('.error, .danger, .warning');
+                
+                log(`Found ${alerts.length} alerts, ${errorMessages.length} error messages`);
+                
+                alerts.forEach((alert, index) => {
+                    log(`Alert ${index}: ${alert.textContent}`);
+                });
+                
+                errorMessages.forEach((error, index) => {
+                    log(`Error ${index}: ${error.textContent}`);
+                });
+                
+                // Check if we're back on orders list or still on form
+                const currentUrl = frame.contentWindow.location.href;
+                log(`Current URL after submission: ${currentUrl}`);
+                
+                if (errorMessages.length > 0) {
+                    addTestResult(13, `Order submission failed - ${errorMessages.length} errors found`, 'error');
+                } else if (alerts.length > 0) {
+                    addTestResult(13, `Order submission completed - ${alerts.length} notifications`, 'success');
+                } else {
+                    addTestResult(13, 'Order submission result unclear - no clear feedback', 'warning');
+                }
+                
+                // Navigate back to orders to check if order was saved
+                setTimeout(navigateBackToOrdersList, 2000);
+                
+            } catch (error) {
+                log(`Error checking submission result: ${error.message}`, 'error');
+                addTestResult(13, `Error checking submission result: ${error.message}`, 'error');
+            }
+        }
+
+        function navigateBackToOrdersList() {
+            log('Navigating back to orders list to check persistence...');
+            addTestResult(14, 'Checking order persistence', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot navigate back - frame not accessible', 'error');
+                    addTestResult(14, 'Cannot navigate back', 'error');
+                    return;
+                }
+
+                // Look for orders link in navigation
+                const links = frameDoc.querySelectorAll('a');
+                let ordersLink = null;
+                
+                links.forEach(link => {
+                    if (link.textContent && link.textContent.toLowerCase().includes('order')) {
+                        ordersLink = link;
+                    }
+                });
+                
+                if (ordersLink) {
+                    ordersLink.click();
+                    setTimeout(checkFinalOrdersList, 3000);
+                } else {
+                    // Try browser back
+                    frame.contentWindow.history.back();
+                    setTimeout(checkFinalOrdersList, 3000);
+                }
+                
+            } catch (error) {
+                log(`Error navigating back: ${error.message}`, 'error');
+                addTestResult(14, `Error navigating back: ${error.message}`, 'error');
+            }
+        }
+
+        function checkFinalOrdersList() {
+            log('Checking final orders list for persistence...');
+            addTestResult(15, 'Checking final orders list', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot check final orders list - frame not accessible', 'error');
+                    addTestResult(15, 'Cannot check final orders list', 'error');
+                    return;
+                }
+
+                // Count orders again
+                const tables = frameDoc.querySelectorAll('table');
+                let finalOrderCount = 0;
+                
+                if (tables.length > 0) {
+                    tables.forEach((table) => {
+                        const rows = table.querySelectorAll('tr');
+                        if (rows.length > 1) { // More than just header
+                            finalOrderCount += rows.length - 1;
+                        }
+                    });
+                }
+                
+                log(`Final order count: ${finalOrderCount}`);
+                addTestResult(15, `Final order count: ${finalOrderCount}`, finalOrderCount > 0 ? 'success' : 'error');
+                
+                // Test page refresh
+                setTimeout(testPageRefresh, 2000);
+                
+            } catch (error) {
+                log(`Error checking final orders list: ${error.message}`, 'error');
+                addTestResult(15, `Error checking final orders list: ${error.message}`, 'error');
+            }
+        }
+
+        function testPageRefresh() {
+            log('Testing page refresh to check persistence...');
+            addTestResult(16, 'Testing page refresh persistence', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                frame.contentWindow.location.reload();
+                
+                setTimeout(checkOrdersAfterRefresh, 5000);
+                
+            } catch (error) {
+                log(`Error testing page refresh: ${error.message}`, 'error');
+                addTestResult(16, `Error testing page refresh: ${error.message}`, 'error');
+            }
+        }
+
+        function checkOrdersAfterRefresh() {
+            log('Checking orders after page refresh...');
+            addTestResult(17, 'Checking orders after page refresh', 'info');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                const frameDoc = frame.contentDocument || frame.contentWindow.document;
+                
+                if (!frameDoc) {
+                    log('Cannot check orders after refresh - frame not accessible', 'error');
+                    addTestResult(17, 'Cannot check orders after refresh', 'error');
+                    return;
+                }
+
+                // Count orders after refresh
+                const tables = frameDoc.querySelectorAll('table');
+                let afterRefreshOrderCount = 0;
+                
+                if (tables.length > 0) {
+                    tables.forEach((table) => {
+                        const rows = table.querySelectorAll('tr');
+                        if (rows.length > 1) { // More than just header
+                            afterRefreshOrderCount += rows.length - 1;
+                        }
+                    });
+                }
+                
+                log(`Order count after refresh: ${afterRefreshOrderCount}`);
+                
+                if (afterRefreshOrderCount > 0) {
+                    addTestResult(17, `Orders persist after refresh: ${afterRefreshOrderCount} orders found`, 'success');
+                } else {
+                    addTestResult(17, 'Orders do NOT persist after refresh - PERSISTENCE FAILURE', 'error');
+                }
+                
+                // Complete the audit
+                setTimeout(completeAudit, 1000);
+                
+            } catch (error) {
+                log(`Error checking orders after refresh: ${error.message}`, 'error');
+                addTestResult(17, `Error checking orders after refresh: ${error.message}`, 'error');
+            }
+        }
+
+        function completeAudit() {
+            log('=== AUDIT COMPLETE ===');
+            addTestResult(18, 'Audit completed', 'info');
+            
+            // Summary
+            const successResults = testResults.filter(r => r.status === 'success').length;
+            const errorResults = testResults.filter(r => r.status === 'error').length;
+            const warningResults = testResults.filter(r => r.status === 'warning').length;
+            
+            log(`SUMMARY: ${successResults} successes, ${warningResults} warnings, ${errorResults} errors`);
+            addTestResult(19, `SUMMARY: ${successResults} successes, ${warningResults} warnings, ${errorResults} errors`, 
+                         errorResults > 0 ? 'error' : warningResults > 0 ? 'warning' : 'success');
+        }
+
+        function checkConsole() {
+            log('Checking for console errors...');
+            
+            try {
+                const frame = document.getElementById('testFrame');
+                if (!frame.contentWindow) {
+                    log('Cannot access frame console', 'error');
+                    return;
+                }
+
+                // Unfortunately, we cannot directly access console errors from iframe due to security restrictions
+                log('Note: Console errors from iframe cannot be directly accessed due to security restrictions', 'warning');
+                log('Please check the browser developer tools console manually for errors', 'info');
+                
+            } catch (error) {
+                log(`Error checking console: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize
+        log('Order Persistence Audit Tool Ready');
+        log('Click "Load Application" to begin the audit');
+    </script>
+</body>
+</html>

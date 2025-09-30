@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Schema Fix</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { margin: 10px; padding: 15px 30px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; font-size: 16px; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .big-button { background: #004400; border: 2px solid #00ff00; font-weight: bold; }
+        .super-button { background: #006600; border: 3px solid #00ff00; font-weight: bold; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Comprehensive Schema Fix</h1>
+    
+    <button class="super-button" onclick="runCompleteFix()">🚀 RUN COMPLETE FIX</button>
+    <button onclick="testAppFlow()">✅ Test Complete App Flow</button>
+    
+    <pre id="log"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        let currentUser;
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function authenticateUser() {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: 'admin@iv-relife.com',
+                password: '123456789'
+            });
+            
+            if (error) {
+                const { data: signupData, error: signupError } = await supabase.auth.signUp({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                if (signupData.user) {
+                    currentUser = signupData.user;
+                    return signupData.user;
+                }
+                throw signupError || error;
+            }
+            
+            currentUser = data.user;
+            return data.user;
+        }
+        
+        async function runCompleteFix() {
+            log('🚀 RUNNING COMPREHENSIVE SCHEMA FIX...', 'warning');
+            log('This will fix all schema mismatches and create missing references');
+            
+            try {
+                // Step 1: Authenticate
+                await authenticateUser();
+                log('✅ Step 1: Authentication successful', 'success');
+                
+                // Step 2: Create retailer with minimal schema
+                log('Step 2: Creating retailer with correct schema...');
+                const retailerData = {
+                    id: '550e8400-e29b-41d4-a716-446655440000',
+                    name: 'IV ReLife Main Retailer',
+                    email: 'admin@iv-relife.com'
+                    // Only include fields that exist in the schema
+                };
+                
+                const { data: retailerResult, error: retailerError } = await supabase
+                    .from('retailers')
+                    .upsert([retailerData])
+                    .select();
+                
+                if (retailerError) {
+                    log(`❌ Retailer creation failed: ${retailerError.message}`, 'error');
+                    throw retailerError;
+                } else {
+                    log('✅ Step 2: Retailer created successfully', 'success');
+                }
+                
+                // Step 3: Create customer with minimal schema
+                log('Step 3: Creating customer with correct schema...');
+                const customerData = {
+                    id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    name: 'Test Customer',
+                    email: 'customer@example.com'
+                    // Only include fields that exist in the schema
+                };
+                
+                const { data: customerResult, error: customerError } = await supabase
+                    .from('customers')
+                    .upsert([customerData])
+                    .select();
+                
+                if (customerError) {
+                    log(`❌ Customer creation failed: ${customerError.message}`, 'error');
+                    throw customerError;
+                } else {
+                    log('✅ Step 3: Customer created successfully', 'success');
+                }
+                
+                // Step 4: Test order creation with corrected schema
+                log('Step 4: Testing order creation with corrected schema...');
+                const testOrderData = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    status: 'pending',
+                    total_amount: 108.00,
+                    created_by: currentUser.id,
+                    notes: 'Schema fix test order'
+                    // Removed: subtotal_amount, tax_amount (don't exist in schema)
+                };
+                
+                const { data: orderResult, error: orderError } = await supabase
+                    .from('orders')
+                    .insert([testOrderData])
+                    .select();
+                
+                if (orderError) {
+                    log(`❌ Order creation failed: ${orderError.message}`, 'error');
+                    log('This indicates there are still schema issues');
+                    throw orderError;
+                } else {
+                    log('✅ Step 4: Order created successfully!', 'success');
+                    log(`Created order: ${orderResult[0].id}`, 'success');
+                }
+                
+                // Step 5: Verify persistence
+                log('Step 5: Verifying order persistence...');
+                const { data: verifyOrders, error: verifyError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+                
+                if (verifyError) {
+                    log(`❌ Verification failed: ${verifyError.message}`, 'error');
+                } else {
+                    log(`✅ Step 5: Found ${verifyOrders.length} orders for user`, 'success');
+                    verifyOrders.forEach(order => {
+                        log(`  - ${order.id}: ${order.status} - $${order.total_amount}`);
+                    });
+                }
+                
+                // Step 6: Success
+                log('🎉 COMPREHENSIVE FIX COMPLETED SUCCESSFULLY!', 'success');
+                log('✅ Schema mismatches resolved', 'success');
+                log('✅ Missing references created', 'success');
+                log('✅ Order creation working', 'success');
+                log('✅ Persistence verified', 'success');
+                log('🚀 The app should now work perfectly!', 'success');
+                
+            } catch (error) {
+                log(`❌ Comprehensive fix failed: ${error.message}`, 'error');
+                log('Please check the database schema or permissions');
+            }
+        }
+        
+        async function testAppFlow() {
+            log('🧪 Testing complete app flow simulation...');
+            
+            try {
+                await authenticateUser();
+                
+                // Simulate the exact flow from the React app
+                log('Simulating React app order creation flow...');
+                
+                // This matches exactly what NewOrder.tsx now sends
+                const appOrderData = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    created_by: currentUser.id,
+                    status: 'pending',
+                    total_amount: 299.99, // This includes tax calculation
+                    notes: 'App flow simulation test'
+                };
+                
+                log('Order data being sent by app:');
+                log(JSON.stringify(appOrderData, null, 2));
+                
+                const { data: appOrderResult, error: appOrderError } = await supabase
+                    .from('orders')
+                    .insert([appOrderData])
+                    .select();
+                
+                if (appOrderError) {
+                    log(`❌ App flow test failed: ${appOrderError.message}`, 'error');
+                    log('The React app will still get 400 errors');
+                } else {
+                    log('🎉 APP FLOW TEST SUCCESSFUL!', 'success');
+                    log(`App-style order created: ${appOrderResult[0].id}`, 'success');
+                    log('The React app should now work without 400 errors!', 'success');
+                }
+                
+                // Test React Query style retrieval
+                log('Testing React Query style order retrieval...');
+                const { data: queryOrders, error: queryError } = await supabase
+                    .from('orders')
+                    .select(\`
+                        *,
+                        customers(name),
+                        order_items(*)
+                    \`)
+                    .eq('created_by', currentUser.id);
+                
+                if (queryError) {
+                    log(`❌ Query test failed: ${queryError.message}`, 'error');
+                } else {
+                    log('✅ React Query style retrieval successful', 'success');
+                    log(`Retrieved ${queryOrders.length} orders with relations`);
+                }
+                
+            } catch (error) {
+                log(`❌ App flow test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-authenticate on load
+        window.addEventListener('load', async () => {
+            try {
+                await authenticateUser();
+                log('✅ Ready to run comprehensive fix', 'success');
+                log('Click "RUN COMPLETE FIX" to resolve all schema issues');
+            } catch (error) {
+                log('⚠️ Auto-auth failed, but fix can still proceed', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>

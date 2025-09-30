@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test App Flow</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        button { margin: 10px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Complete App Flow</h1>
+    
+    <div class="section">
+        <h2>Step 1: Test Supabase Client</h2>
+        <button onclick="testSupabaseClient()">Test Client Creation</button>
+        <pre id="client-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Test Authentication</h2>
+        <button onclick="testAuth()">Sign In Admin</button>
+        <pre id="auth-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 3: Test Order Creation</h2>
+        <button onclick="testOrderFlow()">Create & Load Orders</button>
+        <pre id="order-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 4: Test Real App</h2>
+        <button onclick="openApp()">Open Main App</button>
+        <p>After clicking, navigate to Orders → New Order to test the full flow</p>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        function log(section, message, type = 'info') {
+            const el = document.getElementById(`${section}-log`);
+            if (el) {
+                const timestamp = new Date().toLocaleTimeString();
+                const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+                el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+        
+        let supabase;
+        let currentUser;
+        
+        async function testSupabaseClient() {
+            log('client', 'Creating Supabase client...');
+            
+            try {
+                supabase = window.supabase.createClient(
+                    'https://qeiyxwuyhetnrnundpep.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak',
+                    {
+                        auth: {
+                            autoRefreshToken: true,
+                            persistSession: true,
+                            detectSessionInUrl: true
+                        }
+                    }
+                );
+                
+                log('client', '✅ Supabase client created successfully', 'success');
+                
+                // Test basic query
+                const { data, error } = await supabase.from('orders').select('id').limit(1);
+                
+                if (error) {
+                    log('client', `⚠️ Basic query failed: ${error.message}`, 'warning');
+                } else {
+                    log('client', '✅ Basic query successful', 'success');
+                }
+                
+            } catch (error) {
+                log('client', `❌ Client creation failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAuth() {
+            if (!supabase) {
+                log('auth', '❌ Please test client creation first', 'error');
+                return;
+            }
+            
+            log('auth', 'Testing authentication with admin@iv-relife.com...');
+            
+            try {
+                // Try sign in first
+                const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (signInError) {
+                    log('auth', `Sign in failed: ${signInError.message}`);
+                    
+                    // Try sign up
+                    log('auth', 'Attempting sign up...');
+                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789',
+                        options: {
+                            data: {
+                                name: 'Admin User',
+                                role: 'owner'
+                            }
+                        }
+                    });
+                    
+                    if (signUpError) {
+                        log('auth', `❌ Sign up failed: ${signUpError.message}`, 'error');
+                        return;
+                    } else {
+                        currentUser = signUpData.user;
+                        log('auth', '✅ Sign up successful', 'success');
+                    }
+                } else {
+                    currentUser = signInData.user;
+                    log('auth', '✅ Sign in successful', 'success');
+                }
+                
+                if (currentUser) {
+                    log('auth', `User ID: ${currentUser.id}`);
+                    log('auth', `Email: ${currentUser.email}`);
+                }
+                
+            } catch (error) {
+                log('auth', `❌ Auth exception: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testOrderFlow() {
+            if (!supabase || !currentUser) {
+                log('order', '❌ Please complete authentication first', 'error');
+                return;
+            }
+            
+            log('order', 'Testing order creation and loading...');
+            
+            try {
+                // Create test order
+                const testOrderId = `test-flow-${Date.now()}`;
+                const orderData = {
+                    id: testOrderId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'test-customer-flow',
+                    status: 'pending',
+                    total_amount: 399.99,
+                    items: JSON.stringify([{ product: 'Flow Test Product', qty: 2, price: 199.99 }]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('order', 'Creating order...');
+                const { data: createData, error: createError } = await supabase
+                    .from('orders')
+                    .insert(orderData)
+                    .select()
+                    .single();
+                
+                if (createError) {
+                    log('order', `❌ Order creation failed: ${createError.message}`, 'error');
+                    return;
+                } else {
+                    log('order', '✅ Order created successfully', 'success');
+                    log('order', `Order ID: ${createData.id}`);
+                }
+                
+                // Load orders
+                log('order', 'Loading orders...');
+                const { data: loadData, error: loadError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                if (loadError) {
+                    log('order', `❌ Order loading failed: ${loadError.message}`, 'error');
+                } else {
+                    log('order', `✅ Loaded ${loadData.length} orders`, 'success');
+                    
+                    const foundOrder = loadData.find(order => order.id === testOrderId);
+                    if (foundOrder) {
+                        log('order', '✅ Test order found in results!', 'success');
+                        log('order', '🎉 PERSISTENCE WORKING! Order persists in database', 'success');
+                    } else {
+                        log('order', '❌ Test order not found in results', 'error');
+                    }
+                }
+                
+            } catch (error) {
+                log('order', `❌ Order flow exception: ${error.message}`, 'error');
+            }
+        }
+        
+        function openApp() {
+            window.open('http://localhost:5173', '_blank');
+        }
+    </script>
+</body>
+</html>

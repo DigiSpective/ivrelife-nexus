@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Order Creation - Resolution Verification</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .status.pending {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+        .status.success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            color: #721c24;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .test-section {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .log {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #3498db;
+            padding-left: 10px;
+        }
+        .log-error {
+            border-left-color: #e74c3c;
+            color: #e74c3c;
+        }
+        .log-success {
+            border-left-color: #2ecc71;
+            color: #2ecc71;
+        }
+        .log-info {
+            border-left-color: #3498db;
+            color: #3498db;
+        }
+        pre {
+            background: #2c3e50;
+            color: #2ecc71;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .metric {
+            background: #3498db;
+            color: white;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .metric-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Order Creation Resolution Test</h1>
+
+        <div id="status" class="status pending">
+            ⏳ Initializing test environment...
+        </div>
+
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-label">Tests Run</div>
+                <div class="metric-value" id="testsRun">0</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Successful</div>
+                <div class="metric-value" id="testsSuccess">0</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Failed</div>
+                <div class="metric-value" id="testsFailed">0</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔧 Test Controls</h2>
+            <button onclick="runSchemaTest()">1. Check Schema</button>
+            <button onclick="runOrderCreationTest()">2. Test Order Creation</button>
+            <button onclick="runOrderRetrievalTest()">3. Test Order Retrieval</button>
+            <button onclick="runAllTests()">▶️ Run All Tests</button>
+            <button onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+
+        <div class="log" id="logContainer">
+            <div class="log-entry log-info">Test environment ready. Click "Run All Tests" to begin.</div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const SUPABASE_URL = 'https://qeiyxwuyhetnrnundpep.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzY3MzcyMDgsImV4cCI6MjA1MjMxMzIwOH0.BIo0q3Pav_5-4EoZ93wUc6jdDLo1JBZW2HXePj8BZjk';
+
+        // Initialize Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Test metrics
+        let testsRun = 0;
+        let testsSuccess = 0;
+        let testsFailed = 0;
+
+        // Logging utilities
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `[${timestamp}] ${message}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function updateStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+        }
+
+        function updateMetrics() {
+            document.getElementById('testsRun').textContent = testsRun;
+            document.getElementById('testsSuccess').textContent = testsSuccess;
+            document.getElementById('testsFailed').textContent = testsFailed;
+        }
+
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            log('Logs cleared', 'info');
+        }
+
+        // Test 1: Check Schema
+        async function runSchemaTest() {
+            testsRun++;
+            updateMetrics();
+            log('🔍 Running schema test...', 'info');
+            updateStatus('⏳ Checking database schema...', 'pending');
+
+            try {
+                // Try to describe the orders table structure
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .limit(0);
+
+                if (error) {
+                    throw error;
+                }
+
+                log('✅ Schema check passed: orders table exists and is accessible', 'success');
+                testsSuccess++;
+                updateMetrics();
+                return true;
+            } catch (error) {
+                log(`❌ Schema check failed: ${error.message}`, 'error');
+                log(`Error details: ${JSON.stringify(error)}`, 'error');
+                testsFailed++;
+                updateMetrics();
+                updateStatus('❌ Schema check failed', 'error');
+                return false;
+            }
+        }
+
+        // Test 2: Order Creation
+        async function runOrderCreationTest() {
+            testsRun++;
+            updateMetrics();
+            log('📝 Running order creation test...', 'info');
+            updateStatus('⏳ Creating test order...', 'pending');
+
+            try {
+                // Create test order data
+                const testOrder = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: '550e8400-e29b-41d4-a716-446655440001',
+                    created_by: '550e8400-e29b-41d4-a716-446655440002',
+                    total_amount: 299.99,
+                    notes: 'Test order from resolution verification'
+                    // Note: No status field - let database default handle it
+                };
+
+                log(`Sending order data: ${JSON.stringify(testOrder)}`, 'info');
+
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([testOrder])
+                    .select()
+                    .single();
+
+                if (error) {
+                    throw error;
+                }
+
+                log('✅ Order created successfully!', 'success');
+                log(`Order ID: ${data.id}`, 'success');
+                log(`Order Status: ${data.status}`, 'success');
+                log(`Full order data: ${JSON.stringify(data, null, 2)}`, 'info');
+
+                // Store order ID for retrieval test
+                window.testOrderId = data.id;
+
+                testsSuccess++;
+                updateMetrics();
+                return data;
+            } catch (error) {
+                log(`❌ Order creation failed: ${error.message}`, 'error');
+                log(`Error code: ${error.code}`, 'error');
+                log(`Error details: ${JSON.stringify(error)}`, 'error');
+
+                // Check for specific enum error
+                if (error.message.includes('enum') || error.code === '22P02') {
+                    log('⚠️ ENUM CONSTRAINT ERROR DETECTED!', 'error');
+                    log('This indicates the SQL resolution script has not been run yet.', 'error');
+                    log('Please run COMPREHENSIVE_RESOLUTION.sql in Supabase SQL Editor.', 'error');
+                }
+
+                testsFailed++;
+                updateMetrics();
+                updateStatus('❌ Order creation failed', 'error');
+                return null;
+            }
+        }
+
+        // Test 3: Order Retrieval
+        async function runOrderRetrievalTest() {
+            testsRun++;
+            updateMetrics();
+            log('🔎 Running order retrieval test...', 'info');
+            updateStatus('⏳ Retrieving orders...', 'pending');
+
+            try {
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(5);
+
+                if (error) {
+                    throw error;
+                }
+
+                log(`✅ Retrieved ${data.length} orders successfully`, 'success');
+
+                if (data.length > 0) {
+                    log(`Most recent order ID: ${data[0].id}`, 'success');
+                    log(`Most recent order status: ${data[0].status}`, 'success');
+                    log(`Most recent order total: $${data[0].total_amount}`, 'success');
+                }
+
+                testsSuccess++;
+                updateMetrics();
+                return data;
+            } catch (error) {
+                log(`❌ Order retrieval failed: ${error.message}`, 'error');
+                log(`Error details: ${JSON.stringify(error)}`, 'error');
+                testsFailed++;
+                updateMetrics();
+                updateStatus('❌ Order retrieval failed', 'error');
+                return null;
+            }
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            log('🚀 Starting comprehensive test suite...', 'info');
+            updateStatus('⏳ Running tests...', 'pending');
+
+            const schemaOk = await runSchemaTest();
+            if (!schemaOk) {
+                updateStatus('❌ Tests failed at schema check', 'error');
+                return;
+            }
+
+            const orderData = await runOrderCreationTest();
+            if (!orderData) {
+                updateStatus('❌ Tests failed at order creation', 'error');
+                return;
+            }
+
+            await runOrderRetrievalTest();
+
+            // Final summary
+            const successRate = ((testsSuccess / testsRun) * 100).toFixed(1);
+            log('', 'info');
+            log('=' .repeat(50), 'info');
+            log('📊 TEST SUMMARY', 'info');
+            log('=' .repeat(50), 'info');
+            log(`Total Tests: ${testsRun}`, 'info');
+            log(`Successful: ${testsSuccess}`, 'success');
+            log(`Failed: ${testsFailed}`, testsFailed > 0 ? 'error' : 'info');
+            log(`Success Rate: ${successRate}%`, successRate === '100.0' ? 'success' : 'error');
+            log('=' .repeat(50), 'info');
+
+            if (testsFailed === 0) {
+                updateStatus('✅ All tests passed! Resolution successful!', 'success');
+                log('🎉 Congratulations! Order creation is working correctly.', 'success');
+                log('You can now use the application to create orders.', 'success');
+            } else {
+                updateStatus(`⚠️ ${testsFailed} test(s) failed`, 'error');
+                log('Please review the error messages above and:', 'error');
+                log('1. Ensure COMPREHENSIVE_RESOLUTION.sql was run successfully', 'error');
+                log('2. Check Supabase project permissions', 'error');
+                log('3. Verify environment variables are correct', 'error');
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            log('✅ Test environment initialized', 'success');
+            log(`Connected to: ${SUPABASE_URL}`, 'info');
+            log('Click "Run All Tests" to verify the resolution', 'info');
+            updateStatus('✅ Ready to test', 'success');
+        });
+    </script>
+</body>
+</html>

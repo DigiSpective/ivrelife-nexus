@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Persistence Debug</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #00ff00; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; background: #2a2a2a; }
+        .success { color: #00ff00; }
+        .error { color: #ff4444; }
+        .warning { color: #ffaa00; }
+        .info { color: #4488ff; }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            background: #333; 
+            color: #00ff00; 
+            border: 1px solid #555; 
+            cursor: pointer; 
+        }
+        button:hover { background: #444; }
+        pre { 
+            background: #111; 
+            padding: 10px; 
+            overflow-x: auto; 
+            border: 1px solid #333; 
+            white-space: pre-wrap; 
+        }
+        .status-indicator { 
+            display: inline-block; 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            margin-right: 8px; 
+        }
+        .status-success { background: #00ff00; }
+        .status-error { background: #ff4444; }
+        .status-warning { background: #ffaa00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Live Persistence Debug Dashboard</h1>
+        
+        <div class="section">
+            <h2>System Status</h2>
+            <div id="systemStatus"></div>
+            <button onclick="checkSystemStatus()">🔄 Refresh Status</button>
+        </div>
+
+        <div class="section">
+            <h2>Authentication</h2>
+            <div id="authStatus"></div>
+            <button onclick="checkAuth()">🔐 Check Auth</button>
+            <button onclick="simulateLogin()">👤 Simulate Login</button>
+        </div>
+
+        <div class="section">
+            <h2>Persistence Test</h2>
+            <div id="persistenceTest"></div>
+            <button onclick="testPersistence()">🧪 Test Persistence</button>
+            <button onclick="testCustomerFlow()">👥 Test Customer Flow</button>
+        </div>
+
+        <div class="section">
+            <h2>Data Inspection</h2>
+            <div id="dataInspection"></div>
+            <button onclick="inspectLocalStorage()">📁 Inspect localStorage</button>
+            <button onclick="inspectSupabaseData()">🗄️ Inspect Supabase</button>
+        </div>
+
+        <div class="section">
+            <h2>Live Logs</h2>
+            <pre id="logs"></pre>
+            <button onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script type="module">
+        let logElement = document.getElementById('logs');
+        let originalConsoleLog = console.log;
+        let originalConsoleError = console.error;
+        let originalConsoleWarn = console.warn;
+
+        // Intercept console logs
+        function addLog(type, ...args) {
+            const timestamp = new Date().toLocaleTimeString();
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            
+            const logLine = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logElement.textContent += logLine;
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            // Also call original console method
+            if (type === 'log') originalConsoleLog(...args);
+            else if (type === 'error') originalConsoleError(...args);
+            else if (type === 'warn') originalConsoleWarn(...args);
+        }
+
+        console.log = (...args) => addLog('log', ...args);
+        console.error = (...args) => addLog('error', ...args);
+        console.warn = (...args) => addLog('warn', ...args);
+
+        window.clearLogs = () => {
+            logElement.textContent = '';
+        };
+
+        // Status indicators
+        function createStatusIndicator(success, text) {
+            const className = success ? 'status-success' : 'status-error';
+            return `<span class="${className} status-indicator"></span>${text}`;
+        }
+
+        // System Status Check
+        window.checkSystemStatus = async () => {
+            const statusElement = document.getElementById('systemStatus');
+            statusElement.innerHTML = 'Checking system status...';
+            
+            console.log('🔍 Starting system status check...');
+            
+            try {
+                // Check if we're running on the right port
+                const isCorrectPort = window.location.port === '8084';
+                
+                // Check if Supabase modules are available
+                let supabaseAvailable = false;
+                try {
+                    const { createClient } = await import('@supabase/supabase-js');
+                    supabaseAvailable = true;
+                } catch (e) {
+                    console.error('Supabase import failed:', e);
+                }
+
+                // Check environment variables
+                const hasSupabaseUrl = 'https://qeiyxwuyhetnrnundpep.supabase.co';
+                const hasSupabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak';
+
+                statusElement.innerHTML = `
+                    <div>${createStatusIndicator(isCorrectPort, `Port: ${window.location.port} ${isCorrectPort ? '(Correct)' : '(Expected 8084)'}`)}</div>
+                    <div>${createStatusIndicator(supabaseAvailable, 'Supabase Module')}</div>
+                    <div>${createStatusIndicator(!!hasSupabaseUrl, 'Supabase URL')}</div>
+                    <div>${createStatusIndicator(!!hasSupabaseKey, 'Supabase Key')}</div>
+                    <div>${createStatusIndicator(typeof localStorage !== 'undefined', 'localStorage Available')}</div>
+                `;
+
+            } catch (error) {
+                console.error('System status check failed:', error);
+                statusElement.innerHTML = `<div class="error">System check failed: ${error.message}</div>`;
+            }
+        };
+
+        // Authentication Check
+        window.checkAuth = async () => {
+            const authElement = document.getElementById('authStatus');
+            authElement.innerHTML = 'Checking authentication...';
+            
+            console.log('🔐 Checking authentication status...');
+            
+            try {
+                const { createClient } = await import('@supabase/supabase-js');
+                const supabase = createClient(
+                    'https://qeiyxwuyhetnrnundpep.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+                );
+
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    console.error('Auth error:', error);
+                    authElement.innerHTML = `<div class="error">Auth Error: ${error.message}</div>`;
+                } else if (user) {
+                    console.log('User authenticated:', user.email);
+                    authElement.innerHTML = `
+                        <div class="success">✅ User: ${user.email}</div>
+                        <div class="info">ID: ${user.id}</div>
+                        <div class="info">Created: ${new Date(user.created_at).toLocaleDateString()}</div>
+                    `;
+                } else {
+                    console.log('No authenticated user');
+                    authElement.innerHTML = `<div class="warning">⚠️ No authenticated user</div>`;
+                }
+
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                authElement.innerHTML = `<div class="error">Auth check failed: ${error.message}</div>`;
+            }
+        };
+
+        // Simulate Login (for testing)
+        window.simulateLogin = async () => {
+            console.log('👤 Simulating login...');
+            // This would normally redirect to the login page
+            alert('In a real app, this would redirect to login. For testing, use the Auth check to see current status.');
+        };
+
+        // Test Persistence
+        window.testPersistence = async () => {
+            const testElement = document.getElementById('persistenceTest');
+            testElement.innerHTML = 'Testing persistence...';
+            
+            console.log('🧪 Starting persistence test...');
+            
+            try {
+                // Test localStorage
+                const testData = { test: true, timestamp: Date.now() };
+                localStorage.setItem('persistence-test', JSON.stringify(testData));
+                const retrieved = JSON.parse(localStorage.getItem('persistence-test') || '{}');
+                const localStorageWorks = retrieved.test === true;
+                localStorage.removeItem('persistence-test');
+
+                // Test Supabase connection
+                const { createClient } = await import('@supabase/supabase-js');
+                const supabase = createClient(
+                    'https://qeiyxwuyhetnrnundpep.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+                );
+
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                // Test user_storage table access
+                let userStorageWorks = false;
+                if (user) {
+                    try {
+                        const { data, error } = await supabase
+                            .from('user_storage')
+                            .select('id')
+                            .limit(1);
+                        userStorageWorks = !error;
+                        if (error) console.log('user_storage error:', error.message);
+                    } catch (e) {
+                        console.log('user_storage exception:', e.message);
+                    }
+                }
+
+                testElement.innerHTML = `
+                    <div>${createStatusIndicator(localStorageWorks, 'localStorage')}</div>
+                    <div>${createStatusIndicator(!!user, 'User Authentication')}</div>
+                    <div>${createStatusIndicator(userStorageWorks, 'user_storage Table Access')}</div>
+                    <div class="info">Test completed at ${new Date().toLocaleTimeString()}</div>
+                `;
+
+                console.log('✅ Persistence test completed');
+
+            } catch (error) {
+                console.error('Persistence test failed:', error);
+                testElement.innerHTML = `<div class="error">Persistence test failed: ${error.message}</div>`;
+            }
+        };
+
+        // Test Customer Flow
+        window.testCustomerFlow = async () => {
+            console.log('👥 Testing customer flow...');
+            try {
+                // This would test the actual customer creation/retrieval flow
+                // For now, just check if the modules are accessible
+                const smartPersistence = await import('/src/lib/smart-persistence.js');
+                const mockData = await import('/src/lib/mock-data.js');
+                
+                console.log('✅ Customer flow modules loaded successfully');
+                
+                // Test getMockCustomers
+                const customers = await mockData.getMockCustomers();
+                console.log('📊 Retrieved customers:', customers?.length || 0);
+                
+            } catch (error) {
+                console.error('❌ Customer flow test failed:', error);
+            }
+        };
+
+        // Inspect localStorage
+        window.inspectLocalStorage = () => {
+            const dataElement = document.getElementById('dataInspection');
+            console.log('📁 Inspecting localStorage...');
+            
+            const relevantKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && (key.includes('iv-relife') || key.includes('customer') || key.includes('supabase'))) {
+                    relevantKeys.push(key);
+                }
+            }
+
+            if (relevantKeys.length === 0) {
+                dataElement.innerHTML = '<div class="warning">No relevant localStorage data found</div>';
+            } else {
+                let html = '<h3>localStorage Data:</h3>';
+                relevantKeys.forEach(key => {
+                    const value = localStorage.getItem(key);
+                    html += `<div><strong>${key}:</strong> <pre>${value ? value.substring(0, 200) + '...' : 'empty'}</pre></div>`;
+                });
+                dataElement.innerHTML = html;
+            }
+        };
+
+        // Inspect Supabase Data
+        window.inspectSupabaseData = async () => {
+            const dataElement = document.getElementById('dataInspection');
+            dataElement.innerHTML = 'Inspecting Supabase data...';
+            
+            console.log('🗄️ Inspecting Supabase data...');
+            
+            try {
+                const { createClient } = await import('@supabase/supabase-js');
+                const supabase = createClient(
+                    'https://qeiyxwuyhetnrnundpep.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+                );
+
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                let html = '<h3>Supabase Data:</h3>';
+                
+                if (!user) {
+                    html += '<div class="warning">No authenticated user - cannot access user data</div>';
+                } else {
+                    // Check user_storage
+                    try {
+                        const { data: userStorage, error: userStorageError } = await supabase
+                            .from('user_storage')
+                            .select('*')
+                            .eq('user_id', user.id)
+                            .limit(5);
+                        
+                        if (userStorageError) {
+                            html += `<div class="error">user_storage error: ${userStorageError.message}</div>`;
+                        } else {
+                            html += `<div class="success">user_storage: ${userStorage?.length || 0} records</div>`;
+                            if (userStorage && userStorage.length > 0) {
+                                html += `<pre>${JSON.stringify(userStorage, null, 2)}</pre>`;
+                            }
+                        }
+                    } catch (e) {
+                        html += `<div class="error">user_storage exception: ${e.message}</div>`;
+                    }
+
+                    // Check customers
+                    try {
+                        const { data: customers, error: customersError } = await supabase
+                            .from('customers')
+                            .select('*')
+                            .limit(5);
+                        
+                        if (customersError) {
+                            html += `<div class="error">customers error: ${customersError.message}</div>`;
+                        } else {
+                            html += `<div class="success">customers: ${customers?.length || 0} records</div>`;
+                        }
+                    } catch (e) {
+                        html += `<div class="error">customers exception: ${e.message}</div>`;
+                    }
+                }
+
+                dataElement.innerHTML = html;
+
+            } catch (error) {
+                console.error('Supabase inspection failed:', error);
+                dataElement.innerHTML = `<div class="error">Supabase inspection failed: ${error.message}</div>`;
+            }
+        };
+
+        // Auto-run initial checks
+        setTimeout(() => {
+            checkSystemStatus();
+            checkAuth();
+        }, 1000);
+
+        console.log('🔧 Live Persistence Debug Dashboard loaded');
+    </script>
+</body>
+</html>

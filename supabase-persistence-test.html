@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Persistence Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .test-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            background: white;
+        }
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .status.success { background: #dcfce7; color: #166534; }
+        .status.error { background: #fef2f2; color: #dc2626; }
+        .status.loading { background: #fef3c7; color: #d97706; }
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+        .button:hover { background: #2563eb; }
+        .button:disabled { background: #9ca3af; cursor: not-allowed; }
+        .log {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .data-display {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .data-item {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 8px;
+        }
+        .data-item:last-child { margin-bottom: 0; }
+        .field { margin-bottom: 4px; }
+        .field strong { color: #374151; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Supabase Persistence Comprehensive Test</h1>
+        <p>Test orders, claims, and shipments data persistence across page refreshes</p>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Database Connection Test</h2>
+        <div class="test-grid">
+            <div class="test-card">
+                <h3>🔗 Connection Status</h3>
+                <div id="connectionStatus" class="status loading">Testing...</div>
+                <button class="button" onclick="testConnection()">Test Connection</button>
+                <div id="connectionLog" class="log"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>🗄️ Table Access</h3>
+                <div id="tableStatus" class="status loading">Checking...</div>
+                <button class="button" onclick="testTables()">Check Tables</button>
+                <div id="tableLog" class="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📦 Orders Persistence Test</h2>
+        <div class="test-grid">
+            <div class="test-card">
+                <h3>➕ Create Order</h3>
+                <button class="button" onclick="createTestOrder()">Create Test Order</button>
+                <div id="orderCreateStatus" class="status loading">Ready</div>
+                <div id="orderCreateLog" class="log"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>📋 Load Orders</h3>
+                <button class="button" onclick="loadOrders()">Load Orders</button>
+                <div id="orderLoadStatus" class="status loading">Ready</div>
+                <div id="ordersData" class="data-display"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 Claims Persistence Test</h2>
+        <div class="test-grid">
+            <div class="test-card">
+                <h3>➕ Create Claim</h3>
+                <button class="button" onclick="createTestClaim()">Create Test Claim</button>
+                <div id="claimCreateStatus" class="status loading">Ready</div>
+                <div id="claimCreateLog" class="log"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>📋 Load Claims</h3>
+                <button class="button" onclick="loadClaims()">Load Claims</button>
+                <div id="claimLoadStatus" class="status loading">Ready</div>
+                <div id="claimsData" class="data-display"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🚚 Shipments Persistence Test</h2>
+        <div class="test-grid">
+            <div class="test-card">
+                <h3>➕ Create Shipment</h3>
+                <button class="button" onclick="createTestShipment()">Create Test Shipment</button>
+                <div id="shipmentCreateStatus" class="status loading">Ready</div>
+                <div id="shipmentCreateLog" class="log"></div>
+            </div>
+
+            <div class="test-card">
+                <h3>📋 Load Shipments</h3>
+                <button class="button" onclick="loadShipments()">Load Shipments</button>
+                <div id="shipmentLoadStatus" class="status loading">Ready</div>
+                <div id="shipmentsData" class="data-display"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔄 Page Refresh Test</h2>
+        <div class="test-card">
+            <h3>🔄 Persistence Verification</h3>
+            <p>Create some test data, then refresh this page to verify persistence:</p>
+            <button class="button" onclick="location.reload()">🔄 Refresh Page</button>
+            <button class="button" onclick="runFullTest()">🧪 Run Full Test</button>
+            <div id="fullTestLog" class="log"></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://fhqgqhzwrnogwdqovbay.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocWdxaHp3cm5vZ3dkcW92YmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY2MzkzNDAsImV4cCI6MjA0MjIxNTM0MH0.mwdRPcFCp8qQBw_WTPPz4v8lJYrAnHYB6ByU5Y3-aao';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Logging utility
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            if (element) {
+                const timestamp = new Date().toLocaleTimeString();
+                const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️';
+                element.innerHTML += `[${timestamp}] ${prefix} ${message}\n`;
+                element.scrollTop = element.scrollHeight;
+            }
+        }
+
+        function setStatus(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.className = `status ${status}`;
+                element.textContent = message;
+            }
+        }
+
+        // Test database connection
+        async function testConnection() {
+            log('connectionLog', 'Testing Supabase connection...');
+            setStatus('connectionStatus', 'loading', 'Testing...');
+            
+            try {
+                const { data, error } = await supabase.from('retailers').select('id, name').limit(1);
+                
+                if (error) {
+                    throw error;
+                }
+                
+                log('connectionLog', `Connection successful! Found ${data.length} retailers.`, 'success');
+                setStatus('connectionStatus', 'success', '✅ Connected');
+            } catch (error) {
+                log('connectionLog', `Connection failed: ${error.message}`, 'error');
+                setStatus('connectionStatus', 'error', '❌ Failed');
+            }
+        }
+
+        // Test table access
+        async function testTables() {
+            log('tableLog', 'Testing table access...');
+            setStatus('tableStatus', 'loading', 'Checking...');
+            
+            const tables = ['orders', 'claims', 'shipments', 'products', 'retailers'];
+            let successCount = 0;
+            
+            for (const table of tables) {
+                try {
+                    const { data, error } = await supabase.from(table).select('*').limit(1);
+                    
+                    if (error) {
+                        throw error;
+                    }
+                    
+                    log('tableLog', `✅ ${table} table accessible (${data.length} rows)`, 'success');
+                    successCount++;
+                } catch (error) {
+                    log('tableLog', `❌ ${table} table error: ${error.message}`, 'error');
+                }
+            }
+            
+            if (successCount === tables.length) {
+                setStatus('tableStatus', 'success', `✅ All ${tables.length} tables accessible`);
+            } else {
+                setStatus('tableStatus', 'error', `❌ ${successCount}/${tables.length} tables accessible`);
+            }
+        }
+
+        // Create test order
+        async function createTestOrder() {
+            log('orderCreateLog', 'Creating test order...');
+            setStatus('orderCreateStatus', 'loading', 'Creating...');
+            
+            const testOrder = {
+                id: `order-test-${Date.now()}`,
+                retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                customer_id: `cust-test-${Date.now()}`,
+                status: 'pending',
+                total_amount: 129.99,
+                items: JSON.stringify([
+                    { product: 'Test Product', qty: 2, price: 64.99 }
+                ]),
+                created_by: 'test-user'
+            };
+            
+            try {
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert(testOrder)
+                    .select();
+                
+                if (error) {
+                    throw error;
+                }
+                
+                log('orderCreateLog', `✅ Order created: ${data[0].id}`, 'success');
+                setStatus('orderCreateStatus', 'success', '✅ Created');
+            } catch (error) {
+                log('orderCreateLog', `❌ Failed to create order: ${error.message}`, 'error');
+                setStatus('orderCreateStatus', 'error', '❌ Failed');
+            }
+        }
+
+        // Load orders
+        async function loadOrders() {
+            log('orderCreateLog', 'Loading orders...');
+            setStatus('orderLoadStatus', 'loading', 'Loading...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (error) {
+                    throw error;
+                }
+                
+                const ordersDisplay = document.getElementById('ordersData');
+                ordersDisplay.innerHTML = '';
+                
+                if (data.length === 0) {
+                    ordersDisplay.innerHTML = '<p>No orders found. Create some test orders first.</p>';
+                } else {
+                    data.forEach(order => {
+                        const orderDiv = document.createElement('div');
+                        orderDiv.className = 'data-item';
+                        orderDiv.innerHTML = `
+                            <div class="field"><strong>ID:</strong> ${order.id}</div>
+                            <div class="field"><strong>Status:</strong> ${order.status}</div>
+                            <div class="field"><strong>Total:</strong> $${order.total_amount}</div>
+                            <div class="field"><strong>Customer:</strong> ${order.customer_id}</div>
+                            <div class="field"><strong>Created:</strong> ${new Date(order.created_at).toLocaleString()}</div>
+                        `;
+                        ordersDisplay.appendChild(orderDiv);
+                    });
+                }
+                
+                log('orderCreateLog', `✅ Loaded ${data.length} orders`, 'success');
+                setStatus('orderLoadStatus', 'success', `✅ Loaded ${data.length}`);
+            } catch (error) {
+                log('orderCreateLog', `❌ Failed to load orders: ${error.message}`, 'error');
+                setStatus('orderLoadStatus', 'error', '❌ Failed');
+            }
+        }
+
+        // Create test claim
+        async function createTestClaim() {
+            log('claimCreateLog', 'Creating test claim...');
+            setStatus('claimCreateStatus', 'loading', 'Creating...');
+            
+            const testClaim = {
+                id: `claim-test-${Date.now()}`,
+                retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                customer_id: `cust-test-${Date.now()}`,
+                reason: 'Product damaged during shipping',
+                status: 'submitted',
+                description: 'The product arrived with visible scratches and dents.',
+                created_by: 'test-user'
+            };
+            
+            try {
+                const { data, error } = await supabase
+                    .from('claims')
+                    .insert(testClaim)
+                    .select();
+                
+                if (error) {
+                    throw error;
+                }
+                
+                log('claimCreateLog', `✅ Claim created: ${data[0].id}`, 'success');
+                setStatus('claimCreateStatus', 'success', '✅ Created');
+            } catch (error) {
+                log('claimCreateLog', `❌ Failed to create claim: ${error.message}`, 'error');
+                setStatus('claimCreateStatus', 'error', '❌ Failed');
+            }
+        }
+
+        // Load claims
+        async function loadClaims() {
+            log('claimCreateLog', 'Loading claims...');
+            setStatus('claimLoadStatus', 'loading', 'Loading...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('claims')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (error) {
+                    throw error;
+                }
+                
+                const claimsDisplay = document.getElementById('claimsData');
+                claimsDisplay.innerHTML = '';
+                
+                if (data.length === 0) {
+                    claimsDisplay.innerHTML = '<p>No claims found. Create some test claims first.</p>';
+                } else {
+                    data.forEach(claim => {
+                        const claimDiv = document.createElement('div');
+                        claimDiv.className = 'data-item';
+                        claimDiv.innerHTML = `
+                            <div class="field"><strong>ID:</strong> ${claim.id}</div>
+                            <div class="field"><strong>Reason:</strong> ${claim.reason}</div>
+                            <div class="field"><strong>Status:</strong> ${claim.status}</div>
+                            <div class="field"><strong>Customer:</strong> ${claim.customer_id}</div>
+                            <div class="field"><strong>Created:</strong> ${new Date(claim.created_at).toLocaleString()}</div>
+                        `;
+                        claimsDisplay.appendChild(claimDiv);
+                    });
+                }
+                
+                log('claimCreateLog', `✅ Loaded ${data.length} claims`, 'success');
+                setStatus('claimLoadStatus', 'success', `✅ Loaded ${data.length}`);
+            } catch (error) {
+                log('claimCreateLog', `❌ Failed to load claims: ${error.message}`, 'error');
+                setStatus('claimLoadStatus', 'error', '❌ Failed');
+            }
+        }
+
+        // Create test shipment
+        async function createTestShipment() {
+            log('shipmentCreateLog', 'Creating test shipment...');
+            setStatus('shipmentCreateStatus', 'loading', 'Creating...');
+            
+            const testShipment = {
+                id: `shipment-test-${Date.now()}`,
+                order_id: `order-test-${Date.now()}`,
+                retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                tracking_number: `TRK${Date.now()}`,
+                carrier: 'UPS',
+                status: 'SHIPPED',
+                created_by: 'test-user'
+            };
+            
+            try {
+                const { data, error } = await supabase
+                    .from('shipments')
+                    .insert(testShipment)
+                    .select();
+                
+                if (error) {
+                    throw error;
+                }
+                
+                log('shipmentCreateLog', `✅ Shipment created: ${data[0].id}`, 'success');
+                setStatus('shipmentCreateStatus', 'success', '✅ Created');
+            } catch (error) {
+                log('shipmentCreateLog', `❌ Failed to create shipment: ${error.message}`, 'error');
+                setStatus('shipmentCreateStatus', 'error', '❌ Failed');
+            }
+        }
+
+        // Load shipments
+        async function loadShipments() {
+            log('shipmentCreateLog', 'Loading shipments...');
+            setStatus('shipmentLoadStatus', 'loading', 'Loading...');
+            
+            try {
+                const { data, error } = await supabase
+                    .from('shipments')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (error) {
+                    throw error;
+                }
+                
+                const shipmentsDisplay = document.getElementById('shipmentsData');
+                shipmentsDisplay.innerHTML = '';
+                
+                if (data.length === 0) {
+                    shipmentsDisplay.innerHTML = '<p>No shipments found. Create some test shipments first.</p>';
+                } else {
+                    data.forEach(shipment => {
+                        const shipmentDiv = document.createElement('div');
+                        shipmentDiv.className = 'data-item';
+                        shipmentDiv.innerHTML = `
+                            <div class="field"><strong>ID:</strong> ${shipment.id}</div>
+                            <div class="field"><strong>Tracking:</strong> ${shipment.tracking_number}</div>
+                            <div class="field"><strong>Carrier:</strong> ${shipment.carrier}</div>
+                            <div class="field"><strong>Status:</strong> ${shipment.status}</div>
+                            <div class="field"><strong>Created:</strong> ${new Date(shipment.created_at).toLocaleString()}</div>
+                        `;
+                        shipmentsDisplay.appendChild(shipmentDiv);
+                    });
+                }
+                
+                log('shipmentCreateLog', `✅ Loaded ${data.length} shipments`, 'success');
+                setStatus('shipmentLoadStatus', 'success', `✅ Loaded ${data.length}`);
+            } catch (error) {
+                log('shipmentCreateLog', `❌ Failed to load shipments: ${error.message}`, 'error');
+                setStatus('shipmentLoadStatus', 'error', '❌ Failed');
+            }
+        }
+
+        // Run full test
+        async function runFullTest() {
+            log('fullTestLog', '🧪 Running comprehensive persistence test...');
+            
+            // Clear previous results
+            document.getElementById('fullTestLog').innerHTML = '';
+            
+            log('fullTestLog', '1️⃣ Testing connection...');
+            await testConnection();
+            
+            log('fullTestLog', '2️⃣ Testing table access...');
+            await testTables();
+            
+            log('fullTestLog', '3️⃣ Creating test data...');
+            await createTestOrder();
+            await createTestClaim();
+            await createTestShipment();
+            
+            log('fullTestLog', '4️⃣ Loading all data...');
+            await loadOrders();
+            await loadClaims();
+            await loadShipments();
+            
+            log('fullTestLog', '✅ Full test complete! Now refresh the page to test persistence.', 'success');
+        }
+
+        // Auto-load data on page load
+        window.addEventListener('load', async () => {
+            setTimeout(async () => {
+                await testConnection();
+                await testTables();
+                await loadOrders();
+                await loadClaims();
+                await loadShipments();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

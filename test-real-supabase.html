@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Real Supabase</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; background: #111; }
+        button { margin: 5px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        button:hover { background: #444; }
+        pre { background: #000; padding: 10px; border: 1px solid #333; max-height: 400px; overflow-y: auto; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .status { padding: 5px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Real Supabase (Fixed Implementation)</h1>
+    
+    <div class="section">
+        <h2>Step 1: Test Raw Supabase Connection</h2>
+        <button onclick="testRawConnection()">Test Raw Connection</button>
+        <div id="raw-status" class="status">Ready to test...</div>
+        <pre id="raw-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Create Admin User</h2>
+        <button onclick="createAdminUser()">Create/Sign In Admin</button>
+        <div id="admin-status" class="status">Ready to create...</div>
+        <pre id="admin-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 3: Test Order Creation</h2>
+        <button onclick="testOrderCreation()">Create Test Order</button>
+        <div id="create-status" class="status">Need to sign in first...</div>
+        <pre id="create-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 4: Test Order Loading</h2>
+        <button onclick="testOrderLoading()">Load Orders</button>
+        <div id="load-status" class="status">Need to create order first...</div>
+        <pre id="load-log"></pre>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://qeiyxwuyhetnrnundpep.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentUser = null;
+        let testOrderId = null;
+
+        function setStatus(id, message, type = 'info') {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = message;
+                el.className = `status ${type}`;
+            }
+        }
+
+        function log(id, message) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+
+        async function testRawConnection() {
+            try {
+                setStatus('raw-status', 'Testing raw connection...', 'warning');
+                log('raw-log', 'Testing raw Supabase connection...');
+                log('raw-log', `URL: ${SUPABASE_URL}`);
+                log('raw-log', `Key: ${SUPABASE_ANON_KEY.substring(0, 20)}...`);
+                
+                // Test basic connection with a simple query
+                const { data, error, count } = await supabase
+                    .from('orders')
+                    .select('*', { count: 'exact' })
+                    .limit(1);
+                
+                if (error) {
+                    setStatus('raw-status', `❌ Connection failed: ${error.message}`, 'error');
+                    log('raw-log', `ERROR: ${error.message}`);
+                    log('raw-log', `Error details: ${JSON.stringify(error, null, 2)}`);
+                } else {
+                    setStatus('raw-status', '✅ Connection successful', 'success');
+                    log('raw-log', `SUCCESS: Connected to Supabase`);
+                    log('raw-log', `Total orders in database: ${count}`);
+                    log('raw-log', `Sample data: ${JSON.stringify(data, null, 2)}`);
+                }
+                
+            } catch (error) {
+                setStatus('raw-status', '❌ Exception occurred', 'error');
+                log('raw-log', `EXCEPTION: ${error.message}`);
+            }
+        }
+
+        async function createAdminUser() {
+            try {
+                setStatus('admin-status', 'Creating/signing in admin...', 'warning');
+                log('admin-log', 'Attempting to create or sign in admin user...');
+                
+                // Try to sign in first
+                const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (signInError) {
+                    log('admin-log', `Sign in failed: ${signInError.message}`);
+                    log('admin-log', 'Attempting to sign up...');
+                    
+                    // Try to sign up
+                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789',
+                        options: {
+                            data: {
+                                name: 'Admin User',
+                                role: 'owner'
+                            }
+                        }
+                    });
+                    
+                    if (signUpError) {
+                        setStatus('admin-status', `❌ Both sign in and sign up failed`, 'error');
+                        log('admin-log', `Sign up error: ${signUpError.message}`);
+                        return;
+                    } else {
+                        currentUser = signUpData.user;
+                        setStatus('admin-status', '✅ Admin user created', 'success');
+                        log('admin-log', `SUCCESS: User created: ${signUpData.user?.email}`);
+                    }
+                } else {
+                    currentUser = signInData.user;
+                    setStatus('admin-status', '✅ Admin signed in', 'success');
+                    log('admin-log', `SUCCESS: User signed in: ${signInData.user.email}`);
+                }
+                
+                if (currentUser) {
+                    log('admin-log', `User ID: ${currentUser.id}`);
+                }
+                
+            } catch (error) {
+                setStatus('admin-status', '❌ Exception occurred', 'error');
+                log('admin-log', `EXCEPTION: ${error.message}`);
+            }
+        }
+
+        async function testOrderCreation() {
+            if (!currentUser) {
+                setStatus('create-status', '❌ Please sign in first', 'error');
+                return;
+            }
+            
+            try {
+                setStatus('create-status', 'Creating test order...', 'warning');
+                log('create-log', 'Creating test order with real Supabase...');
+                
+                testOrderId = `real-test-${Date.now()}`;
+                const orderData = {
+                    id: testOrderId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'test-customer-123',
+                    status: 'pending',
+                    total_amount: 199.99,
+                    items: JSON.stringify([{ product: 'Real Test Product', qty: 1, price: 199.99 }]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('create-log', `Order data: ${JSON.stringify(orderData, null, 2)}`);
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert(orderData)
+                    .select()
+                    .single();
+                
+                if (error) {
+                    setStatus('create-status', `❌ Order creation failed: ${error.message}`, 'error');
+                    log('create-log', `ERROR: ${error.message}`);
+                    log('create-log', `Error details: ${JSON.stringify(error, null, 2)}`);
+                } else {
+                    setStatus('create-status', '✅ Order created successfully', 'success');
+                    log('create-log', `SUCCESS: Order created: ${data.id}`);
+                    log('create-log', `Created data: ${JSON.stringify(data, null, 2)}`);
+                }
+                
+            } catch (error) {
+                setStatus('create-status', '❌ Exception occurred', 'error');
+                log('create-log', `EXCEPTION: ${error.message}`);
+            }
+        }
+
+        async function testOrderLoading() {
+            if (!currentUser) {
+                setStatus('load-status', '❌ Please sign in first', 'error');
+                return;
+            }
+            
+            try {
+                setStatus('load-status', 'Loading orders...', 'warning');
+                log('load-log', 'Loading orders for authenticated user...');
+                log('load-log', `User ID: ${currentUser.id}`);
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    setStatus('load-status', `❌ Order loading failed: ${error.message}`, 'error');
+                    log('load-log', `ERROR: ${error.message}`);
+                    log('load-log', `Error details: ${JSON.stringify(error, null, 2)}`);
+                } else {
+                    setStatus('load-status', `✅ Loaded ${data.length} orders`, 'success');
+                    log('load-log', `SUCCESS: Found ${data.length} orders for user`);
+                    
+                    if (data.length > 0) {
+                        log('load-log', 'Orders:');
+                        data.forEach(order => {
+                            log('load-log', `- ${order.id} (${order.status}) - $${order.total_amount}`);
+                        });
+                    }
+                    
+                    if (testOrderId) {
+                        const foundOrder = data.find(order => order.id === testOrderId);
+                        if (foundOrder) {
+                            log('load-log', `✅ Test order ${testOrderId} FOUND in results!`);
+                        } else {
+                            log('load-log', `❌ Test order ${testOrderId} NOT found in results`);
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                setStatus('load-status', '❌ Exception occurred', 'error');
+                log('load-log', `EXCEPTION: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

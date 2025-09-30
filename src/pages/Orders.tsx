@@ -21,7 +21,7 @@ export default function Orders() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Get dynamic data instead of static mock data
+  // Get dynamic data using proper Supabase persistence
   const { data: ordersData, isLoading: ordersLoading } = useOrders();
   const { data: customersData, isLoading: customersLoading } = useCustomers();
   

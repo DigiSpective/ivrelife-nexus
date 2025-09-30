@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Final Fix</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { margin: 10px; padding: 15px 30px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; font-size: 16px; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .super-button { background: #006600; border: 3px solid #00ff00; font-weight: bold; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Test Final Fix</h1>
+    <p>Testing the order creation without status field</p>
+    
+    <button class="super-button" onclick="testFinalFix()">🚀 TEST FINAL FIX</button>
+    <button onclick="testWithReferences()">📝 Test with References</button>
+    
+    <pre id="log"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        let currentUser;
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function authenticateUser() {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: 'admin@iv-relife.com',
+                password: '123456789'
+            });
+            
+            if (error) {
+                throw error;
+            }
+            
+            currentUser = data.user;
+            return data.user;
+        }
+        
+        async function testFinalFix() {
+            log('🚀 TESTING FINAL FIX (No Status Field)...', 'warning');
+            
+            try {
+                await authenticateUser();
+                log('✅ Authentication successful', 'success');
+                
+                // Test the exact format that NewOrder.tsx now sends (no status field)
+                const orderData = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    created_by: currentUser.id,
+                    // NO STATUS FIELD - let database set default
+                    total_amount: 299.99,
+                    notes: 'Final fix test - no status field'
+                };
+                
+                log('Order data being sent (matches current NewOrder.tsx):');
+                log(JSON.stringify(orderData, null, 2));
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([orderData])
+                    .select();
+                
+                if (error) {
+                    log(\`❌ FINAL FIX FAILED: \${error.message}\`, 'error');
+                    log('The app will still have 400 errors');
+                    log('Full error details:');
+                    log(JSON.stringify(error, null, 2));
+                } else {
+                    log('🎉 FINAL FIX SUCCESSFUL!', 'success');
+                    log(\`Created order: \${data[0].id}\`);
+                    log(\`Database set status to: \${data[0].status}\`);
+                    log('✅ The app should now work without 400 errors!');
+                    
+                    // Test retrieval
+                    const { data: retrievedOrder, error: retrieveError } = await supabase
+                        .from('orders')
+                        .select('*')
+                        .eq('id', data[0].id)
+                        .single();
+                    
+                    if (retrieveError) {
+                        log(\`⚠️ Retrieval test failed: \${retrieveError.message}\`, 'warning');
+                    } else {
+                        log('✅ Order retrieval successful', 'success');
+                        log(\`Retrieved order status: \${retrievedOrder.status}\`);
+                    }
+                }
+                
+            } catch (error) {
+                log(\`❌ Test failed: \${error.message}\`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+        
+        async function testWithReferences() {
+            log('📝 Testing with complete reference setup...');
+            
+            try {
+                await authenticateUser();
+                
+                // Step 1: Ensure references exist (ignore errors if they already exist)
+                log('Step 1: Creating required references...');
+                
+                try {
+                    await supabase.from('retailers').insert({
+                        id: '550e8400-e29b-41d4-a716-446655440000',
+                        name: 'IV ReLife Main Retailer'
+                    });
+                    log('✅ Retailer created', 'success');
+                } catch (e) {
+                    log(\`⚠️ Retailer: \${e.message}\`, 'warning');
+                }
+                
+                try {
+                    await supabase.from('customers').insert({
+                        id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                        name: 'Test Customer'
+                    });
+                    log('✅ Customer created', 'success');
+                } catch (e) {
+                    log(\`⚠️ Customer: \${e.message}\`, 'warning');
+                }
+                
+                // Step 2: Test order creation
+                log('Step 2: Testing order creation...');
+                
+                const orderData = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    created_by: currentUser.id,
+                    total_amount: 299.99,
+                    notes: 'Complete reference test'
+                };
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([orderData])
+                    .select();
+                
+                if (error) {
+                    log(\`❌ Order creation failed: \${error.message}\`, 'error');
+                } else {
+                    log('🎉 ORDER CREATION WITH REFERENCES SUCCESSFUL!', 'success');
+                    log(\`Order ID: \${data[0].id}\`);
+                    log(\`Status: \${data[0].status}\`);
+                    
+                    // Test complete query like the app does
+                    const { data: fullOrder, error: fullError } = await supabase
+                        .from('orders')
+                        .select(\`
+                            *,
+                            customers(name)
+                        \`)
+                        .eq('id', data[0].id)
+                        .single();
+                    
+                    if (fullError) {
+                        log(\`⚠️ Full query test failed: \${fullError.message}\`, 'warning');
+                    } else {
+                        log('✅ Full query test successful', 'success');
+                        log(\`Order with customer: \${JSON.stringify(fullOrder, null, 2)}\`);
+                    }
+                }
+                
+            } catch (error) {
+                log(\`❌ Test with references failed: \${error.message}\`, 'error');
+            }
+        }
+        
+        // Auto-authenticate on load
+        window.addEventListener('load', async () => {
+            try {
+                await authenticateUser();
+                log('✅ Ready to test final fix', 'success');
+                log('Click "TEST FINAL FIX" to verify the solution');
+            } catch (error) {
+                log('⚠️ Auto-auth failed, but test can still proceed', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>

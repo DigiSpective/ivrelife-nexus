@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual App Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .instructions { background: #f0f8ff; padding: 10px; margin: 10px 0; }
+        .error-log { background: #fff5f5; padding: 10px; margin: 10px 0; border: 1px solid #ff0000; }
+        .success-log { background: #f0fff4; padding: 10px; margin: 10px 0; border: 1px solid #00aa00; }
+        iframe { width: 100%; height: 500px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Manual App Test - Step by Step Verification</h1>
+    
+    <div class="test-section">
+        <h2>📋 Test Instructions</h2>
+        <div class="instructions">
+            <h3>Please follow these steps and report results:</h3>
+            <ol>
+                <li><strong>Open Main App:</strong> <a href="http://localhost:8084" target="_blank">Click here to open the main app in a new tab</a></li>
+                <li><strong>Check for Errors:</strong> Open browser dev tools (F12) and check Console tab for any errors</li>
+                <li><strong>Try Login:</strong> Click "Sign In" and try logging in with:
+                    <ul>
+                        <li>Email: admin@iv-relife.com</li>
+                        <li>Password: 123456789</li>
+                    </ul>
+                </li>
+                <li><strong>Navigate to Orders:</strong> Go to Orders page and check if any orders are displayed</li>
+                <li><strong>Create New Order:</strong> Click "New Order" and try to create a test order</li>
+                <li><strong>Check Persistence:</strong> After creating, check if the order appears in the Orders list</li>
+                <li><strong>Test Refresh:</strong> Refresh the page and see if the order is still there</li>
+            </ol>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🚨 Error Reporting</h2>
+        <div class="instructions">
+            <h3>If you see any errors, please report them here:</h3>
+            <h4>Common errors to look for:</h4>
+            <ul>
+                <li>"Cannot access uninitialized variable" - This means our fix didn't work</li>
+                <li>"Failed to fetch" - Network/database connection issue</li>
+                <li>"Invalid login credentials" - Authentication issue</li>
+                <li>"Table 'orders' doesn't exist" - Database schema issue</li>
+                <li>Orders don't appear after creation - Persistence issue</li>
+                <li>Orders disappear after refresh - Cache/state issue</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>✅ Expected Behavior</h2>
+        <div class="success-log">
+            <h3>If everything is working correctly, you should see:</h3>
+            <ul>
+                <li>App loads without console errors</li>
+                <li>Login with admin@iv-relife.com works (or sign up succeeds)</li>
+                <li>Orders page loads (may be empty initially)</li>
+                <li>New order creation works without errors</li>
+                <li>New order appears in the orders list immediately</li>
+                <li>Order persists after page refresh</li>
+                <li>No "Cannot access uninitialized variable" errors</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔍 Quick Direct Test</h2>
+        <p>You can also run this quick test to verify Supabase is working:</p>
+        <button onclick="quickTest()">Run Quick Supabase Test</button>
+        <pre id="quickTestResult" style="background: #f5f5f5; padding: 10px; margin: 10px 0;"></pre>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        async function quickTest() {
+            const result = document.getElementById('quickTestResult');
+            result.textContent = 'Testing...\n';
+            
+            try {
+                const supabase = window.supabase.createClient(
+                    'https://qeiyxwuyhetnrnundpep.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+                );
+                
+                result.textContent += '✅ Supabase client created\n';
+                
+                const { data, error } = await supabase.from('orders').select('id').limit(1);
+                
+                if (error) {
+                    result.textContent += `❌ Query failed: ${error.message}\n`;
+                } else {
+                    result.textContent += '✅ Database query successful\n';
+                    result.textContent += `Found ${data.length} sample records\n`;
+                }
+                
+                result.textContent += '\n🎉 Quick test completed - Supabase is working!\n';
+                
+            } catch (error) {
+                result.textContent += `❌ Test failed: ${error.message}\n`;
+            }
+        }
+    </script>
+</body>
+</html>

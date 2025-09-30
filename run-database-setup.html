@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Run Database Setup</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { margin: 10px; padding: 15px 30px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; font-size: 16px; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .super-button { background: #006600; border: 3px solid #00ff00; font-weight: bold; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Run Database Setup</h1>
+    <p>This will execute the actual database setup queries to create the proper schema</p>
+    
+    <button class="super-button" onclick="runDatabaseSetup()">🚀 RUN DATABASE SETUP</button>
+    <button onclick="createBasicTables()">📋 Create Basic Tables</button>
+    <button onclick="testAfterSetup()">✅ Test After Setup</button>
+    
+    <pre id="log"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        let currentUser;
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += \`<span style="color: \${color}">[<span class="timestamp">\${timestamp}</span>] \${message}</span>\\n\`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function authenticateUser() {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: 'admin@iv-relife.com',
+                password: '123456789'
+            });
+            
+            if (error) {
+                throw error;
+            }
+            
+            currentUser = data.user;
+            return data.user;
+        }
+        
+        async function runSQL(query, description) {
+            log(\`Executing: \${description}\`);
+            try {
+                const { data, error } = await supabase.rpc('exec_sql', { query });
+                if (error) {
+                    log(\`❌ \${description} failed: \${error.message}\`, 'error');
+                    return false;
+                } else {
+                    log(\`✅ \${description} succeeded\`, 'success');
+                    return true;
+                }
+            } catch (e) {
+                // If RPC doesn't exist, try direct SQL approach
+                log(\`⚠️ RPC not available, trying alternative approach for: \${description}\`, 'warning');
+                return false;
+            }
+        }
+        
+        async function runDatabaseSetup() {
+            log('🔧 RUNNING DATABASE SETUP...', 'warning');
+            log('This will create the proper database schema for the application');
+            
+            try {
+                await authenticateUser();
+                log('✅ Authentication successful', 'success');
+                
+                // Step 1: Create basic tables that the app needs
+                log('Step 1: Creating basic tables...');
+                
+                // Create retailers table
+                const createRetailersSQL = \`
+                CREATE TABLE IF NOT EXISTS retailers (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT,
+                    phone TEXT,
+                    address TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                \`;
+                
+                // Create customers table
+                const createCustomersSQL = \`
+                CREATE TABLE IF NOT EXISTS customers (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT,
+                    phone TEXT,
+                    address TEXT,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                \`;
+                
+                // Create orders table with TEXT status (not enum)
+                const createOrdersSQL = \`
+                CREATE TABLE IF NOT EXISTS orders (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    retailer_id UUID REFERENCES retailers(id),
+                    customer_id UUID REFERENCES customers(id),
+                    created_by UUID,
+                    status TEXT DEFAULT 'pending',
+                    total_amount DECIMAL(10,2) DEFAULT 0,
+                    notes TEXT,
+                    signature_url TEXT,
+                    id_photo_url TEXT,
+                    contract_url TEXT,
+                    items JSONB DEFAULT '[]'::jsonb,
+                    metadata JSONB DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+                \`;
+                
+                // Since we can't use RPC, let's create the tables by inserting dummy data 
+                // and relying on the CREATE TABLE IF NOT EXISTS in the actual setup
+                
+                log('Creating retailers table...');
+                try {
+                    // Try to insert into retailers to see if table exists
+                    const { error: retailerError } = await supabase
+                        .from('retailers')
+                        .select('id')
+                        .limit(1);
+                    
+                    if (retailerError && retailerError.message.includes('does not exist')) {
+                        log('❌ Retailers table does not exist', 'error');
+                        log('You need to run the SQL schema in Supabase dashboard:', 'warning');
+                        log(createRetailersSQL);
+                    } else {
+                        log('✅ Retailers table exists', 'success');
+                    }
+                } catch (e) {
+                    log(\`Retailers table check failed: \${e.message}\`);
+                }
+                
+                log('Creating customers table...');
+                try {
+                    const { error: customerError } = await supabase
+                        .from('customers')
+                        .select('id')
+                        .limit(1);
+                    
+                    if (customerError && customerError.message.includes('does not exist')) {
+                        log('❌ Customers table does not exist', 'error');
+                        log('You need to run the SQL schema in Supabase dashboard:', 'warning');
+                        log(createCustomersSQL);
+                    } else {
+                        log('✅ Customers table exists', 'success');
+                    }
+                } catch (e) {
+                    log(\`Customers table check failed: \${e.message}\`);
+                }
+                
+                log('Creating orders table...');
+                try {
+                    const { error: orderError } = await supabase
+                        .from('orders')
+                        .select('id')
+                        .limit(1);
+                    
+                    if (orderError && orderError.message.includes('does not exist')) {
+                        log('❌ Orders table does not exist', 'error');
+                        log('You need to run the SQL schema in Supabase dashboard:', 'warning');
+                        log(createOrdersSQL);
+                    } else {
+                        log('✅ Orders table exists', 'success');
+                    }
+                } catch (e) {
+                    log(\`Orders table check failed: \${e.message}\`);
+                }
+                
+                // Step 2: Insert required reference data
+                log('Step 2: Creating required reference data...');
+                
+                // Create the specific retailer the app expects
+                try {
+                    const { error: upsertRetailerError } = await supabase
+                        .from('retailers')
+                        .upsert([{
+                            id: '550e8400-e29b-41d4-a716-446655440000',
+                            name: 'IV ReLife Main Retailer',
+                            email: 'admin@iv-relife.com'
+                        }], { onConflict: 'id' });
+                    
+                    if (upsertRetailerError) {
+                        log(\`❌ Retailer creation failed: \${upsertRetailerError.message}\`, 'error');
+                    } else {
+                        log('✅ Required retailer created', 'success');
+                    }
+                } catch (e) {
+                    log(\`Retailer creation error: \${e.message}\`, 'error');
+                }
+                
+                // Create the specific customer the app expects  
+                try {
+                    const { error: upsertCustomerError } = await supabase
+                        .from('customers')
+                        .upsert([{
+                            id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                            name: 'Test Customer',
+                            email: 'customer@example.com'
+                        }], { onConflict: 'id' });
+                    
+                    if (upsertCustomerError) {
+                        log(\`❌ Customer creation failed: \${upsertCustomerError.message}\`, 'error');
+                    } else {
+                        log('✅ Required customer created', 'success');
+                    }
+                } catch (e) {
+                    log(\`Customer creation error: \${e.message}\`, 'error');
+                }
+                
+                // Step 3: Test order creation
+                log('Step 3: Testing order creation...');
+                await testOrderCreation();
+                
+                log('🎯 DATABASE SETUP COMPLETED!', 'success');
+                log('If any tables were missing, you need to run the SQL in Supabase dashboard');
+                
+            } catch (error) {
+                log(\`❌ Database setup failed: \${error.message}\`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+        
+        async function createBasicTables() {
+            log('📋 SHOWING SQL TO CREATE BASIC TABLES...', 'warning');
+            log('Copy and paste this SQL into your Supabase SQL Editor:');
+            log('');
+            log('-- Enable UUID extension');
+            log('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";');
+            log('');
+            log('-- Create retailers table');
+            log(\`CREATE TABLE IF NOT EXISTS retailers (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);\`);
+            log('');
+            log('-- Create customers table');
+            log(\`CREATE TABLE IF NOT EXISTS customers (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    address TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);\`);
+            log('');
+            log('-- Create orders table');
+            log(\`CREATE TABLE IF NOT EXISTS orders (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    retailer_id UUID REFERENCES retailers(id),
+    customer_id UUID REFERENCES customers(id),
+    created_by UUID,
+    status TEXT DEFAULT 'pending',
+    total_amount DECIMAL(10,2) DEFAULT 0,
+    notes TEXT,
+    signature_url TEXT,
+    id_photo_url TEXT,
+    contract_url TEXT,
+    items JSONB DEFAULT '[]'::jsonb,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);\`);
+            log('');
+            log('-- Insert required reference data');
+            log(\`INSERT INTO retailers (id, name, email) VALUES
+    ('550e8400-e29b-41d4-a716-446655440000', 'IV ReLife Main Retailer', 'admin@iv-relife.com')
+ON CONFLICT (id) DO NOTHING;\`);
+            log('');
+            log(\`INSERT INTO customers (id, name, email) VALUES
+    ('dc0abfde-8588-4107-ab9b-1d5f2a91bce2', 'Test Customer', 'customer@example.com')
+ON CONFLICT (id) DO NOTHING;\`);
+            log('');
+            log('🎯 RUN THIS SQL IN SUPABASE DASHBOARD → SQL EDITOR', 'success');
+        }
+        
+        async function testOrderCreation() {
+            log('Testing order creation with current schema...');
+            
+            try {
+                const testOrder = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    created_by: currentUser.id,
+                    total_amount: 299.99,
+                    notes: 'Database setup test order'
+                };
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([testOrder])
+                    .select();
+                
+                if (error) {
+                    log(\`❌ Order creation test failed: \${error.message}\`, 'error');
+                    if (error.message.includes('does not exist')) {
+                        log('→ Tables do not exist - run the SQL above in Supabase dashboard', 'warning');
+                    } else if (error.message.includes('enum')) {
+                        log('→ Enum constraint issue - need to fix schema', 'warning');
+                    } else if (error.message.includes('foreign key')) {
+                        log('→ Foreign key constraint issue - missing reference data', 'warning');
+                    }
+                } else {
+                    log('🎉 ORDER CREATION TEST SUCCESSFUL!', 'success');
+                    log(\`Created order: \${data[0].id}\`);
+                    log(\`Status: \${data[0].status}\`);
+                    log('✅ The application should now work!');
+                }
+            } catch (e) {
+                log(\`Test error: \${e.message}\`, 'error');
+            }
+        }
+        
+        async function testAfterSetup() {
+            log('✅ Testing after manual setup...');
+            await authenticateUser();
+            await testOrderCreation();
+        }
+        
+        // Auto-authenticate on load
+        window.addEventListener('load', async () => {
+            try {
+                await authenticateUser();
+                log('✅ Ready to run database setup', 'success');
+                log('Click "RUN DATABASE SETUP" to check and setup the database');
+                log('If tables are missing, you will get SQL to run in Supabase dashboard');
+            } catch (error) {
+                log('⚠️ Auto-auth failed, but setup can still proceed', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>

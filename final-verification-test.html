@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Verification Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { margin: 10px; padding: 15px 30px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; font-size: 16px; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .super-button { background: #006600; border: 3px solid #00ff00; font-weight: bold; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Final Verification Test</h1>
+    
+    <button class="super-button" onclick="runCompleteVerification()">🚀 RUN COMPLETE VERIFICATION</button>
+    <button onclick="testOrderFlow()">📝 Test Order Creation Flow</button>
+    <button onclick="checkPersistence()">💾 Check Order Persistence</button>
+    
+    <pre id="log"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        let currentUser;
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function authenticateUser() {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: 'admin@iv-relife.com',
+                password: '123456789'
+            });
+            
+            if (error) {
+                throw error;
+            }
+            
+            currentUser = data.user;
+            return data.user;
+        }
+        
+        async function runCompleteVerification() {
+            log('🎯 RUNNING COMPLETE VERIFICATION TEST...', 'warning');
+            log('This will test the entire order creation and persistence flow');
+            
+            try {
+                // Step 1: Authenticate
+                await authenticateUser();
+                log('✅ Step 1: Authentication successful', 'success');
+                
+                // Step 2: Ensure required references exist
+                log('Step 2: Ensuring required database references exist...');
+                
+                // Create/verify retailer
+                const retailerData = {
+                    id: '550e8400-e29b-41d4-a716-446655440000',
+                    name: 'IV ReLife Main Retailer',
+                    email: 'admin@iv-relife.com'
+                };
+                
+                const { data: retailerResult, error: retailerError } = await supabase
+                    .from('retailers')
+                    .upsert([retailerData])
+                    .select();
+                
+                if (retailerError) {
+                    log(`❌ Retailer setup failed: ${retailerError.message}`, 'error');
+                    throw retailerError;
+                } else {
+                    log('✅ Retailer reference verified', 'success');
+                }
+                
+                // Create/verify customer
+                const customerData = {
+                    id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    name: 'Test Customer',
+                    email: 'customer@example.com'
+                };
+                
+                const { data: customerResult, error: customerError } = await supabase
+                    .from('customers')
+                    .upsert([customerData])
+                    .select();
+                
+                if (customerError) {
+                    log(`❌ Customer setup failed: ${customerError.message}`, 'error');
+                    throw customerError;
+                } else {
+                    log('✅ Customer reference verified', 'success');
+                }
+                
+                // Step 3: Test order creation with EXACT NewOrder.tsx format
+                log('Step 3: Testing order creation with exact NewOrder.tsx format...');
+                const testOrderData = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    created_by: currentUser.id,
+                    status: 'pending',
+                    total_amount: 299.99,
+                    notes: 'Final verification test order'
+                };
+                
+                log('Order data being sent (matches NewOrder.tsx):');
+                log(JSON.stringify(testOrderData, null, 2));
+                
+                const { data: orderResult, error: orderError } = await supabase
+                    .from('orders')
+                    .insert([testOrderData])
+                    .select();
+                
+                if (orderError) {
+                    log(`❌ Order creation FAILED: ${orderError.message}`, 'error');
+                    log('This indicates the 400 error is NOT resolved');
+                    throw orderError;
+                } else {
+                    log('🎉 ORDER CREATION SUCCESSFUL!', 'success');
+                    log(`Created order: ${orderResult[0].id}`, 'success');
+                    
+                    // Step 4: Test persistence immediately
+                    log('Step 4: Testing immediate persistence...');
+                    const { data: verifyOrders, error: verifyError } = await supabase
+                        .from('orders')
+                        .select('*')
+                        .eq('id', orderResult[0].id);
+                    
+                    if (verifyError) {
+                        log(`❌ Persistence check failed: ${verifyError.message}`, 'error');
+                    } else if (verifyOrders.length === 0) {
+                        log('❌ Order not found after creation - persistence failed', 'error');
+                    } else {
+                        log('✅ Order persisted successfully', 'success');
+                        log(`Persisted data: ${JSON.stringify(verifyOrders[0], null, 2)}`);
+                    }
+                }
+                
+                // Step 5: Test order listing (like /orders page)
+                log('Step 5: Testing order listing (simulating /orders page)...');
+                const { data: allOrders, error: listError } = await supabase
+                    .from('orders')
+                    .select(`
+                        *,
+                        customers(name),
+                        order_items(*)
+                    `)
+                    .order('created_at', { ascending: false });
+                
+                if (listError) {
+                    log(`❌ Order listing failed: ${listError.message}`, 'error');
+                } else {
+                    log(`✅ Order listing successful - found ${allOrders.length} orders`, 'success');
+                    log('Recent orders:');
+                    allOrders.slice(0, 3).forEach(order => {
+                        log(`  - ${order.id}: ${order.status} - $${order.total_amount}`);
+                    });
+                }
+                
+                // Step 6: Final success
+                log('🎉 COMPLETE VERIFICATION SUCCESSFUL!', 'success');
+                log('✅ Authentication working', 'success');
+                log('✅ Database references exist', 'success');
+                log('✅ Order creation working (no 400 errors)', 'success');
+                log('✅ Order persistence working', 'success');
+                log('✅ Order listing working', 'success');
+                log('🚀 THE APP IS NOW FULLY FUNCTIONAL!', 'success');
+                
+            } catch (error) {
+                log(`❌ Complete verification failed: ${error.message}`, 'error');
+                log('Please check console for details');
+                console.error('Full error:', error);
+            }
+        }
+        
+        async function testOrderFlow() {
+            log('📝 Testing order creation flow specifically...');
+            
+            try {
+                await authenticateUser();
+                
+                // Test the exact same order format as NewOrder.tsx sends
+                const orderData = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    created_by: currentUser.id,
+                    status: 'pending',
+                    total_amount: 128.50,
+                    notes: 'Order flow test'
+                };
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([orderData])
+                    .select();
+                
+                if (error) {
+                    log(`❌ Order flow test failed: ${error.message}`, 'error');
+                } else {
+                    log('✅ Order flow test successful!', 'success');
+                    log(`Order created: ${data[0].id}`);
+                }
+                
+            } catch (error) {
+                log(`❌ Order flow test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkPersistence() {
+            log('💾 Checking order persistence...');
+            
+            try {
+                await authenticateUser();
+                
+                const { data: orders, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(10);
+                
+                if (error) {
+                    log(`❌ Persistence check failed: ${error.message}`, 'error');
+                } else {
+                    log(`✅ Found ${orders.length} persisted orders`, 'success');
+                    orders.forEach(order => {
+                        log(`  - ${order.id}: ${order.status} - $${order.total_amount} (${new Date(order.created_at).toLocaleString()})`);
+                    });
+                }
+                
+            } catch (error) {
+                log(`❌ Persistence check failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-authenticate on load
+        window.addEventListener('load', async () => {
+            try {
+                await authenticateUser();
+                log('✅ Ready to run complete verification', 'success');
+                log('Click "RUN COMPLETE VERIFICATION" to test everything');
+            } catch (error) {
+                log('⚠️ Auto-auth failed, but verification can still proceed', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supabase Database Test</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #1a1a1a; color: #00ff00; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; background: #2a2a2a; }
+        .success { color: #00ff00; }
+        .error { color: #ff4444; }
+        .warning { color: #ffaa00; }
+        .info { color: #4488ff; }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            background: #333; 
+            color: #00ff00; 
+            border: 1px solid #555; 
+            cursor: pointer; 
+        }
+        button:hover { background: #444; }
+        pre { 
+            background: #111; 
+            padding: 10px; 
+            overflow-x: auto; 
+            border: 1px solid #333; 
+            white-space: pre-wrap; 
+        }
+        .status-indicator { 
+            display: inline-block; 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            margin-right: 8px; 
+        }
+        .status-success { background: #00ff00; }
+        .status-error { background: #ff4444; }
+        .status-warning { background: #ffaa00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Supabase Database Test</h1>
+        
+        <div class="section">
+            <h2>Database Connection</h2>
+            <div id="connectionStatus"></div>
+            <button onclick="testConnection()">🔗 Test Connection</button>
+        </div>
+
+        <div class="section">
+            <h2>Authentication</h2>
+            <div id="authStatus"></div>
+            <button onclick="testAuth()">🔐 Test Auth</button>
+            <button onclick="signInTestUser()">👤 Sign In Test User</button>
+        </div>
+
+        <div class="section">
+            <h2>Database Tables</h2>
+            <div id="tablesStatus"></div>
+            <button onclick="checkTables()">🗄️ Check Tables</button>
+            <button onclick="createTables()">🛠️ Create Tables</button>
+        </div>
+
+        <div class="section">
+            <h2>Data Operations</h2>
+            <div id="dataOperations"></div>
+            <button onclick="testDataOperations()">💾 Test CRUD</button>
+            <button onclick="testCustomerFlow()">👥 Test Customer Flow</button>
+        </div>
+
+        <div class="section">
+            <h2>RLS Policies</h2>
+            <div id="rlsStatus"></div>
+            <button onclick="checkRLSPolicies()">🛡️ Check Policies</button>
+        </div>
+
+        <div class="section">
+            <h2>Live Logs</h2>
+            <pre id="logs"></pre>
+            <button onclick="clearLogs()">🗑️ Clear Logs</button>
+        </div>
+    </div>
+
+    <script>
+        // Supabase credentials
+        const SUPABASE_URL = 'https://qeiyxwuyhetnrnundpep.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak';
+
+        let supabase;
+        let currentUser = null;
+
+        // Logging
+        let logElement = document.getElementById('logs');
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = `[${timestamp}] ${type.toUpperCase()}: ${message}\n`;
+            logElement.textContent += logLine;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[${type}]`, message);
+        }
+
+        function clearLogs() {
+            logElement.textContent = '';
+        }
+
+        // Initialize Supabase
+        async function initSupabase() {
+            try {
+                const { createClient } = await import('https://cdn.skypack.dev/@supabase/supabase-js');
+                supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                log('Supabase client initialized', 'success');
+                return true;
+            } catch (error) {
+                log(`Failed to initialize Supabase: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Test connection
+        async function testConnection() {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.innerHTML = 'Testing connection...';
+            
+            log('Testing Supabase connection...');
+            
+            if (!supabase && !(await initSupabase())) {
+                statusEl.innerHTML = '<div class="error">❌ Failed to initialize Supabase client</div>';
+                return;
+            }
+
+            try {
+                // Test basic connection with a simple query
+                const { data, error } = await supabase.from('_test_connection').select('*').limit(1);
+                
+                // This will likely fail, but we're checking the type of error
+                if (error) {
+                    if (error.message.includes('relation') && error.message.includes('does not exist')) {
+                        statusEl.innerHTML = '<div class="success">✅ Connected to Supabase (test table not found is expected)</div>';
+                        log('Successfully connected to Supabase database', 'success');
+                    } else if (error.message.includes('JWT')) {
+                        statusEl.innerHTML = '<div class="error">❌ Authentication token invalid</div>';
+                        log(`Auth token error: ${error.message}`, 'error');
+                    } else {
+                        statusEl.innerHTML = `<div class="warning">⚠️ Connected but got error: ${error.message}</div>`;
+                        log(`Connection warning: ${error.message}`, 'warning');
+                    }
+                } else {
+                    statusEl.innerHTML = '<div class="success">✅ Fully connected to Supabase</div>';
+                    log('Perfect Supabase connection', 'success');
+                }
+            } catch (error) {
+                statusEl.innerHTML = `<div class="error">❌ Connection failed: ${error.message}</div>`;
+                log(`Connection error: ${error.message}`, 'error');
+            }
+        }
+
+        // Test authentication
+        async function testAuth() {
+            const statusEl = document.getElementById('authStatus');
+            statusEl.innerHTML = 'Testing authentication...';
+            
+            log('Testing Supabase authentication...');
+            
+            if (!supabase && !(await initSupabase())) {
+                statusEl.innerHTML = '<div class="error">❌ No Supabase client</div>';
+                return;
+            }
+
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    statusEl.innerHTML = `<div class="error">❌ Auth error: ${error.message}</div>`;
+                    log(`Auth error: ${error.message}`, 'error');
+                } else if (user) {
+                    currentUser = user;
+                    statusEl.innerHTML = `
+                        <div class="success">✅ User authenticated</div>
+                        <div class="info">Email: ${user.email}</div>
+                        <div class="info">ID: ${user.id}</div>
+                        <div class="info">Created: ${new Date(user.created_at).toLocaleDateString()}</div>
+                    `;
+                    log(`Authenticated user: ${user.email} (${user.id})`, 'success');
+                } else {
+                    statusEl.innerHTML = '<div class="warning">⚠️ No authenticated user</div>';
+                    log('No user currently authenticated', 'warning');
+                }
+            } catch (error) {
+                statusEl.innerHTML = `<div class="error">❌ Auth check failed: ${error.message}</div>`;
+                log(`Auth check error: ${error.message}`, 'error');
+            }
+        }
+
+        // Sign in test user
+        async function signInTestUser() {
+            log('Attempting to sign in test user...');
+            
+            if (!supabase && !(await initSupabase())) {
+                return;
+            }
+
+            try {
+                // Try to sign up/in with a test account
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'test@ivrelife.com',
+                    password: 'testpassword123'
+                });
+
+                if (error) {
+                    log(`Sign in failed: ${error.message}`, 'error');
+                    
+                    // If sign in failed, try to sign up
+                    log('Sign in failed, trying to sign up...');
+                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                        email: 'test@ivrelife.com',
+                        password: 'testpassword123'
+                    });
+
+                    if (signUpError) {
+                        log(`Sign up also failed: ${signUpError.message}`, 'error');
+                    } else {
+                        log('Sign up successful, check email for confirmation', 'success');
+                    }
+                } else {
+                    log(`Sign in successful: ${data.user.email}`, 'success');
+                    currentUser = data.user;
+                    await testAuth(); // Refresh auth status
+                }
+            } catch (error) {
+                log(`Sign in error: ${error.message}`, 'error');
+            }
+        }
+
+        // Check tables
+        async function checkTables() {
+            const statusEl = document.getElementById('tablesStatus');
+            statusEl.innerHTML = 'Checking database tables...';
+            
+            log('Checking database table structure...');
+            
+            if (!supabase && !(await initSupabase())) {
+                statusEl.innerHTML = '<div class="error">❌ No Supabase client</div>';
+                return;
+            }
+
+            const tables = [
+                'customers',
+                'user_storage',
+                'orders',
+                'products',
+                'retailers',
+                'locations',
+                'fulfillments',
+                'shipping_providers'
+            ];
+
+            let results = '<h3>Table Status:</h3>';
+            
+            for (const table of tables) {
+                try {
+                    const { data, error } = await supabase.from(table).select('*').limit(1);
+                    
+                    if (error) {
+                        if (error.message.includes('relation') && error.message.includes('does not exist')) {
+                            results += `<div class="error">❌ ${table}: Table does not exist</div>`;
+                            log(`Table ${table} does not exist`, 'error');
+                        } else if (error.message.includes('permission')) {
+                            results += `<div class="warning">⚠️ ${table}: Permission denied (table exists but RLS blocks access)</div>`;
+                            log(`Table ${table} exists but permission denied`, 'warning');
+                        } else {
+                            results += `<div class="warning">⚠️ ${table}: ${error.message}</div>`;
+                            log(`Table ${table} error: ${error.message}`, 'warning');
+                        }
+                    } else {
+                        results += `<div class="success">✅ ${table}: Accessible (${data?.length || 0} records visible)</div>`;
+                        log(`Table ${table} is accessible with ${data?.length || 0} records`, 'success');
+                    }
+                } catch (error) {
+                    results += `<div class="error">❌ ${table}: Exception - ${error.message}</div>`;
+                    log(`Table ${table} exception: ${error.message}`, 'error');
+                }
+            }
+
+            statusEl.innerHTML = results;
+        }
+
+        // Create tables
+        async function createTables() {
+            log('Creating database tables...');
+            
+            if (!supabase && !(await initSupabase())) {
+                return;
+            }
+
+            // This would need to be run with admin privileges
+            // For now, we'll just provide the SQL that needs to be run
+            const sql = `
+-- Create customers table
+CREATE TABLE IF NOT EXISTS customers (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    retailer_id UUID,
+    primary_location_id UUID,
+    name TEXT NOT NULL,
+    email TEXT,
+    phone TEXT,
+    default_address JSONB,
+    notes TEXT,
+    external_ids JSONB DEFAULT '{}'::jsonb,
+    created_by UUID,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create user_storage table
+CREATE TABLE IF NOT EXISTS user_storage (
+    id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id UUID NOT NULL,
+    storage_key TEXT NOT NULL,
+    data JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, storage_key)
+);
+
+-- Enable RLS
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_storage ENABLE ROW LEVEL SECURITY;
+
+-- Create policies
+CREATE POLICY "Users can access their own customer data" ON customers
+    FOR ALL USING (created_by = auth.uid());
+
+CREATE POLICY "Users can access their own storage" ON user_storage
+    FOR ALL USING (user_id = auth.uid());
+            `;
+
+            const statusEl = document.getElementById('tablesStatus');
+            statusEl.innerHTML = `
+                <div class="info">📋 SQL to run in Supabase SQL Editor:</div>
+                <pre>${sql}</pre>
+                <div class="warning">⚠️ This SQL must be run manually in the Supabase dashboard</div>
+                <div class="info">Go to: Supabase Dashboard → SQL Editor → New Query → Paste the above SQL → Run</div>
+            `;
+            
+            log('Generated SQL for table creation. Must be run manually in Supabase dashboard.', 'info');
+        }
+
+        // Test data operations
+        async function testDataOperations() {
+            const statusEl = document.getElementById('dataOperations');
+            statusEl.innerHTML = 'Testing data operations...';
+            
+            log('Testing CRUD operations...');
+            
+            if (!supabase && !(await initSupabase())) {
+                statusEl.innerHTML = '<div class="error">❌ No Supabase client</div>';
+                return;
+            }
+
+            if (!currentUser) {
+                statusEl.innerHTML = '<div class="warning">⚠️ No authenticated user. Sign in first.</div>';
+                log('No authenticated user for data operations', 'warning');
+                return;
+            }
+
+            let results = '<h3>CRUD Test Results:</h3>';
+
+            // Test 1: user_storage operations
+            try {
+                log('Testing user_storage table operations...');
+                
+                const testData = {
+                    test: 'crud-test',
+                    timestamp: new Date().toISOString(),
+                    customers: ['test-customer-1', 'test-customer-2']
+                };
+
+                // INSERT
+                const { data: insertData, error: insertError } = await supabase
+                    .from('user_storage')
+                    .upsert({
+                        user_id: currentUser.id,
+                        storage_key: 'test-customers',
+                        data: JSON.stringify(testData),
+                        updated_at: new Date().toISOString()
+                    })
+                    .select();
+
+                if (insertError) {
+                    results += `<div class="error">❌ INSERT failed: ${insertError.message}</div>`;
+                    log(`user_storage INSERT error: ${insertError.message}`, 'error');
+                } else {
+                    results += `<div class="success">✅ INSERT successful</div>`;
+                    log('user_storage INSERT successful', 'success');
+
+                    // SELECT
+                    const { data: selectData, error: selectError } = await supabase
+                        .from('user_storage')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .eq('storage_key', 'test-customers')
+                        .single();
+
+                    if (selectError) {
+                        results += `<div class="error">❌ SELECT failed: ${selectError.message}</div>`;
+                        log(`user_storage SELECT error: ${selectError.message}`, 'error');
+                    } else {
+                        const retrievedData = JSON.parse(selectData.data);
+                        const dataMatches = JSON.stringify(retrievedData) === JSON.stringify(testData);
+                        
+                        if (dataMatches) {
+                            results += `<div class="success">✅ SELECT successful - data integrity verified</div>`;
+                            log('user_storage SELECT successful with data integrity', 'success');
+                        } else {
+                            results += `<div class="warning">⚠️ SELECT successful but data corruption detected</div>`;
+                            log('user_storage data corruption detected', 'warning');
+                        }
+
+                        // DELETE (cleanup)
+                        const { error: deleteError } = await supabase
+                            .from('user_storage')
+                            .delete()
+                            .eq('user_id', currentUser.id)
+                            .eq('storage_key', 'test-customers');
+
+                        if (deleteError) {
+                            log(`user_storage DELETE error: ${deleteError.message}`, 'warning');
+                        } else {
+                            log('user_storage DELETE successful (cleanup)', 'success');
+                        }
+                    }
+                }
+            } catch (error) {
+                results += `<div class="error">❌ user_storage test exception: ${error.message}</div>`;
+                log(`user_storage test exception: ${error.message}`, 'error');
+            }
+
+            // Test 2: customers table operations  
+            try {
+                log('Testing customers table operations...');
+                
+                const testCustomer = {
+                    name: 'Test Customer CRUD',
+                    email: 'testcrud@example.com',
+                    phone: '555-TEST-CRUD',
+                    created_by: currentUser.id
+                };
+
+                // INSERT
+                const { data: insertData, error: insertError } = await supabase
+                    .from('customers')
+                    .insert(testCustomer)
+                    .select()
+                    .single();
+
+                if (insertError) {
+                    results += `<div class="error">❌ customers INSERT failed: ${insertError.message}</div>`;
+                    log(`customers INSERT error: ${insertError.message}`, 'error');
+                } else {
+                    results += `<div class="success">✅ customers INSERT successful</div>`;
+                    log('customers INSERT successful', 'success');
+
+                    // SELECT
+                    const { data: selectData, error: selectError } = await supabase
+                        .from('customers')
+                        .select('*')
+                        .eq('id', insertData.id)
+                        .single();
+
+                    if (selectError) {
+                        results += `<div class="error">❌ customers SELECT failed: ${selectError.message}</div>`;
+                        log(`customers SELECT error: ${selectError.message}`, 'error');
+                    } else {
+                        results += `<div class="success">✅ customers SELECT successful</div>`;
+                        log('customers SELECT successful', 'success');
+
+                        // DELETE (cleanup)
+                        const { error: deleteError } = await supabase
+                            .from('customers')
+                            .delete()
+                            .eq('id', insertData.id);
+
+                        if (deleteError) {
+                            log(`customers DELETE error: ${deleteError.message}`, 'warning');
+                        } else {
+                            log('customers DELETE successful (cleanup)', 'success');
+                        }
+                    }
+                }
+            } catch (error) {
+                results += `<div class="error">❌ customers test exception: ${error.message}</div>`;
+                log(`customers test exception: ${error.message}`, 'error');
+            }
+
+            statusEl.innerHTML = results;
+        }
+
+        // Test customer flow
+        async function testCustomerFlow() {
+            log('Testing complete customer flow...');
+            
+            if (!currentUser) {
+                log('No authenticated user for customer flow test', 'warning');
+                return;
+            }
+
+            try {
+                // Simulate the app's customer flow
+                const mockCustomers = [
+                    {
+                        id: 'cust-' + Date.now(),
+                        name: 'Flow Test Customer 1',
+                        email: 'flow1@test.com',
+                        created_by: currentUser.id
+                    },
+                    {
+                        id: 'cust-' + (Date.now() + 1),
+                        name: 'Flow Test Customer 2', 
+                        email: 'flow2@test.com',
+                        created_by: currentUser.id
+                    }
+                ];
+
+                // Save to user_storage (simulating smart persistence)
+                const { error: storageError } = await supabase
+                    .from('user_storage')
+                    .upsert({
+                        user_id: currentUser.id,
+                        storage_key: 'customers',
+                        data: JSON.stringify({
+                            data: mockCustomers,
+                            timestamp: Date.now(),
+                            userId: currentUser.id,
+                            version: '1.0'
+                        }),
+                        updated_at: new Date().toISOString()
+                    });
+
+                if (storageError) {
+                    log(`Customer flow - storage error: ${storageError.message}`, 'error');
+                } else {
+                    log('Customer flow - data saved to user_storage', 'success');
+
+                    // Retrieve from user_storage
+                    const { data: retrievedData, error: retrieveError } = await supabase
+                        .from('user_storage')
+                        .select('data')
+                        .eq('user_id', currentUser.id)
+                        .eq('storage_key', 'customers')
+                        .single();
+
+                    if (retrieveError) {
+                        log(`Customer flow - retrieve error: ${retrieveError.message}`, 'error');
+                    } else {
+                        const parsedData = JSON.parse(retrievedData.data);
+                        const customers = parsedData.data;
+                        
+                        log(`Customer flow - retrieved ${customers.length} customers`, 'success');
+                        log(`Customer names: ${customers.map(c => c.name).join(', ')}`, 'info');
+
+                        // Cleanup
+                        await supabase
+                            .from('user_storage')
+                            .delete()
+                            .eq('user_id', currentUser.id)
+                            .eq('storage_key', 'customers');
+
+                        log('Customer flow test completed and cleaned up', 'success');
+                    }
+                }
+            } catch (error) {
+                log(`Customer flow exception: ${error.message}`, 'error');
+            }
+        }
+
+        // Check RLS policies
+        async function checkRLSPolicies() {
+            const statusEl = document.getElementById('rlsStatus');
+            statusEl.innerHTML = 'Checking RLS policies...';
+            
+            log('Checking Row Level Security policies...');
+            
+            if (!supabase && !(await initSupabase())) {
+                statusEl.innerHTML = '<div class="error">❌ No Supabase client</div>';
+                return;
+            }
+
+            // This requires admin access to check policies directly
+            // Instead, we'll test if RLS is working by trying operations
+            
+            let results = '<h3>RLS Policy Test:</h3>';
+            
+            if (!currentUser) {
+                results += '<div class="warning">⚠️ No authenticated user. Sign in to test RLS policies.</div>';
+                statusEl.innerHTML = results;
+                return;
+            }
+
+            try {
+                // Test user_storage RLS
+                const { data, error } = await supabase
+                    .from('user_storage')
+                    .select('*')
+                    .eq('user_id', currentUser.id);
+
+                if (error) {
+                    results += `<div class="error">❌ user_storage RLS test failed: ${error.message}</div>`;
+                    log(`user_storage RLS error: ${error.message}`, 'error');
+                } else {
+                    results += `<div class="success">✅ user_storage RLS working (accessed ${data.length} records)</div>`;
+                    log(`user_storage RLS working with ${data.length} records`, 'success');
+                }
+
+                // Test customers RLS  
+                const { data: customerData, error: customerError } = await supabase
+                    .from('customers')
+                    .select('*');
+
+                if (customerError) {
+                    results += `<div class="error">❌ customers RLS test failed: ${customerError.message}</div>`;
+                    log(`customers RLS error: ${customerError.message}`, 'error');
+                } else {
+                    results += `<div class="success">✅ customers RLS working (accessed ${customerData.length} records)</div>`;
+                    log(`customers RLS working with ${customerData.length} records`, 'success');
+                }
+
+            } catch (error) {
+                results += `<div class="error">❌ RLS test exception: ${error.message}</div>`;
+                log(`RLS test exception: ${error.message}`, 'error');
+            }
+
+            statusEl.innerHTML = results;
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', async () => {
+            log('Supabase Database Test loaded');
+            await initSupabase();
+            await testConnection();
+        });
+    </script>
+</body>
+</html>

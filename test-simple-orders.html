@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple Orders - IV RELIFE Nexus</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            background: #ecf0f1;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #27ae60; font-weight: bold; }
+        .error { color: #e74c3c; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Test Simple Orders Store</h1>
+        
+        <div>
+            <h3>Quick Test</h3>
+            <button onclick="testOrderStore()">Test Order Store</button>
+            <button onclick="createTestOrder()">Create Test Order</button>
+            <button onclick="listAllOrders()">List All Orders</button>
+            <button onclick="clearResults()">Clear Results</button>
+            <div class="result" id="test-result"></div>
+        </div>
+
+        <div>
+            <h3>Navigation</h3>
+            <button onclick="goToOrders()">Go to /orders</button>
+            <button onclick="goToNewOrder()">Go to /orders/new</button>
+        </div>
+    </div>
+    
+    <script type="module">
+        function log(message, isError = false) {
+            const resultDiv = document.getElementById('test-result');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = isError ? 'error' : 'success';
+            resultDiv.innerHTML += `<span class="${className}">[${timestamp}]</span> ${message}\n`;
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+
+        async function testOrderStore() {
+            try {
+                log('🧪 Testing simple order store...');
+                
+                const { simpleOrderStore } = await import('/src/lib/simple-order-store.ts');
+                
+                const initialCount = simpleOrderStore.getCount();
+                log(`Initial order count: ${initialCount}`);
+                
+                const orders = simpleOrderStore.getOrders();
+                log(`Orders in store: ${orders.length}`);
+                
+                orders.forEach((order, index) => {
+                    log(`${index + 1}. ${order.id} - $${order.total_amount} (${order.status})`);
+                });
+                
+                log('✅ Order store test completed');
+                
+            } catch (error) {
+                log(`❌ Order store test failed: ${error.message}`, true);
+            }
+        }
+
+        async function createTestOrder() {
+            try {
+                log('🚀 Creating test order...');
+                
+                const { simpleOrderStore } = await import('/src/lib/simple-order-store.ts');
+                
+                const testOrder = {
+                    customer_id: `cust-test-${Date.now()}`,
+                    total_amount: 199.99,
+                    status: 'pending',
+                    items: [
+                        { product: 'Test Product', qty: 1, price: 199.99 }
+                    ]
+                };
+                
+                const newOrder = simpleOrderStore.addOrder(testOrder);
+                log(`✅ Order created: ${newOrder.id}`);
+                log(`New order count: ${simpleOrderStore.getCount()}`);
+                
+                // List updated orders
+                await listAllOrders();
+                
+            } catch (error) {
+                log(`❌ Order creation failed: ${error.message}`, true);
+            }
+        }
+
+        async function listAllOrders() {
+            try {
+                log('📋 Listing all orders...');
+                
+                const { simpleOrderStore } = await import('/src/lib/simple-order-store.ts');
+                
+                const orders = simpleOrderStore.getOrders();
+                log(`Total orders: ${orders.length}`);
+                
+                if (orders.length === 0) {
+                    log('No orders found');
+                    return;
+                }
+                
+                orders.forEach((order, index) => {
+                    log(`${index + 1}. ${order.id}`);
+                    log(`   Customer: ${order.customer_id}`);
+                    log(`   Amount: $${order.total_amount}`);
+                    log(`   Status: ${order.status}`);
+                    log(`   Created: ${order.created_at}`);
+                    log('   ---');
+                });
+                
+            } catch (error) {
+                log(`❌ List orders failed: ${error.message}`, true);
+            }
+        }
+
+        function goToOrders() {
+            window.open('/orders', '_blank');
+        }
+
+        function goToNewOrder() {
+            window.open('/orders/new', '_blank');
+        }
+
+        function clearResults() {
+            document.getElementById('test-result').innerHTML = '';
+        }
+
+        // Make functions available globally
+        window.testOrderStore = testOrderStore;
+        window.createTestOrder = createTestOrder;
+        window.listAllOrders = listAllOrders;
+        window.goToOrders = goToOrders;
+        window.goToNewOrder = goToNewOrder;
+        window.clearResults = clearResults;
+
+        // Auto-run initial test
+        setTimeout(testOrderStore, 1000);
+    </script>
+</body>
+</html>

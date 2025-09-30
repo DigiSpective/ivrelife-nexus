@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Order Flow Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #111; color: #0f0; }
+        button { margin: 10px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; }
+        pre { background: #000; padding: 10px; border: 1px solid #333; }
+        .step { margin: 20px 0; padding: 10px; border: 1px solid #666; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Simple Order Flow Test</h1>
+    
+    <div class="step">
+        <h2>Step 1: Auth & Create Order</h2>
+        <button onclick="signInAndCreateOrder()">Sign In & Create Order</button>
+        <pre id="createResult"></pre>
+    </div>
+    
+    <div class="step">
+        <h2>Step 2: Load Orders</h2>
+        <button onclick="loadOrders()">Load Orders from DB</button>
+        <pre id="loadResult"></pre>
+    </div>
+    
+    <div class="step">
+        <h2>Step 3: Test App API</h2>
+        <button onclick="testAppAPI()">Test App getOrders Function</button>
+        <pre id="apiResult"></pre>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://fhqgqhzwrnogwdqovbay.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocWdxaHp3cm5vZ3dkcW92YmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY2MzkzNDAsImV4cCI6MjA0MjIxNTM0MH0.mwdRPcFCp8qQBw_WTPPz4v8lJYrAnHYB6ByU5Y3-aao'
+        );
+        
+        let currentUser = null;
+        let createdOrderId = null;
+
+        async function signInAndCreateOrder() {
+            try {
+                document.getElementById('createResult').textContent = 'Signing in...\n';
+                
+                // Sign in
+                const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (authError) throw authError;
+                
+                currentUser = authData.user;
+                document.getElementById('createResult').textContent += `✅ Signed in as: ${currentUser.email}\nUser ID: ${currentUser.id}\n\n`;
+                
+                // Create simple order
+                createdOrderId = `simple-test-${Date.now()}`;
+                const orderData = {
+                    id: createdOrderId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'simple-customer-123',
+                    status: 'pending',
+                    total_amount: 99.99,
+                    items: JSON.stringify([{ product: 'Simple Test Product', qty: 1, price: 99.99 }]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                document.getElementById('createResult').textContent += 'Creating order...\n';
+                
+                const { data: orderResult, error: orderError } = await supabase
+                    .from('orders')
+                    .insert(orderData)
+                    .select()
+                    .single();
+                
+                if (orderError) throw orderError;
+                
+                document.getElementById('createResult').textContent += `✅ Order created: ${orderResult.id}\n`;
+                document.getElementById('createResult').textContent += `Order data: ${JSON.stringify(orderResult, null, 2)}\n`;
+                
+            } catch (error) {
+                document.getElementById('createResult').textContent += `❌ Error: ${error.message}\n${JSON.stringify(error, null, 2)}`;
+            }
+        }
+
+        async function loadOrders() {
+            if (!currentUser) {
+                document.getElementById('loadResult').textContent = '❌ Please sign in first';
+                return;
+            }
+            
+            try {
+                document.getElementById('loadResult').textContent = 'Loading orders...\n';
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                document.getElementById('loadResult').textContent += `✅ Found ${data.length} orders\n`;
+                document.getElementById('loadResult').textContent += `Orders: ${JSON.stringify(data, null, 2)}\n`;
+                
+                // Check if our created order is in the results
+                if (createdOrderId) {
+                    const foundOrder = data.find(order => order.id === createdOrderId);
+                    if (foundOrder) {
+                        document.getElementById('loadResult').textContent += `\n✅ Our created order IS in the results!\n`;
+                    } else {
+                        document.getElementById('loadResult').textContent += `\n❌ Our created order is NOT in the results\n`;
+                    }
+                }
+                
+            } catch (error) {
+                document.getElementById('loadResult').textContent += `❌ Error: ${error.message}\n${JSON.stringify(error, null, 2)}`;
+            }
+        }
+
+        async function testAppAPI() {
+            try {
+                document.getElementById('apiResult').textContent = 'Testing app API methods...\n';
+                
+                // Try to simulate what the app does
+                // First, check what getOrders returns by inspecting the network requests
+                // This would need to be tested in the actual app context
+                
+                document.getElementById('apiResult').textContent += 'This test would need to be run in the app context\n';
+                document.getElementById('apiResult').textContent += 'Check browser dev tools Network tab when loading /orders page\n';
+                document.getElementById('apiResult').textContent += 'Look for any API calls or errors\n';
+                
+            } catch (error) {
+                document.getElementById('apiResult').textContent += `❌ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

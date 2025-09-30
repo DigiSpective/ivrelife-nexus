@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Admin Authentication</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+        .button:hover { background: #2563eb; }
+        .button.success { background: #10b981; }
+        .button.danger { background: #dc2626; }
+        .log {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+        .status.success { background: #dcfce7; color: #166534; }
+        .status.error { background: #fef2f2; color: #dc2626; }
+        .status.warning { background: #fef3c7; color: #d97706; }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔐 Test Admin Authentication</h1>
+        <p>Verify admin@iv-relife.com can sign in and access data</p>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 1: Sign In as Admin</h2>
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" value="admin@iv-relife.com" readonly>
+        </div>
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" value="123456789">
+        </div>
+        <button class="button" onclick="signInAdmin()">Sign In</button>
+        <div id="authStatus" class="status">Ready to sign in</div>
+        <div id="authLog" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 2: Test Data Access</h2>
+        <button class="button" onclick="testDataAccess()">Test Data Access</button>
+        <div id="dataStatus" class="status">Waiting for authentication</div>
+        <div id="dataLog" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 3: Create Test Order</h2>
+        <button class="button" onclick="createTestOrder()">Create Test Order</button>
+        <div id="orderStatus" class="status">Waiting for authentication</div>
+        <div id="orderLog" class="log"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Step 4: Test Persistence</h2>
+        <button class="button danger" onclick="testPersistence()">Refresh Page & Test</button>
+        <div id="persistStatus" class="status">Ready to test</div>
+        <div id="persistLog" class="log"></div>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://fhqgqhzwrnogwdqovbay.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocWdxaHp3cm5vZ3dkcW92YmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY2MzkzNDAsImV4cCI6MjA0MjIxNTM0MH0.mwdRPcFCp8qQBw_WTPPz4v8lJYrAnHYB6ByU5Y3-aao';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentUser = null;
+        let testOrderId = null;
+
+        // Logging utility
+        function log(elementId, message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            const logMessage = `[${timestamp}] ${prefix} ${message}`;
+            
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML += logMessage + '\n';
+                element.scrollTop = element.scrollHeight;
+            }
+            
+            console.log(logMessage);
+        }
+
+        function setStatus(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.className = `status ${status}`;
+                element.textContent = message;
+            }
+        }
+
+        // Sign in as admin
+        async function signInAdmin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            log('authLog', `Attempting to sign in as ${email}...`);
+            setStatus('authStatus', 'warning', 'Signing in...');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                if (data.user) {
+                    currentUser = data.user;
+                    setStatus('authStatus', 'success', '✅ Signed in successfully');
+                    log('authLog', `✅ Successfully signed in as ${data.user.email}`, 'success');
+                    log('authLog', `User ID: ${data.user.id}`);
+                    log('authLog', `Session: ${data.session ? 'Active' : 'None'}`);
+                    
+                    // Enable other test buttons
+                    document.querySelectorAll('button').forEach(btn => {
+                        if (btn.textContent !== 'Sign In') {
+                            btn.disabled = false;
+                        }
+                    });
+                } else {
+                    throw new Error('No user data returned');
+                }
+                
+            } catch (error) {
+                setStatus('authStatus', 'error', '❌ Sign in failed');
+                log('authLog', `❌ Sign in failed: ${error.message}`, 'error');
+                
+                // If user doesn't exist, show helpful message
+                if (error.message.includes('Invalid login credentials')) {
+                    log('authLog', '💡 User may not exist. Run setup-admin-user-auth.sql in Supabase first!', 'warning');
+                }
+            }
+        }
+
+        // Test data access
+        async function testDataAccess() {
+            if (!currentUser) {
+                log('dataLog', '❌ No authenticated user. Sign in first.', 'error');
+                return;
+            }
+            
+            log('dataLog', 'Testing data access with authenticated user...');
+            setStatus('dataStatus', 'warning', 'Testing...');
+            
+            try {
+                // Test orders table access
+                const { data: orders, error: ordersError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id);
+                
+                if (ordersError) {
+                    log('dataLog', `❌ Orders access error: ${ordersError.message}`, 'error');
+                } else {
+                    log('dataLog', `✅ Orders access successful: ${orders?.length || 0} orders found`, 'success');
+                }
+                
+                // Test claims table access
+                const { data: claims, error: claimsError } = await supabase
+                    .from('claims')
+                    .select('*')
+                    .eq('created_by', currentUser.id);
+                
+                if (claimsError) {
+                    log('dataLog', `❌ Claims access error: ${claimsError.message}`, 'error');
+                } else {
+                    log('dataLog', `✅ Claims access successful: ${claims?.length || 0} claims found`, 'success');
+                }
+                
+                // Test shipments table access
+                const { data: shipments, error: shipmentsError } = await supabase
+                    .from('shipments')
+                    .select('*')
+                    .eq('created_by', currentUser.id);
+                
+                if (shipmentsError) {
+                    log('dataLog', `❌ Shipments access error: ${shipmentsError.message}`, 'error');
+                } else {
+                    log('dataLog', `✅ Shipments access successful: ${shipments?.length || 0} shipments found`, 'success');
+                }
+                
+                setStatus('dataStatus', 'success', '✅ Data access tested');
+                
+            } catch (error) {
+                setStatus('dataStatus', 'error', '❌ Data access failed');
+                log('dataLog', `❌ Data access test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Create test order
+        async function createTestOrder() {
+            if (!currentUser) {
+                log('orderLog', '❌ No authenticated user. Sign in first.', 'error');
+                return;
+            }
+            
+            log('orderLog', 'Creating test order with authenticated user...');
+            setStatus('orderStatus', 'warning', 'Creating...');
+            
+            try {
+                const testOrder = {
+                    id: `auth-test-order-${Date.now()}`,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: `auth-test-customer-${Date.now()}`,
+                    status: 'pending',
+                    total_amount: 399.99,
+                    items: JSON.stringify([
+                        { product: 'Auth Test Product', qty: 1, price: 399.99 }
+                    ]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('orderLog', `Creating order: ${testOrder.id}`);
+                log('orderLog', `User ID: ${currentUser.id}`);
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert(testOrder)
+                    .select()
+                    .single();
+                
+                if (error) {
+                    throw error;
+                }
+                
+                testOrderId = data.id;
+                setStatus('orderStatus', 'success', '✅ Order created');
+                log('orderLog', `✅ Order created successfully: ${data.id}`, 'success');
+                log('orderLog', `Order details: ${JSON.stringify(data, null, 2)}`);
+                
+            } catch (error) {
+                setStatus('orderStatus', 'error', '❌ Order creation failed');
+                log('orderLog', `❌ Order creation failed: ${error.message}`, 'error');
+                
+                if (error.message.includes('permission denied') || error.message.includes('RLS')) {
+                    log('orderLog', '💡 RLS policy may be blocking access. Check database policies!', 'warning');
+                }
+            }
+        }
+
+        // Test persistence across page refresh
+        async function testPersistence() {
+            log('persistLog', 'Testing persistence across page refresh...');
+            
+            if (testOrderId) {
+                log('persistLog', `Test order ID to check: ${testOrderId}`);
+                localStorage.setItem('testOrderId', testOrderId);
+            }
+            
+            if (currentUser) {
+                log('persistLog', `Current user ID: ${currentUser.id}`);
+                localStorage.setItem('currentUserId', currentUser.id);
+            }
+            
+            log('persistLog', '🔄 Refreshing page in 3 seconds to test persistence...');
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        }
+
+        // Check for persistence test results on page load
+        window.addEventListener('load', async () => {
+            const savedOrderId = localStorage.getItem('testOrderId');
+            const savedUserId = localStorage.getItem('currentUserId');
+            
+            if (savedOrderId && savedUserId) {
+                log('persistLog', '🔍 Checking persistence after page refresh...');
+                log('persistLog', `Looking for order: ${savedOrderId}`);
+                log('persistLog', `Previous user ID: ${savedUserId}`);
+                
+                try {
+                    // Check current auth state
+                    const { data: { user } } = await supabase.auth.getUser();
+                    
+                    if (user) {
+                        log('persistLog', `✅ User session persisted: ${user.id}`, 'success');
+                        currentUser = user;
+                        
+                        // Check if our test order persists
+                        const { data, error } = await supabase
+                            .from('orders')
+                            .select('*')
+                            .eq('id', savedOrderId)
+                            .eq('created_by', user.id)
+                            .single();
+                        
+                        if (error) {
+                            log('persistLog', `❌ Order not found: ${error.message}`, 'error');
+                            setStatus('persistStatus', 'error', '❌ Persistence failed');
+                        } else {
+                            log('persistLog', `✅ Order persisted successfully: ${data.id}`, 'success');
+                            setStatus('persistStatus', 'success', '✅ Persistence working!');
+                        }
+                    } else {
+                        log('persistLog', '❌ User session lost after refresh', 'error');
+                        setStatus('persistStatus', 'error', '❌ Auth not persisted');
+                    }
+                } catch (error) {
+                    log('persistLog', `❌ Persistence test failed: ${error.message}`, 'error');
+                }
+                
+                // Clean up
+                localStorage.removeItem('testOrderId');
+                localStorage.removeItem('currentUserId');
+            }
+        });
+
+        // Check initial auth state
+        window.addEventListener('load', async () => {
+            setTimeout(async () => {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    log('authLog', `👤 Found existing session: ${user.email}`, 'success');
+                    currentUser = user;
+                    setStatus('authStatus', 'success', '✅ Already signed in');
+                } else {
+                    log('authLog', 'ℹ️ No existing session. Please sign in.');
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>

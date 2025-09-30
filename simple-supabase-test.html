@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Supabase Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        button { margin: 10px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Simple Supabase Connection Test</h1>
+    
+    <button onclick="testBasicConnection()">Test Basic Connection</button>
+    <button onclick="testAuth()">Test Auth</button>
+    <button onclick="testTable()">Test Table Access</button>
+    
+    <pre id="output"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : '#0f0';
+            output.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        // Create a simple, direct Supabase client
+        let client;
+        
+        try {
+            client = window.supabase.createClient(
+                'https://qeiyxwuyhetnrnundpep.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+            );
+            log('✅ Supabase client created successfully', 'success');
+        } catch (error) {
+            log(`❌ Failed to create Supabase client: ${error.message}`, 'error');
+        }
+        
+        async function testBasicConnection() {
+            log('Testing basic connection...');
+            
+            try {
+                // Try a simple query that should work regardless of table existence
+                const { data, error } = await client.rpc('version');
+                
+                if (error) {
+                    log(`Connection test result: ${error.message}`, 'error');
+                } else {
+                    log('✅ Basic connection successful', 'success');
+                    log(`Database version: ${JSON.stringify(data)}`);
+                }
+            } catch (error) {
+                log(`❌ Connection test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAuth() {
+            log('Testing authentication...');
+            
+            try {
+                // Try to get current session
+                const { data: session, error } = await client.auth.getSession();
+                
+                if (error) {
+                    log(`❌ Auth test failed: ${error.message}`, 'error');
+                } else {
+                    log('✅ Auth system accessible', 'success');
+                    log(`Current session: ${session.session ? 'Active' : 'None'}`);
+                    
+                    // Try to sign up/sign in
+                    log('Attempting to sign in as admin@iv-relife.com...');
+                    
+                    const { data: signInData, error: signInError } = await client.auth.signInWithPassword({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789'
+                    });
+                    
+                    if (signInError) {
+                        log(`Sign in failed: ${signInError.message}`);
+                        
+                        log('Attempting to sign up...');
+                        const { data: signUpData, error: signUpError } = await client.auth.signUp({
+                            email: 'admin@iv-relife.com',
+                            password: '123456789'
+                        });
+                        
+                        if (signUpError) {
+                            log(`❌ Sign up failed: ${signUpError.message}`, 'error');
+                        } else {
+                            log('✅ Sign up successful', 'success');
+                            log(`User: ${signUpData.user?.email}`);
+                        }
+                    } else {
+                        log('✅ Sign in successful', 'success');
+                        log(`User: ${signInData.user.email}`);
+                    }
+                }
+            } catch (error) {
+                log(`❌ Auth test exception: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testTable() {
+            log('Testing table access...');
+            
+            try {
+                // Test orders table access
+                const { data, error, count } = await client
+                    .from('orders')
+                    .select('*', { count: 'exact' })
+                    .limit(1);
+                
+                if (error) {
+                    log(`Table access result: ${error.message}`);
+                    
+                    if (error.code === 'PGRST204' || error.message.includes('does not exist')) {
+                        log('⚠️ Orders table does not exist - need to create tables', 'error');
+                    } else if (error.message.includes('permission')) {
+                        log('⚠️ Permission denied - RLS policies may be blocking access', 'error');
+                    }
+                } else {
+                    log('✅ Orders table accessible', 'success');
+                    log(`Total orders: ${count}`);
+                    log(`Sample data: ${JSON.stringify(data, null, 2)}`);
+                }
+                
+            } catch (error) {
+                log(`❌ Table test exception: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

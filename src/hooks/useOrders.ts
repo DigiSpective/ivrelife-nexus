@@ -12,13 +12,13 @@ export const useOrders = (filters?: {
     queryKey: ['orders', filters],
     queryFn: () => {
       const timestamp = new Date().toISOString();
-      console.log(`[${timestamp}] useOrders queryFn called`);
+      console.log(`[${timestamp}] useOrders queryFn called - loading from persistence`);
       return getOrders();
     },
-    // Prevent automatic refetches that could overwrite our direct updates
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    // Allow refetch on mount to load persisted data
+    staleTime: 1 * 60 * 1000, // 1 minute - shorter to ensure fresh data
+    refetchOnMount: true, // CRITICAL: Allow refetch on page load to get persisted data
+    refetchOnWindowFocus: false, // Keep this false to avoid too many requests
   });
 };
 
@@ -40,27 +40,29 @@ export const useCreateOrder = () => {
     },
     onSuccess: async (data) => {
       console.log('Order created successfully:', data);
-      console.log('Directly updating React Query cache...');
-      
-      // Get current orders data from cache
-      const currentData = queryClient.getQueryData(['orders', undefined]) as { data: Order[] | null } | undefined;
-      console.log('Current cached orders data:', currentData);
       
       if (data.data) {
-        // Handle the case where currentData.data might be null or undefined
-        const existingOrders = currentData?.data || [];
-        const updatedData = {
-          data: [...existingOrders, data.data],
-          error: null
-        };
-        
-        // Set the new data directly
-        queryClient.setQueryData(['orders', undefined], updatedData);
-        console.log('Cache updated directly with new order:', updatedData);
+        console.log('Invalidating orders queries to refresh from persistence...');
+        try {
+          // Invalidate and refetch ALL orders queries (with any filters)
+          await queryClient.invalidateQueries({ 
+            predicate: (query) => query.queryKey[0] === 'orders'
+          });
+          
+          // Force immediate refetch of all orders queries
+          await queryClient.refetchQueries({ 
+            predicate: (query) => query.queryKey[0] === 'orders'
+          });
+          console.log('✅ All orders queries invalidated and refetched - UI should update immediately');
+        } catch (error) {
+          console.error('❌ Failed to refresh orders list:', error);
+          // Still consider the mutation successful since order was created
+        }
       }
-      
-      // NOT using invalidateQueries to prevent race conditions like with customers
-      console.log('Direct cache update complete - NOT running fallback invalidation');
+    },
+    onError: (error) => {
+      console.error('❌ Order creation failed:', error);
+      // Error will be handled by the UI component using the mutation error state
     },
   });
 };

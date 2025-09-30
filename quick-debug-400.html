@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Debug 400</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { margin: 10px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+    </style>
+</head>
+<body>
+    <h1>🚨 Quick Debug 400 Error</h1>
+    
+    <button onclick="debugExactIssue()">Debug the Exact 400 Error</button>
+    <button onclick="createAllReferences()">Create All Missing References</button>
+    <pre id="log"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function debugExactIssue() {
+            log('🔍 Debugging the exact 400 error...');
+            
+            try {
+                // Authenticate first
+                const { data: authData } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                const user = authData.user;
+                if (!user) {
+                    log('❌ Authentication failed', 'error');
+                    return;
+                }
+                
+                log(`✅ Authenticated as: ${user.email}`);
+                
+                // Test the exact data format from the console log
+                log('Testing exact order data format from app...');
+                
+                // This is the EXACT format being sent by the app (customer_id from console log)
+                const exactOrderData = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2', // This is from the console log
+                    created_by: user.id,
+                    status: 'pending',
+                    subtotal_amount: 100.00,
+                    tax_amount: 8.00,
+                    total_amount: 108.00,
+                    notes: ''
+                };
+                
+                log('Attempting order creation with EXACT app data:');
+                log(JSON.stringify(exactOrderData, null, 2));
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([exactOrderData])
+                    .select()
+                    .single();
+                
+                if (error) {
+                    log(`❌ EXACT SAME ERROR: ${error.message}`, 'error');
+                    log(`Error code: ${error.code}`, 'error');
+                    log(`Error hint: ${error.hint || 'No hint'}`, 'error');
+                    log(`Full error: ${JSON.stringify(error, null, 2)}`, 'error');
+                    
+                    // Check specific constraints
+                    if (error.message.includes('retailer_id')) {
+                        log('🔍 Retailer constraint issue detected', 'warning');
+                        await checkRetailer();
+                    }
+                    if (error.message.includes('customer_id')) {
+                        log('🔍 Customer constraint issue detected', 'warning');
+                        await checkCustomer();
+                    }
+                } else {
+                    log(`✅ Order created successfully: ${data.id}`, 'success');
+                    log('The issue might be intermittent or environmental');
+                }
+                
+            } catch (error) {
+                log(`❌ Debug exception: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkRetailer() {
+            log('Checking retailer_id: 550e8400-e29b-41d4-a716-446655440000');
+            const { data, error } = await supabase
+                .from('retailers')
+                .select('*')
+                .eq('id', '550e8400-e29b-41d4-a716-446655440000');
+            
+            if (error) {
+                log(`❌ Retailer check failed: ${error.message}`, 'error');
+            } else if (data.length === 0) {
+                log('❌ Retailer does NOT exist!', 'error');
+            } else {
+                log(`✅ Retailer exists: ${data[0].name}`, 'success');
+            }
+        }
+        
+        async function checkCustomer() {
+            log('Checking customer_id: dc0abfde-8588-4107-ab9b-1d5f2a91bce2');
+            const { data, error } = await supabase
+                .from('customers')
+                .select('*')
+                .eq('id', 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2');
+            
+            if (error) {
+                log(`❌ Customer check failed: ${error.message}`, 'error');
+            } else if (data.length === 0) {
+                log('❌ Customer does NOT exist!', 'error');
+            } else {
+                log(`✅ Customer exists: ${data[0].name}`, 'success');
+            }
+        }
+        
+        async function createAllReferences() {
+            log('🛠️ Creating all missing references...');
+            
+            try {
+                // Authenticate
+                const { data: authData } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                // Create retailer
+                log('Creating retailer...');
+                const { error: retailerError } = await supabase
+                    .from('retailers')
+                    .upsert([{
+                        id: '550e8400-e29b-41d4-a716-446655440000',
+                        name: 'IV ReLife Main Retailer',
+                        email: 'admin@iv-relife.com',
+                        phone: '555-0123',
+                        address: '123 Main St',
+                        city: 'Test City',
+                        state: 'CA',
+                        zip: '12345',
+                        country: 'USA'
+                    }]);
+                
+                if (retailerError) {
+                    log(`❌ Retailer creation failed: ${retailerError.message}`, 'error');
+                } else {
+                    log('✅ Retailer created/updated', 'success');
+                }
+                
+                // Create customer
+                log('Creating customer...');
+                const { error: customerError } = await supabase
+                    .from('customers')
+                    .upsert([{
+                        id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                        retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                        name: 'Test Customer',
+                        email: 'customer@example.com',
+                        phone: '555-0124'
+                    }]);
+                
+                if (customerError) {
+                    log(`❌ Customer creation failed: ${customerError.message}`, 'error');
+                } else {
+                    log('✅ Customer created/updated', 'success');
+                }
+                
+                log('🎉 All references created! Try the order creation again in the app.', 'success');
+                
+            } catch (error) {
+                log(`❌ Reference creation failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            setTimeout(debugExactIssue, 1000);
+        });
+    </script>
+</body>
+</html>

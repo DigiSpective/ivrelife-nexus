@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Enum Issue</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { margin: 10px; padding: 15px 30px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; font-size: 16px; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .super-button { background: #006600; border: 3px solid #00ff00; font-weight: bold; font-size: 18px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Enum Issue</h1>
+    <p>This will identify exactly why "completed" is being set</p>
+    
+    <button class="super-button" onclick="debugEnumIssue()">🚀 DEBUG ENUM ISSUE</button>
+    <button onclick="testAllStatusValues()">📋 Test All Status Values</button>
+    <button onclick="checkTableSchema()">🔍 Check Table Schema</button>
+    
+    <pre id="log"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        let currentUser;
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function authenticateUser() {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: 'admin@iv-relife.com',
+                password: '123456789'
+            });
+            
+            if (error) {
+                throw error;
+            }
+            
+            currentUser = data.user;
+            return data.user;
+        }
+        
+        async function debugEnumIssue() {
+            log('🔍 DEBUGGING ENUM ISSUE...', 'warning');
+            
+            try {
+                await authenticateUser();
+                log('✅ Authentication successful', 'success');
+                
+                // First, let's check what happens when we insert with no status at all
+                log('Test 1: Insert with NO status field...');
+                const noStatusOrder = {
+                    total_amount: 1.00,
+                    notes: 'Test with no status'
+                };
+                
+                const { data: result1, error: error1 } = await supabase
+                    .from('orders')
+                    .insert([noStatusOrder])
+                    .select();
+                
+                if (error1) {
+                    log(\`❌ No status test failed: \${error1.message}\`, 'error');
+                    log(\`Error details: \${JSON.stringify(error1, null, 2)}\`);
+                } else {
+                    log('✅ No status test succeeded!', 'success');
+                    log(\`Result: \${JSON.stringify(result1[0], null, 2)}\`);
+                    log(\`Actual status set: \${result1[0].status}\`);
+                }
+                
+                // Test each status value individually
+                const statusesToTest = ['draft', 'pending', 'new', 'processing', 'shipped', 'delivered', 'cancelled', 'returned', 'completed'];
+                
+                for (const status of statusesToTest) {
+                    log(\`Test: Insert with status '\${status}'...\`);
+                    
+                    const testOrder = {
+                        status: status,
+                        total_amount: 1.00,
+                        notes: \`Test with \${status} status\`
+                    };
+                    
+                    const { data: result, error } = await supabase
+                        .from('orders')
+                        .insert([testOrder])
+                        .select();
+                    
+                    if (error) {
+                        log(\`❌ Status '\${status}' failed: \${error.message}\`, 'error');
+                        
+                        // Let's see if it's really an enum error or something else
+                        if (error.message.includes('enum')) {
+                            log(\`  → This is an enum validation error\`, 'warning');
+                        } else if (error.message.includes('trigger')) {
+                            log(\`  → This is a trigger error\`, 'warning');
+                        } else if (error.message.includes('constraint')) {
+                            log(\`  → This is a constraint error\`, 'warning');
+                        } else if (error.message.includes('policy')) {
+                            log(\`  → This is an RLS policy error\`, 'warning');
+                        } else {
+                            log(\`  → Unknown error type\`, 'warning');
+                        }
+                    } else {
+                        log(\`✅ Status '\${status}' succeeded!\`, 'success');
+                        log(\`  → Actual status in DB: \${result[0].status}\`);
+                        
+                        // If the status changed, that's suspicious
+                        if (result[0].status !== status) {
+                            log(\`⚠️ WARNING: Status changed from '\${status}' to '\${result[0].status}'\`, 'warning');
+                            log(\`  → This suggests a trigger is modifying the status\`);
+                        }
+                    }
+                }
+                
+                log('🎯 ENUM DEBUG COMPLETED!', 'success');
+                
+            } catch (error) {
+                log(\`❌ Debug failed: \${error.message}\`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+        
+        async function testAllStatusValues() {
+            log('📋 Testing all possible status values...');
+            
+            try {
+                await authenticateUser();
+                
+                // Try to understand what the enum actually accepts
+                const statusesToTest = [
+                    'draft', 'pending', 'new', 'processing', 'shipped', 'delivered', 
+                    'cancelled', 'returned', 'completed', 'confirmed', 'in_progress',
+                    'active', 'inactive', 'failed', 'success', 'open', 'closed'
+                ];
+                
+                const workingStatuses = [];
+                const failingStatuses = [];
+                
+                for (const status of statusesToTest) {
+                    const testOrder = {
+                        id: \`test-\${Date.now()}-\${Math.random().toString(36).substr(2, 9)}\`,
+                        status: status,
+                        total_amount: 1.00
+                    };
+                    
+                    const { data, error } = await supabase
+                        .from('orders')
+                        .insert([testOrder])
+                        .select();
+                    
+                    if (error) {
+                        failingStatuses.push({ status, error: error.message });
+                        log(\`❌ '\${status}': \${error.message}\`, 'error');
+                    } else {
+                        workingStatuses.push({ status, actualStatus: data[0].status });
+                        log(\`✅ '\${status}': Works (actual: \${data[0].status})\`, 'success');
+                        
+                        // Clean up test order
+                        await supabase.from('orders').delete().eq('id', testOrder.id);
+                    }
+                }
+                
+                log('📊 SUMMARY:', 'warning');
+                log(\`Working statuses: \${workingStatuses.map(s => s.status).join(', ')}\`);
+                log(\`Failing statuses: \${failingStatuses.map(s => s.status).join(', ')}\`);
+                
+                if (workingStatuses.length > 0) {
+                    log('✅ Use one of the working statuses in the app', 'success');
+                } else {
+                    log('❌ No status values work - this is a serious database issue', 'error');
+                }
+                
+            } catch (error) {
+                log(\`❌ Test failed: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function checkTableSchema() {
+            log('🔍 Checking table schema and constraints...');
+            
+            try {
+                await authenticateUser();
+                
+                // Try to see what constraints exist on the orders table
+                // We can't directly query system tables, but we can infer from error messages
+                
+                log('Checking what happens with completely invalid data...');
+                
+                // Test 1: Try with null status
+                try {
+                    const { error } = await supabase
+                        .from('orders')
+                        .insert([{ status: null, total_amount: 1.00 }]);
+                    
+                    if (error) {
+                        log(\`NULL status error: \${error.message}\`);
+                    } else {
+                        log('NULL status allowed');
+                    }
+                } catch (e) {
+                    log(\`NULL status exception: \${e.message}\`);
+                }
+                
+                // Test 2: Try with empty string
+                try {
+                    const { error } = await supabase
+                        .from('orders')
+                        .insert([{ status: '', total_amount: 1.00 }]);
+                    
+                    if (error) {
+                        log(\`Empty status error: \${error.message}\`);
+                    } else {
+                        log('Empty status allowed');
+                    }
+                } catch (e) {
+                    log(\`Empty status exception: \${e.message}\`);
+                }
+                
+                // Test 3: Try with a definitely invalid enum value
+                try {
+                    const { error } = await supabase
+                        .from('orders')
+                        .insert([{ status: 'DEFINITELY_INVALID_STATUS_12345', total_amount: 1.00 }]);
+                    
+                    if (error) {
+                        log(\`Invalid status error: \${error.message}\`);
+                        
+                        // This error message should tell us about the enum
+                        if (error.message.includes('enum')) {
+                            const match = error.message.match(/enum[^\\s]*\\s*[^\\s]*\\s*\\(([^)]+)\\)/);
+                            if (match) {
+                                log(\`Valid enum values appear to be: \${match[1]}\`);
+                            }
+                        }
+                    } else {
+                        log('Invalid status was accepted - not an enum constraint');
+                    }
+                } catch (e) {
+                    log(\`Invalid status exception: \${e.message}\`);
+                }
+                
+            } catch (error) {
+                log(\`❌ Schema check failed: \${error.message}\`, 'error');
+            }
+        }
+        
+        // Auto-authenticate on load
+        window.addEventListener('load', async () => {
+            try {
+                await authenticateUser();
+                log('✅ Ready to debug enum issue', 'success');
+                log('Click "DEBUG ENUM ISSUE" to start investigation');
+            } catch (error) {
+                log('⚠️ Auto-auth failed, but debug can still proceed', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>

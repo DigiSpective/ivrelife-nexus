@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investigate Database Schema</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { margin: 10px; padding: 15px 30px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; font-size: 16px; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .big-button { background: #004400; border: 2px solid #00ff00; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Investigate Database Schema</h1>
+    
+    <button class="big-button" onclick="investigateSchema()">🔍 INVESTIGATE SCHEMA</button>
+    <button onclick="testMinimalData()">🧪 Test Minimal Data</button>
+    <button onclick="createWithCorrectSchema()">✅ Create with Correct Schema</button>
+    
+    <pre id="log"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        let currentUser;
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function authenticateUser() {
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email: 'admin@iv-relife.com',
+                password: '123456789'
+            });
+            
+            if (error) {
+                const { data: signupData, error: signupError } = await supabase.auth.signUp({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                if (signupData.user) {
+                    currentUser = signupData.user;
+                    return signupData.user;
+                }
+                throw signupError || error;
+            }
+            
+            currentUser = data.user;
+            return data.user;
+        }
+        
+        async function investigateSchema() {
+            log('🔍 INVESTIGATING DATABASE SCHEMA...', 'warning');
+            
+            try {
+                await authenticateUser();
+                log('✅ Authenticated successfully', 'success');
+                
+                // Check orders table structure by trying different approaches
+                log('🔍 Investigating orders table structure...');
+                
+                // Try to get any existing order to see the actual schema
+                const { data: existingOrders, error: ordersError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .limit(1);
+                
+                if (existingOrders && existingOrders.length > 0) {
+                    log('📋 ACTUAL ORDERS TABLE STRUCTURE:', 'success');
+                    log('Available columns in orders table:');
+                    Object.keys(existingOrders[0]).forEach(column => {
+                        log(`  - ${column}: ${typeof existingOrders[0][column]} (${existingOrders[0][column] === null ? 'null' : 'has value'})`);
+                    });
+                } else {
+                    log('⚠️ No existing orders found, testing with minimal data...', 'warning');
+                    
+                    // Try creating with minimal data to see what's required
+                    const minimalOrder = {
+                        id: \`schema-test-\${Date.now()}\`,
+                        status: 'pending'
+                    };
+                    
+                    const { data: testResult, error: testError } = await supabase
+                        .from('orders')
+                        .insert([minimalOrder])
+                        .select();
+                    
+                    if (testError) {
+                        log('❌ Minimal order test failed:', 'error');
+                        log(\`Error: \${testError.message}\`);
+                        log('This tells us about required fields and constraints');
+                    } else {
+                        log('✅ Minimal order created, structure:', 'success');
+                        log(JSON.stringify(testResult[0], null, 2));
+                    }
+                }
+                
+                // Check retailers table structure
+                log('🔍 Investigating retailers table structure...');
+                const { data: existingRetailers, error: retailersError } = await supabase
+                    .from('retailers')
+                    .select('*')
+                    .limit(1);
+                
+                if (existingRetailers && existingRetailers.length > 0) {
+                    log('📋 ACTUAL RETAILERS TABLE STRUCTURE:', 'success');
+                    log('Available columns in retailers table:');
+                    Object.keys(existingRetailers[0]).forEach(column => {
+                        log(\`  - \${column}: \${typeof existingRetailers[0][column]} (\${existingRetailers[0][column] === null ? 'null' : 'has value'})\`);
+                    });
+                } else {
+                    log('⚠️ No existing retailers found', 'warning');
+                }
+                
+                // Check customers table structure
+                log('🔍 Investigating customers table structure...');
+                const { data: existingCustomers, error: customersError } = await supabase
+                    .from('customers')
+                    .select('*')
+                    .limit(1);
+                
+                if (existingCustomers && existingCustomers.length > 0) {
+                    log('📋 ACTUAL CUSTOMERS TABLE STRUCTURE:', 'success');
+                    log('Available columns in customers table:');
+                    Object.keys(existingCustomers[0]).forEach(column => {
+                        log(\`  - \${column}: \${typeof existingCustomers[0][column]} (\${existingCustomers[0][column] === null ? 'null' : 'has value'})\`);
+                    });
+                } else {
+                    log('⚠️ No existing customers found', 'warning');
+                }
+                
+            } catch (error) {
+                log(\`❌ Schema investigation failed: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function testMinimalData() {
+            log('🧪 Testing with minimal data structures...');
+            
+            try {
+                await authenticateUser();
+                
+                // Test minimal retailer
+                log('Testing minimal retailer creation...');
+                const minimalRetailer = {
+                    id: '550e8400-e29b-41d4-a716-446655440000',
+                    name: 'Test Retailer'
+                };
+                
+                const { data: retailerResult, error: retailerError } = await supabase
+                    .from('retailers')
+                    .upsert([minimalRetailer])
+                    .select();
+                
+                if (retailerError) {
+                    log(\`❌ Minimal retailer failed: \${retailerError.message}\`, 'error');
+                } else {
+                    log('✅ Minimal retailer succeeded', 'success');
+                }
+                
+                // Test minimal customer
+                log('Testing minimal customer creation...');
+                const minimalCustomer = {
+                    id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    name: 'Test Customer'
+                };
+                
+                const { data: customerResult, error: customerError } = await supabase
+                    .from('customers')
+                    .upsert([minimalCustomer])
+                    .select();
+                
+                if (customerError) {
+                    log(\`❌ Minimal customer failed: \${customerError.message}\`, 'error');
+                } else {
+                    log('✅ Minimal customer succeeded', 'success');
+                }
+                
+                // Test minimal order
+                log('Testing minimal order creation...');
+                const minimalOrder = {
+                    id: \`minimal-\${Date.now()}\`,
+                    status: 'pending'
+                };
+                
+                const { data: orderResult, error: orderError } = await supabase
+                    .from('orders')
+                    .insert([minimalOrder])
+                    .select();
+                
+                if (orderError) {
+                    log(\`❌ Minimal order failed: \${orderError.message}\`, 'error');
+                    log('This tells us what fields are actually required');
+                } else {
+                    log('✅ Minimal order succeeded', 'success');
+                    log(\`Created: \${JSON.stringify(orderResult[0], null, 2)}\`);
+                }
+                
+            } catch (error) {
+                log(\`❌ Minimal data test failed: \${error.message}\`, 'error');
+            }
+        }
+        
+        async function createWithCorrectSchema() {
+            log('✅ Creating records with correct schema...');
+            
+            try {
+                await authenticateUser();
+                
+                // Based on investigation, create with only the fields that exist
+                log('Creating retailer with correct schema...');
+                const correctRetailer = {
+                    id: '550e8400-e29b-41d4-a716-446655440000',
+                    name: 'IV ReLife Main Retailer',
+                    email: 'admin@iv-relife.com'
+                    // Remove fields that don't exist: city, state, zip, etc.
+                };
+                
+                const { data: retailerResult, error: retailerError } = await supabase
+                    .from('retailers')
+                    .upsert([correctRetailer])
+                    .select();
+                
+                if (retailerError) {
+                    log(\`❌ Correct retailer failed: \${retailerError.message}\`, 'error');
+                } else {
+                    log('✅ Correct retailer created successfully', 'success');
+                }
+                
+                // Create customer with correct schema
+                log('Creating customer with correct schema...');
+                const correctCustomer = {
+                    id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    name: 'Test Customer',
+                    email: 'customer@example.com'
+                    // Remove fields that don't exist
+                };
+                
+                const { data: customerResult, error: customerError } = await supabase
+                    .from('customers')
+                    .upsert([correctCustomer])
+                    .select();
+                
+                if (customerError) {
+                    log(\`❌ Correct customer failed: \${customerError.message}\`, 'error');
+                } else {
+                    log('✅ Correct customer created successfully', 'success');
+                }
+                
+                // Create order with correct schema (no subtotal_amount, tax_amount)
+                log('Creating order with correct schema...');
+                const correctOrder = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    status: 'pending',
+                    total_amount: 108.00,
+                    created_by: currentUser.id
+                    // Remove fields that don't exist: subtotal_amount, tax_amount
+                };
+                
+                const { data: orderResult, error: orderError } = await supabase
+                    .from('orders')
+                    .insert([correctOrder])
+                    .select();
+                
+                if (orderError) {
+                    log(\`❌ Correct order failed: \${orderError.message}\`, 'error');
+                } else {
+                    log('🎉 CORRECT ORDER CREATED SUCCESSFULLY!', 'success');
+                    log(\`Order: \${JSON.stringify(orderResult[0], null, 2)}\`);
+                    log('The schema has been identified and fixed!', 'success');
+                }
+                
+            } catch (error) {
+                log(\`❌ Correct schema creation failed: \${error.message}\`, 'error');
+            }
+        }
+        
+        // Auto-authenticate on load
+        window.addEventListener('load', async () => {
+            try {
+                await authenticateUser();
+                log('✅ Ready to investigate schema', 'success');
+            } catch (error) {
+                log('⚠️ Auto-auth failed, but investigation can still proceed', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>

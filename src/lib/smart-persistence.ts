@@ -7,6 +7,7 @@
 import { checkPersistenceStatus, type PersistenceStatus } from './persistence-status';
 import { supabase } from './supabase';
 import { STORAGE_KEYS } from './persistent-storage';
+import { waitForAuth, getCurrentUserId, hasValidUserContext } from './auth-context-guard';
 
 export interface SmartPersistenceOptions {
   preferSupabase?: boolean;
@@ -37,7 +38,14 @@ export class SmartPersistenceManager {
   async get<T>(key: string, userId?: string): Promise<T | null> {
     await this.ensureInitialized();
     
-    console.log(`📖 SmartPersistence.get(${key}) for user:`, userId);
+    // If no userId provided, wait for auth and get current user
+    if (!userId) {
+      const currentUser = await waitForAuth();
+      userId = currentUser?.id;
+      console.log(`📖 SmartPersistence.get(${key}) - got userId from auth:`, userId);
+    } else {
+      console.log(`📖 SmartPersistence.get(${key}) for provided user:`, userId);
+    }
     
     // Strategy 1: Try Supabase if available and preferred
     if (this.options.preferSupabase && this.status?.supabaseUserStorage && userId) {
@@ -63,12 +71,21 @@ export class SmartPersistenceManager {
     // Strategy 2: Fall back to localStorage
     if (this.options.fallbackToLocalStorage && this.status?.localStorage) {
       try {
-        const storageKey = userId ? `${key}:${userId}` : key;
-        const stored = localStorage.getItem(storageKey);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          console.log(`✅ Retrieved from localStorage:`, key);
-          return parsed.data || parsed; // Handle both wrapped and unwrapped data
+        // Try multiple key formats for backward compatibility
+        const keyFormats = [
+          userId ? `iv-relife-${key}:${userId}` : `iv-relife-${key}`,
+          userId ? `${key}:${userId}` : key,
+          `iv-relife-${key}`,
+          key
+        ];
+        
+        for (const storageKey of keyFormats) {
+          const stored = localStorage.getItem(storageKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            console.log(`✅ Retrieved from localStorage with key:`, storageKey);
+            return parsed.data || parsed; // Handle both wrapped and unwrapped data
+          }
         }
       } catch (error) {
         console.warn(`❌ localStorage error for ${key}:`, error);
@@ -82,7 +99,14 @@ export class SmartPersistenceManager {
   async set<T>(key: string, value: T, userId?: string): Promise<boolean> {
     await this.ensureInitialized();
     
-    console.log(`💾 SmartPersistence.set(${key}) for user:`, userId);
+    // If no userId provided, wait for auth and get current user
+    if (!userId) {
+      const currentUser = await waitForAuth();
+      userId = currentUser?.id;
+      console.log(`💾 SmartPersistence.set(${key}) - got userId from auth:`, userId);
+    } else {
+      console.log(`💾 SmartPersistence.set(${key}) for provided user:`, userId);
+    }
     
     let supabaseSuccess = false;
     let localStorageSuccess = false;
@@ -120,10 +144,11 @@ export class SmartPersistenceManager {
     // Strategy 2: Always save to localStorage as backup
     if (this.status?.localStorage) {
       try {
-        const storageKey = userId ? `${key}:${userId}` : key;
+        // Use consistent key format: iv-relife-{key}:{userId}
+        const storageKey = userId ? `iv-relife-${key}:${userId}` : `iv-relife-${key}`;
         localStorage.setItem(storageKey, JSON.stringify(wrappedData));
         localStorageSuccess = true;
-        console.log(`✅ Saved to localStorage:`, key);
+        console.log(`✅ Saved to localStorage with key:`, storageKey);
       } catch (error) {
         console.warn(`❌ localStorage save error for ${key}:`, error);
       }

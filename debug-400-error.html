@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug 400 Error</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        button { margin: 10px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <h1>🐛 Debug 400 Error in Order Creation</h1>
+    
+    <div class="section">
+        <h2>Step 1: Check Database Schema</h2>
+        <button onclick="checkSchema()">Check Orders Table Schema</button>
+        <pre id="schema-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Test with Minimal Data</h2>
+        <button onclick="testMinimalOrder()">Test Minimal Order</button>
+        <pre id="minimal-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 3: Test with App Data Format</h2>
+        <button onclick="testAppFormatOrder()">Test App Format Order</button>
+        <pre id="app-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 4: Analyze Error Details</h2>
+        <button onclick="analyzeError()">Analyze Full Error</button>
+        <pre id="error-log"></pre>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        let currentUser;
+        
+        function log(section, message, type = 'info') {
+            const el = document.getElementById(`${section}-log`);
+            if (el) {
+                const timestamp = new Date().toLocaleTimeString();
+                const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+                el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+        
+        // Auto-authenticate on load
+        window.addEventListener('load', async () => {
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (data.user) {
+                    currentUser = data.user;
+                    console.log('Authenticated:', currentUser.id);
+                } else if (error) {
+                    console.log('Auth failed, trying signup...');
+                    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789'
+                    });
+                    if (signupData.user) {
+                        currentUser = signupData.user;
+                    }
+                }
+            } catch (error) {
+                console.error('Auto-auth failed:', error);
+            }
+        });
+        
+        async function checkSchema() {
+            log('schema', '🔍 Checking orders table schema...');
+            
+            try {
+                // Try to get table info by attempting to insert with invalid data
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .limit(0);
+                
+                log('schema', '✅ Orders table exists and is accessible', 'success');
+                
+                // Try to see what columns exist by selecting one row
+                const { data: sampleData, error: sampleError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .limit(1);
+                
+                if (sampleData && sampleData.length > 0) {
+                    log('schema', 'Sample order structure:');
+                    log('schema', JSON.stringify(sampleData[0], null, 2));
+                } else {
+                    log('schema', 'No existing orders to show structure');
+                }
+                
+            } catch (error) {
+                log('schema', `❌ Schema check failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testMinimalOrder() {
+            log('minimal', '🧪 Testing minimal order data...');
+            
+            if (!currentUser) {
+                log('minimal', '❌ Not authenticated', 'error');
+                return;
+            }
+            
+            try {
+                const minimalOrder = {
+                    id: `minimal-${Date.now()}`,
+                    status: 'pending',
+                    total_amount: 100.00,
+                    created_by: currentUser.id
+                };
+                
+                log('minimal', 'Attempting minimal order:');
+                log('minimal', JSON.stringify(minimalOrder, null, 2));
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([minimalOrder])
+                    .select()
+                    .single();
+                
+                if (error) {
+                    log('minimal', `❌ Minimal order failed: ${error.message}`, 'error');
+                    log('minimal', `Error details: ${JSON.stringify(error, null, 2)}`);
+                } else {
+                    log('minimal', '✅ Minimal order succeeded!', 'success');
+                    log('minimal', `Created: ${JSON.stringify(data, null, 2)}`);
+                }
+                
+            } catch (error) {
+                log('minimal', `❌ Exception: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAppFormatOrder() {
+            log('app', '🎯 Testing exact app format order...');
+            
+            if (!currentUser) {
+                log('app', '❌ Not authenticated', 'error');
+                return;
+            }
+            
+            try {
+                // This is the exact format from the console log
+                const appOrder = {
+                    id: `app-format-${Date.now()}`,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    status: 'pending',
+                    total_amount: 299.99,
+                    items: JSON.stringify([{
+                        product: 'Test Product',
+                        qty: 1,
+                        price: 299.99
+                    }]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('app', 'Attempting app format order:');
+                log('app', JSON.stringify(appOrder, null, 2));
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([appOrder])
+                    .select()
+                    .single();
+                
+                if (error) {
+                    log('app', `❌ App format order failed: ${error.message}`, 'error');
+                    log('app', `Error code: ${error.code}`);
+                    log('app', `Error details: ${JSON.stringify(error, null, 2)}`);
+                    
+                    // Try to identify specific issues
+                    if (error.message.includes('foreign key')) {
+                        log('app', '🔍 Foreign key constraint violation detected', 'warning');
+                        log('app', 'This suggests retailer_id or customer_id does not exist in referenced tables');
+                    }
+                    if (error.message.includes('check constraint')) {
+                        log('app', '🔍 Check constraint violation detected', 'warning');
+                        log('app', 'This suggests a data validation rule is being violated');
+                    }
+                    if (error.message.includes('not null')) {
+                        log('app', '🔍 Not null constraint violation detected', 'warning');
+                        log('app', 'This suggests a required field is missing');
+                    }
+                } else {
+                    log('app', '✅ App format order succeeded!', 'success');
+                    log('app', `Created: ${JSON.stringify(data, null, 2)}`);
+                }
+                
+            } catch (error) {
+                log('app', `❌ Exception: ${error.message}`, 'error');
+            }
+        }
+        
+        async function analyzeError() {
+            log('error', '🔍 Analyzing the exact 400 error...');
+            
+            if (!currentUser) {
+                log('error', '❌ Not authenticated', 'error');
+                return;
+            }
+            
+            try {
+                // Test each field individually to isolate the problem
+                log('error', 'Testing field by field...');
+                
+                // Test 1: Basic required fields
+                const basic = {
+                    id: `analyze-1-${Date.now()}`,
+                    status: 'pending',
+                    total_amount: 100,
+                    created_by: currentUser.id
+                };
+                
+                log('error', 'Test 1: Basic fields...');
+                const { error: error1 } = await supabase.from('orders').insert([basic]);
+                if (error1) {
+                    log('error', `❌ Basic fields failed: ${error1.message}`, 'error');
+                    return;
+                } else {
+                    log('error', '✅ Basic fields work', 'success');
+                }
+                
+                // Test 2: Add retailer_id
+                const withRetailer = {
+                    ...basic,
+                    id: `analyze-2-${Date.now()}`,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000'
+                };
+                
+                log('error', 'Test 2: Adding retailer_id...');
+                const { error: error2 } = await supabase.from('orders').insert([withRetailer]);
+                if (error2) {
+                    log('error', `❌ Retailer_id failed: ${error2.message}`, 'error');
+                    log('error', 'Problem: retailer_id constraint violation');
+                    return;
+                } else {
+                    log('error', '✅ Retailer_id works', 'success');
+                }
+                
+                // Test 3: Add customer_id
+                const withCustomer = {
+                    ...withRetailer,
+                    id: `analyze-3-${Date.now()}`,
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2'
+                };
+                
+                log('error', 'Test 3: Adding customer_id...');
+                const { error: error3 } = await supabase.from('orders').insert([withCustomer]);
+                if (error3) {
+                    log('error', `❌ Customer_id failed: ${error3.message}`, 'error');
+                    log('error', 'Problem: customer_id constraint violation');
+                    return;
+                } else {
+                    log('error', '✅ Customer_id works', 'success');
+                }
+                
+                // Test 4: Add items JSON
+                const withItems = {
+                    ...withCustomer,
+                    id: `analyze-4-${Date.now()}`,
+                    items: JSON.stringify([{ product: 'Test', qty: 1, price: 100 }])
+                };
+                
+                log('error', 'Test 4: Adding items JSON...');
+                const { error: error4 } = await supabase.from('orders').insert([withItems]);
+                if (error4) {
+                    log('error', `❌ Items JSON failed: ${error4.message}`, 'error');
+                    log('error', 'Problem: items field constraint violation');
+                    return;
+                } else {
+                    log('error', '✅ Items JSON works', 'success');
+                }
+                
+                log('error', '🎉 All individual tests passed!', 'success');
+                log('error', 'The 400 error might be intermittent or related to specific data values');
+                
+            } catch (error) {
+                log('error', `❌ Analysis exception: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

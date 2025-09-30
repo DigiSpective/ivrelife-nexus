@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Persistence Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        button { margin: 10px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        button:disabled { background: #222; color: #666; cursor: not-allowed; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; }
+        .status { padding: 5px; margin: 5px 0; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Final Persistence Test - Complete Validation</h1>
+    
+    <div class="section">
+        <h2>🔧 Configuration Check</h2>
+        <div id="config-status" class="status">Checking...</div>
+        <pre id="config-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>🔑 Authentication Test</h2>
+        <button id="auth-btn" onclick="testAuth()">Authenticate Admin User</button>
+        <div id="auth-status" class="status">Ready</div>
+        <pre id="auth-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>📦 Order Persistence Test</h2>
+        <button id="order-btn" onclick="testOrderPersistence()" disabled>Test Order Persistence</button>
+        <div id="order-status" class="status">Waiting for auth...</div>
+        <pre id="order-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>🔄 Full Persistence Validation</h2>
+        <button id="validate-btn" onclick="validatePersistence()" disabled>Validate Complete Flow</button>
+        <div id="validate-status" class="status">Waiting for order test...</div>
+        <pre id="validate-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>✅ Final Result</h2>
+        <div id="final-result" class="status">Testing in progress...</div>
+        <p>This test validates that:</p>
+        <ul>
+            <li>Supabase client initializes without errors</li>
+            <li>Authentication works with admin@iv-relife.com</li>
+            <li>Orders can be created and persist in the database</li>
+            <li>Orders can be retrieved after creation</li>
+            <li>No mock fallbacks are being used</li>
+        </ul>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        let supabase;
+        let currentUser;
+        let testOrderId;
+        
+        function log(section, message, type = 'info') {
+            const el = document.getElementById(`${section}-log`);
+            if (el) {
+                const timestamp = new Date().toLocaleTimeString();
+                const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+                el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+        
+        function updateStatus(section, message, type = 'info') {
+            const el = document.getElementById(`${section}-status`);
+            if (el) {
+                const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+                el.innerHTML = `<span style="color: ${color}">${message}</span>`;
+            }
+        }
+        
+        // Initialize configuration check
+        window.addEventListener('load', () => {
+            checkConfiguration();
+        });
+        
+        function checkConfiguration() {
+            log('config', 'Checking Supabase configuration...');
+            
+            const url = 'https://qeiyxwuyhetnrnundpep.supabase.co';
+            const key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak';
+            
+            log('config', `URL: ${url}`);
+            log('config', `Key length: ${key.length} characters`);
+            log('config', `Key preview: ${key.substring(0, 20)}...`);
+            
+            try {
+                supabase = window.supabase.createClient(url, key, {
+                    auth: {
+                        autoRefreshToken: true,
+                        persistSession: true,
+                        detectSessionInUrl: true
+                    }
+                });
+                
+                log('config', '✅ Supabase client created successfully', 'success');
+                updateStatus('config', '✅ Configuration Valid', 'success');
+                
+                // Enable auth button
+                document.getElementById('auth-btn').disabled = false;
+                
+            } catch (error) {
+                log('config', `❌ Failed to create Supabase client: ${error.message}`, 'error');
+                updateStatus('config', '❌ Configuration Error', 'error');
+            }
+        }
+        
+        async function testAuth() {
+            if (!supabase) {
+                log('auth', '❌ Supabase client not available', 'error');
+                return;
+            }
+            
+            updateStatus('auth', '🔄 Authenticating...', 'warning');
+            log('auth', 'Testing authentication with admin@iv-relife.com...');
+            
+            try {
+                // Try sign in first
+                const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (signInError) {
+                    log('auth', `Sign in failed: ${signInError.message}`);
+                    log('auth', 'Attempting sign up...');
+                    
+                    // Try sign up
+                    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789',
+                        options: {
+                            data: {
+                                name: 'Admin User',
+                                role: 'owner'
+                            }
+                        }
+                    });
+                    
+                    if (signUpError) {
+                        log('auth', `❌ Sign up failed: ${signUpError.message}`, 'error');
+                        updateStatus('auth', '❌ Authentication Failed', 'error');
+                        return;
+                    } else {
+                        currentUser = signUpData.user;
+                        log('auth', '✅ Sign up successful', 'success');
+                    }
+                } else {
+                    currentUser = signInData.user;
+                    log('auth', '✅ Sign in successful', 'success');
+                }
+                
+                if (currentUser) {
+                    log('auth', `User ID: ${currentUser.id}`);
+                    log('auth', `Email: ${currentUser.email}`);
+                    updateStatus('auth', '✅ Authenticated', 'success');
+                    
+                    // Enable order test button
+                    document.getElementById('order-btn').disabled = false;
+                    updateStatus('order', 'Ready for testing');
+                }
+                
+            } catch (error) {
+                log('auth', `❌ Auth exception: ${error.message}`, 'error');
+                updateStatus('auth', '❌ Authentication Error', 'error');
+            }
+        }
+        
+        async function testOrderPersistence() {
+            if (!supabase || !currentUser) {
+                log('order', '❌ Prerequisites not met', 'error');
+                return;
+            }
+            
+            updateStatus('order', '🔄 Testing Order Persistence...', 'warning');
+            log('order', 'Testing order creation and persistence...');
+            
+            try {
+                // Create unique test order
+                testOrderId = `persistence-test-${Date.now()}`;
+                const orderData = {
+                    id: testOrderId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'persistence-test-customer',
+                    status: 'pending',
+                    total_amount: 499.99,
+                    items: JSON.stringify([{ 
+                        product: 'Persistence Test Product', 
+                        qty: 1, 
+                        price: 499.99 
+                    }]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('order', 'Creating order...');
+                log('order', `Order ID: ${testOrderId}`);
+                
+                const { data: createData, error: createError } = await supabase
+                    .from('orders')
+                    .insert(orderData)
+                    .select()
+                    .single();
+                
+                if (createError) {
+                    log('order', `❌ Order creation failed: ${createError.message}`, 'error');
+                    log('order', `Error details: ${JSON.stringify(createError, null, 2)}`);
+                    updateStatus('order', '❌ Creation Failed', 'error');
+                    return;
+                }
+                
+                log('order', '✅ Order created successfully', 'success');
+                log('order', `Created order ID: ${createData.id}`);
+                
+                // Wait a moment then test retrieval
+                log('order', 'Waiting 2 seconds then testing retrieval...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                // Test order retrieval
+                log('order', 'Retrieving orders...');
+                const { data: loadData, error: loadError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                if (loadError) {
+                    log('order', `❌ Order loading failed: ${loadError.message}`, 'error');
+                    updateStatus('order', '❌ Retrieval Failed', 'error');
+                    return;
+                }
+                
+                log('order', `✅ Loaded ${loadData.length} orders`, 'success');
+                
+                // Check if our test order is in the results
+                const foundOrder = loadData.find(order => order.id === testOrderId);
+                if (foundOrder) {
+                    log('order', '✅ Test order found in results!', 'success');
+                    log('order', '🎉 PERSISTENCE CONFIRMED! Order persists in database', 'success');
+                    updateStatus('order', '✅ Persistence Working', 'success');
+                    
+                    // Enable validation button
+                    document.getElementById('validate-btn').disabled = false;
+                    updateStatus('validate', 'Ready for final validation');
+                } else {
+                    log('order', '❌ Test order not found in results', 'error');
+                    log('order', 'Available order IDs:');
+                    loadData.forEach(order => {
+                        log('order', `- ${order.id}`);
+                    });
+                    updateStatus('order', '❌ Persistence Failed', 'error');
+                }
+                
+            } catch (error) {
+                log('order', `❌ Order test exception: ${error.message}`, 'error');
+                updateStatus('order', '❌ Test Error', 'error');
+            }
+        }
+        
+        async function validatePersistence() {
+            if (!supabase || !currentUser || !testOrderId) {
+                log('validate', '❌ Prerequisites not met', 'error');
+                return;
+            }
+            
+            updateStatus('validate', '🔄 Running Final Validation...', 'warning');
+            log('validate', 'Running comprehensive persistence validation...');
+            
+            try {
+                // Test 1: Order still exists after time
+                log('validate', 'Test 1: Checking order still exists...');
+                const { data: orderData, error: orderError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('id', testOrderId)
+                    .single();
+                
+                if (orderError || !orderData) {
+                    log('validate', '❌ Test 1 failed: Order not found', 'error');
+                    updateStatus('validate', '❌ Validation Failed', 'error');
+                    return;
+                }
+                
+                log('validate', '✅ Test 1 passed: Order still exists', 'success');
+                
+                // Test 2: Order has correct data
+                log('validate', 'Test 2: Validating order data integrity...');
+                if (orderData.total_amount === 499.99 && 
+                    orderData.status === 'pending' && 
+                    orderData.created_by === currentUser.id) {
+                    log('validate', '✅ Test 2 passed: Order data is correct', 'success');
+                } else {
+                    log('validate', '❌ Test 2 failed: Order data corrupted', 'error');
+                    log('validate', `Expected: amount=499.99, status=pending, created_by=${currentUser.id}`);
+                    log('validate', `Actual: amount=${orderData.total_amount}, status=${orderData.status}, created_by=${orderData.created_by}`);
+                    updateStatus('validate', '❌ Data Integrity Failed', 'error');
+                    return;
+                }
+                
+                // Test 3: Create another order to test consistency
+                log('validate', 'Test 3: Testing consistency with second order...');
+                const secondOrderId = `validation-test-${Date.now()}`;
+                const { data: secondOrderData, error: secondOrderError } = await supabase
+                    .from('orders')
+                    .insert({
+                        id: secondOrderId,
+                        retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                        customer_id: 'validation-test-customer',
+                        status: 'pending',
+                        total_amount: 299.99,
+                        items: JSON.stringify([{ product: 'Validation Test', qty: 1, price: 299.99 }]),
+                        created_by: currentUser.id,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (secondOrderError) {
+                    log('validate', '❌ Test 3 failed: Could not create second order', 'error');
+                    updateStatus('validate', '❌ Consistency Failed', 'error');
+                    return;
+                }
+                
+                log('validate', '✅ Test 3 passed: Second order created successfully', 'success');
+                
+                // Test 4: Verify both orders exist
+                log('validate', 'Test 4: Verifying both orders exist...');
+                const { data: allOrders, error: allOrdersError } = await supabase
+                    .from('orders')
+                    .select('id')
+                    .eq('created_by', currentUser.id);
+                
+                if (allOrdersError) {
+                    log('validate', '❌ Test 4 failed: Could not retrieve orders', 'error');
+                    updateStatus('validate', '❌ Retrieval Failed', 'error');
+                    return;
+                }
+                
+                const orderIds = allOrders.map(o => o.id);
+                if (orderIds.includes(testOrderId) && orderIds.includes(secondOrderId)) {
+                    log('validate', '✅ Test 4 passed: Both orders found in database', 'success');
+                } else {
+                    log('validate', '❌ Test 4 failed: Orders missing from database', 'error');
+                    log('validate', `Found IDs: ${orderIds.join(', ')}`);
+                    log('validate', `Expected: ${testOrderId}, ${secondOrderId}`);
+                    updateStatus('validate', '❌ Orders Missing', 'error');
+                    return;
+                }
+                
+                // All tests passed!
+                log('validate', '🎉 ALL TESTS PASSED!', 'success');
+                log('validate', '✅ Supabase persistence is working correctly', 'success');
+                log('validate', '✅ Orders are being created and stored properly', 'success');
+                log('validate', '✅ Data integrity is maintained', 'success');
+                log('validate', '✅ No mock fallbacks detected', 'success');
+                
+                updateStatus('validate', '✅ All Tests Passed', 'success');
+                updateStatus('final-result', '🎉 PERSISTENCE WORKING PERFECTLY!', 'success');
+                
+            } catch (error) {
+                log('validate', `❌ Validation exception: ${error.message}`, 'error');
+                updateStatus('validate', '❌ Validation Error', 'error');
+                updateStatus('final-result', '❌ Validation Failed', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

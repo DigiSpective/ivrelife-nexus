@@ -1,17 +1,13 @@
 import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { User, AuthSession, AuthError, LoginCredentials, RegisterData } from '@/types';
-import { createSupabaseClient } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { setGlobalAuthState } from '@/lib/auth-context-guard';
 
-// Lazy Supabase client creation to prevent module-level blocking
-let supabaseInstance: ReturnType<typeof createSupabaseClient> | null = null;
+// Use the simplified supabase client directly
 const getSupabase = () => {
-  if (!supabaseInstance) {
-    console.log('[Auth] Creating Supabase client...');
-    supabaseInstance = createSupabaseClient();
-    console.log('[Auth] Supabase client created successfully');
-  }
-  return supabaseInstance;
+  console.log('[Auth] Using simplified Supabase client');
+  return supabase;
 };
 
 // Convert Supabase user to our User type
@@ -19,9 +15,9 @@ const mapUser = (supabaseUser: any): User => ({
   id: supabaseUser.id,
   email: supabaseUser.email,
   name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0] || 'User',
-  role: 'owner',
-  retailer_id: null,
-  location_id: null,
+  role: supabaseUser.user_metadata?.role || 'owner', // Use actual role from metadata
+  retailer_id: supabaseUser.user_metadata?.retailer_id || null,
+  location_id: supabaseUser.user_metadata?.location_id || null,
   avatar: supabaseUser.user_metadata?.avatar_url
 });
 
@@ -62,38 +58,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const initAuth = async () => {
       try {
-        // Check existing session with timeout protection
+        // Check existing session WITHOUT timeout to prevent premature failures
         const supabase = getSupabase();
         
-        // Add timeout to prevent hanging during auth init
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Auth initialization timeout')), 10000)
-        );
-        
-        const { data: { session }, error: sessionError } = await Promise.race([
-          sessionPromise, 
-          timeoutPromise
-        ]) as any;
+        // Get session with proper error handling but no artificial timeout
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
         if (!mounted) return;
 
         if (sessionError) {
           console.error('[Auth] Session error:', sessionError);
           setError({ message: sessionError.message });
+          setGlobalAuthState(null, true); // Auth is ready but no user
         } else if (session?.user) {
           console.log('[Auth] Found existing session:', session.user.email);
           const mappedUser = mapUser(session.user);
           setUser(mappedUser);
           setSession({ ...session, user: mappedUser });
           setError(null);
+          setGlobalAuthState(mappedUser, true); // Auth is ready with user
         } else {
-          console.log('[Auth] No existing session');
+          console.log('[Auth] No existing session found');
+          setUser(null);
+          setSession(null);
+          setError(null);
+          setGlobalAuthState(null, true); // Auth is ready but no user
         }
       } catch (err) {
         console.error('[Auth] Init error:', err);
         if (mounted) {
+          setUser(null);
+          setSession(null);
           setError({ message: 'Authentication initialization failed' });
+          setGlobalAuthState(null, true); // Auth ready but failed
         }
       } finally {
         if (mounted) {

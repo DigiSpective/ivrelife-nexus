@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Real App Flow</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        button { margin: 10px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        button:disabled { background: #222; color: #666; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; }
+        .status { padding: 5px; margin: 5px 0; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Real App Flow - Exact Simulation</h1>
+    
+    <div class="section">
+        <h2>📋 Test Status</h2>
+        <div id="overall-status" class="status">Ready to test</div>
+        <p>This test simulates exactly what the React app does internally</p>
+    </div>
+    
+    <div class="section">
+        <h2>Step 1: Initialize Supabase (Like AuthProvider)</h2>
+        <button onclick="initializeSupabase()">Initialize Supabase Client</button>
+        <div id="init-status" class="status">Waiting...</div>
+        <pre id="init-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Authenticate (Like Login Component)</h2>
+        <button id="auth-btn" onclick="authenticateUser()" disabled>Sign In admin@iv-relife.com</button>
+        <div id="auth-status" class="status">Need to initialize first</div>
+        <pre id="auth-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 3: Load Orders (Like useOrders Hook)</h2>
+        <button id="load-btn" onclick="loadOrders()" disabled>Load Existing Orders</button>
+        <div id="load-status" class="status">Need to authenticate first</div>
+        <pre id="load-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 4: Create Order (Like NewOrder Component)</h2>
+        <button id="create-btn" onclick="createNewOrder()" disabled>Create New Order</button>
+        <div id="create-status" class="status">Need to load orders first</div>
+        <pre id="create-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 5: Refresh Orders (Like Orders Page)</h2>
+        <button id="refresh-btn" onclick="refreshOrders()" disabled>Refresh Orders List</button>
+        <div id="refresh-status" class="status">Need to create order first</div>
+        <pre id="refresh-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>🎯 Final Result</h2>
+        <div id="final-status" class="status">Test in progress...</div>
+        <p>This will tell us if the persistence issue is:</p>
+        <ul>
+            <li>❌ In the Supabase connection itself</li>
+            <li>❌ In the authentication flow</li>
+            <li>❌ In the order creation logic</li>
+            <li>❌ In the order loading logic</li>
+            <li>✅ Somewhere else entirely</li>
+        </ul>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        let supabase;
+        let currentUser;
+        let testOrderId;
+        let initialOrderCount = 0;
+        
+        function log(section, message, type = 'info') {
+            const el = document.getElementById(`${section}-log`);
+            if (el) {
+                const timestamp = new Date().toLocaleTimeString();
+                const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+                el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+        
+        function updateStatus(section, message, type = 'info') {
+            const el = document.getElementById(`${section}-status`);
+            if (el) {
+                const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+                el.innerHTML = `<span style="color: ${color}">${message}</span>`;
+            }
+        }
+        
+        async function initializeSupabase() {
+            log('init', '🚀 Initializing Supabase client (exactly like AuthProvider)...');
+            updateStatus('init', '🔄 Initializing...', 'warning');
+            
+            try {
+                // Exactly as in supabase.ts
+                const supabaseUrl = 'https://qeiyxwuyhetnrnundpep.supabase.co';
+                const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak';
+                
+                log('init', `URL: ${supabaseUrl}`);
+                log('init', `Key length: ${supabaseAnonKey.length} chars`);
+                
+                supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey, {
+                    auth: {
+                        autoRefreshToken: true,
+                        persistSession: true,
+                        detectSessionInUrl: true
+                    }
+                });
+                
+                log('init', '✅ Supabase client created successfully', 'success');
+                updateStatus('init', '✅ Initialized', 'success');
+                
+                // Enable next step
+                document.getElementById('auth-btn').disabled = false;
+                updateStatus('auth', 'Ready to authenticate');
+                
+            } catch (error) {
+                log('init', `❌ Initialization failed: ${error.message}`, 'error');
+                updateStatus('init', '❌ Failed', 'error');
+                updateStatus('overall-status', '❌ Initialization Failed', 'error');
+            }
+        }
+        
+        async function authenticateUser() {
+            log('auth', '🔑 Authenticating user (exactly like AuthProvider signIn)...');
+            updateStatus('auth', '🔄 Authenticating...', 'warning');
+            
+            try {
+                // Exactly as in AuthProvider.tsx
+                const { data, error: authError } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (authError) {
+                    log('auth', `Sign in failed: ${authError.message}`);
+                    
+                    // Try signup exactly as in AuthProvider
+                    log('auth', 'Attempting signup...');
+                    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789',
+                        options: { 
+                            data: { 
+                                name: 'Admin User',
+                                role: 'owner'
+                            } 
+                        }
+                    });
+                    
+                    if (signupError) {
+                        log('auth', `❌ Signup failed: ${signupError.message}`, 'error');
+                        updateStatus('auth', '❌ Auth Failed', 'error');
+                        return;
+                    } else {
+                        currentUser = signupData.user;
+                        log('auth', '✅ Signup successful', 'success');
+                    }
+                } else {
+                    currentUser = data.user;
+                    log('auth', '✅ Sign in successful', 'success');
+                }
+                
+                if (currentUser) {
+                    log('auth', `User ID: ${currentUser.id}`);
+                    log('auth', `Email: ${currentUser.email}`);
+                    updateStatus('auth', '✅ Authenticated', 'success');
+                    
+                    // Enable next step
+                    document.getElementById('load-btn').disabled = false;
+                    updateStatus('load', 'Ready to load orders');
+                }
+                
+            } catch (error) {
+                log('auth', `❌ Authentication exception: ${error.message}`, 'error');
+                updateStatus('auth', '❌ Exception', 'error');
+                updateStatus('overall-status', '❌ Authentication Failed', 'error');
+            }
+        }
+        
+        async function loadOrders() {
+            log('load', '📦 Loading orders (exactly like useOrders hook)...');
+            updateStatus('load', '🔄 Loading...', 'warning');
+            
+            try {
+                // Exactly as in supabase.ts getOrders()
+                const result = await supabase.from('orders').select(\`
+                    *,
+                    customers(name),
+                    order_items(*)
+                \`);
+                
+                log('load', 'Supabase getOrders result:', result);
+                
+                if (result.error) {
+                    log('load', \`❌ Loading failed: \${result.error.message}\`, 'error');
+                    updateStatus('load', '❌ Load Failed', 'error');
+                    return;
+                }
+                
+                const orders = result.data || [];
+                initialOrderCount = orders.length;
+                
+                log('load', \`✅ Loaded \${orders.length} orders\`, 'success');
+                
+                if (orders.length > 0) {
+                    log('load', 'Existing orders:');
+                    orders.forEach((order, index) => {
+                        log('load', \`  \${index + 1}. \${order.id} - \${order.status} - $\${order.total_amount}\`);
+                    });
+                } else {
+                    log('load', 'No existing orders found');
+                }
+                
+                updateStatus('load', \`✅ Loaded \${orders.length} orders\`, 'success');
+                
+                // Enable next step
+                document.getElementById('create-btn').disabled = false;
+                updateStatus('create', 'Ready to create order');
+                
+            } catch (error) {
+                log('load', \`❌ Loading exception: \${error.message}\`, 'error');
+                updateStatus('load', '❌ Exception', 'error');
+                updateStatus('overall-status', '❌ Loading Failed', 'error');
+            }
+        }
+        
+        async function createNewOrder() {
+            log('create', '📝 Creating new order (exactly like NewOrder component)...');
+            updateStatus('create', '🔄 Creating...', 'warning');
+            
+            try {
+                // Exactly as in supabase.ts createOrder()
+                testOrderId = \`flow-test-\${Date.now()}\`;
+                const orderData = {
+                    id: testOrderId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'flow-test-customer',
+                    status: 'pending',
+                    total_amount: 699.99,
+                    items: JSON.stringify([{ 
+                        product: 'Flow Test Product', 
+                        qty: 1, 
+                        price: 699.99 
+                    }]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('create', \`Creating order with ID: \${testOrderId}\`);
+                log('create', \`Order data: \${JSON.stringify(orderData, null, 2)}\`);
+                
+                const result = await supabase.from('orders').insert([orderData]).select().single();
+                
+                log('create', 'Supabase createOrder result:', result);
+                
+                if (result.error) {
+                    log('create', \`❌ Creation failed: \${result.error.message}\`, 'error');
+                    log('create', \`Error details: \${JSON.stringify(result.error, null, 2)}\`);
+                    updateStatus('create', '❌ Creation Failed', 'error');
+                    return;
+                }
+                
+                log('create', '✅ Order created successfully', 'success');
+                log('create', \`Created order: \${result.data.id}\`);
+                updateStatus('create', '✅ Created', 'success');
+                
+                // Enable next step
+                document.getElementById('refresh-btn').disabled = false;
+                updateStatus('refresh', 'Ready to refresh');
+                
+            } catch (error) {
+                log('create', \`❌ Creation exception: \${error.message}\`, 'error');
+                updateStatus('create', '❌ Exception', 'error');
+                updateStatus('overall-status', '❌ Creation Failed', 'error');
+            }
+        }
+        
+        async function refreshOrders() {
+            log('refresh', '🔄 Refreshing orders (exactly like Orders page)...');
+            updateStatus('refresh', '🔄 Refreshing...', 'warning');
+            
+            try {
+                // Exactly as in useOrders hook
+                const result = await supabase.from('orders').select(\`
+                    *,
+                    customers(name),
+                    order_items(*)
+                \`);
+                
+                log('refresh', 'Supabase refresh result:', result);
+                
+                if (result.error) {
+                    log('refresh', \`❌ Refresh failed: \${result.error.message}\`, 'error');
+                    updateStatus('refresh', '❌ Refresh Failed', 'error');
+                    return;
+                }
+                
+                const orders = result.data || [];
+                const newOrderCount = orders.length;
+                
+                log('refresh', \`✅ Refreshed - now have \${newOrderCount} orders\`, 'success');
+                
+                // Check if our test order is there
+                const foundTestOrder = orders.find(order => order.id === testOrderId);
+                
+                if (foundTestOrder) {
+                    log('refresh', '🎉 TEST ORDER FOUND! Persistence is working!', 'success');
+                    updateStatus('refresh', '✅ Test Order Found', 'success');
+                    
+                    // Check counts
+                    if (newOrderCount === initialOrderCount + 1) {
+                        log('refresh', \`✅ Order count increased from \${initialOrderCount} to \${newOrderCount}\`, 'success');
+                        updateStatus('final-status', '🎉 PERSISTENCE WORKING PERFECTLY!', 'success');
+                        updateStatus('overall-status', '🎉 ALL TESTS PASSED!', 'success');
+                    } else {
+                        log('refresh', \`⚠️ Order count unexpected: \${initialOrderCount} → \${newOrderCount}\`, 'warning');
+                        updateStatus('final-status', '⚠️ Persistence working but count issue', 'warning');
+                    }
+                } else {
+                    log('refresh', '❌ TEST ORDER NOT FOUND! Persistence failed!', 'error');
+                    log('refresh', 'Available orders:');
+                    orders.forEach((order, index) => {
+                        log('refresh', \`  \${index + 1}. \${order.id} - \${order.status}\`);
+                    });
+                    updateStatus('refresh', '❌ Test Order Missing', 'error');
+                    updateStatus('final-status', '❌ PERSISTENCE FAILED', 'error');
+                    updateStatus('overall-status', '❌ PERSISTENCE ISSUE CONFIRMED', 'error');
+                }
+                
+            } catch (error) {
+                log('refresh', \`❌ Refresh exception: \${error.message}\`, 'error');
+                updateStatus('refresh', '❌ Exception', 'error');
+                updateStatus('overall-status', '❌ Refresh Failed', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

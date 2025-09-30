@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check Foreign Keys</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Check Foreign Key References</h1>
+    
+    <button onclick="checkAllReferences()">Check All References</button>
+    <pre id="log"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function checkAllReferences() {
+            log('🔍 Checking all foreign key references...');
+            
+            // Check retailers
+            log('Checking retailers table...');
+            const { data: retailers, error: retailerError } = await supabase.from('retailers').select('id, name');
+            if (retailerError) {
+                log(`❌ Retailers error: ${retailerError.message}`, 'error');
+            } else {
+                log(`✅ Found ${retailers.length} retailers:`, 'success');
+                retailers.forEach(r => log(`  - ${r.id}: ${r.name || 'No name'}`));
+                
+                // Check if 'ret-1' exists
+                const hasRet1 = retailers.find(r => r.id === 'ret-1');
+                if (hasRet1) {
+                    log('✅ ret-1 exists', 'success');
+                } else {
+                    log('❌ ret-1 does NOT exist - this is the problem!', 'error');
+                }
+            }
+            
+            // Check locations
+            log('Checking locations table...');
+            const { data: locations, error: locationError } = await supabase.from('locations').select('id, name, retailer_id');
+            if (locationError) {
+                log(`❌ Locations error: ${locationError.message}`, 'error');
+            } else {
+                log(`✅ Found ${locations.length} locations:`, 'success');
+                locations.forEach(l => log(`  - ${l.id}: ${l.name || 'No name'} (retailer: ${l.retailer_id})`));
+                
+                // Check if 'loc-1' exists
+                const hasLoc1 = locations.find(l => l.id === 'loc-1');
+                if (hasLoc1) {
+                    log('✅ loc-1 exists', 'success');
+                } else {
+                    log('❌ loc-1 does NOT exist - this is also a problem!', 'error');
+                }
+            }
+            
+            // Check customers
+            log('Checking customers table...');
+            const { data: customers, error: customerError } = await supabase.from('customers').select('id, name');
+            if (customerError) {
+                log(`❌ Customers error: ${customerError.message}`, 'error');
+            } else {
+                log(`✅ Found ${customers.length} customers:`, 'success');
+                customers.forEach(c => log(`  - ${c.id}: ${c.name || 'No name'}`));
+            }
+            
+            // Test with valid IDs
+            if (retailers.length > 0) {
+                const validRetailerId = retailers[0].id;
+                log(`Testing order creation with valid retailer_id: ${validRetailerId}`);
+                
+                // Get current user
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    log('❌ Not authenticated', 'error');
+                    return;
+                }
+                
+                const testOrder = {
+                    id: `test-valid-${Date.now()}`,
+                    retailer_id: validRetailerId,
+                    // location_id: null, // Skip location for now
+                    status: 'pending',
+                    total_amount: 199.99,
+                    created_by: user.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('Testing order with valid retailer_id...');
+                const { data: testData, error: testError } = await supabase
+                    .from('orders')
+                    .insert([testOrder])
+                    .select()
+                    .single();
+                
+                if (testError) {
+                    log(`❌ Test order failed: ${testError.message}`, 'error');
+                } else {
+                    log('🎉 Test order succeeded! This confirms the foreign key issue.', 'success');
+                    log(`Created order: ${testData.id}`);
+                }
+            }
+        }
+        
+        // Auto-authenticate and run check
+        window.addEventListener('load', async () => {
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (data.user || !error) {
+                    log('✅ Authenticated successfully', 'success');
+                } else {
+                    const { data: signupData } = await supabase.auth.signUp({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789'
+                    });
+                    if (signupData.user) {
+                        log('✅ Signed up successfully', 'success');
+                    }
+                }
+                
+                // Auto-run the check
+                setTimeout(checkAllReferences, 1000);
+            } catch (error) {
+                log(`❌ Auth failed: ${error.message}`, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

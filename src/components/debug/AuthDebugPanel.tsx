@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { createSupabaseClient } from '@/lib/supabase-client';
+import { supabase } from '@/lib/supabase';
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
 
 interface DebugInfo {
@@ -53,7 +53,7 @@ export function AuthDebugPanel() {
       // Test 2: Supabase Client Creation
       addDebugInfo('Client Creation', 'info', 'Creating Supabase client...');
       try {
-        const client = createSupabaseClient();
+        const client = supabase;
         addDebugInfo('Client Creation', 'success', 'Supabase client created successfully');
 
         // Test 3: Session Check

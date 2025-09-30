@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply Fix</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { margin: 10px; padding: 15px 30px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; font-size: 16px; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .big-button { background: #004400; border: 2px solid #00ff00; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Apply Persistence Fix</h1>
+    
+    <button class="big-button" onclick="applyFix()">🚀 APPLY FIX - Create Missing References</button>
+    <button onclick="testAfterFix()">✅ Test Order Creation After Fix</button>
+    
+    <pre id="log"></pre>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const supabase = window.supabase.createClient(
+            'https://qeiyxwuyhetnrnundpep.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        );
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function applyFix() {
+            log('🔧 APPLYING FIX - Creating missing database references...', 'warning');
+            
+            try {
+                // Authenticate first
+                const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (authError) {
+                    log(`❌ Authentication failed: ${authError.message}`, 'error');
+                    return;
+                }
+                
+                log('✅ Authenticated successfully', 'success');
+                
+                // Step 1: Create retailer
+                log('Step 1: Creating retailer...');
+                const retailerData = {
+                    id: '550e8400-e29b-41d4-a716-446655440000',
+                    name: 'IV ReLife Main Retailer',
+                    email: 'admin@iv-relife.com',
+                    phone: '555-0123',
+                    address: '123 Main Street',
+                    city: 'Test City',
+                    state: 'CA',
+                    zip: '12345',
+                    country: 'USA',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                const { data: retailerResult, error: retailerError } = await supabase
+                    .from('retailers')
+                    .upsert([retailerData])
+                    .select();
+                
+                if (retailerError) {
+                    log(`❌ Retailer creation failed: ${retailerError.message}`, 'error');
+                    return;
+                } else {
+                    log('✅ Retailer created/updated successfully', 'success');
+                }
+                
+                // Step 2: Create customer
+                log('Step 2: Creating customer...');
+                const customerData = {
+                    id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    name: 'Test Customer',
+                    email: 'customer@example.com',
+                    phone: '555-0124',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                const { data: customerResult, error: customerError } = await supabase
+                    .from('customers')
+                    .upsert([customerData])
+                    .select();
+                
+                if (customerError) {
+                    log(`❌ Customer creation failed: ${customerError.message}`, 'error');
+                    return;
+                } else {
+                    log('✅ Customer created/updated successfully', 'success');
+                }
+                
+                // Step 3: Verify references
+                log('Step 3: Verifying references...');
+                
+                const { data: retailerCheck } = await supabase
+                    .from('retailers')
+                    .select('id, name')
+                    .eq('id', '550e8400-e29b-41d4-a716-446655440000');
+                
+                const { data: customerCheck } = await supabase
+                    .from('customers')
+                    .select('id, name, retailer_id')
+                    .eq('id', 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2');
+                
+                if (retailerCheck && retailerCheck.length > 0 && customerCheck && customerCheck.length > 0) {
+                    log('✅ All references verified successfully', 'success');
+                    log(`Retailer: ${retailerCheck[0].name} (${retailerCheck[0].id})`, 'success');
+                    log(`Customer: ${customerCheck[0].name} (${customerCheck[0].id})`, 'success');
+                    log('🎉 FIX APPLIED SUCCESSFULLY!', 'success');
+                    log('The 400 error should now be resolved. Try creating an order in the app.', 'success');
+                } else {
+                    log('❌ Reference verification failed', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Fix application failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testAfterFix() {
+            log('🧪 Testing order creation after fix...');
+            
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    log('❌ Not authenticated', 'error');
+                    return;
+                }
+                
+                // Test with the exact same data format as the app
+                const testOrderData = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    created_by: user.id,
+                    status: 'pending',
+                    subtotal_amount: 100.00,
+                    tax_amount: 8.00,
+                    total_amount: 108.00,
+                    notes: 'Test order after fix'
+                };
+                
+                log('Testing order creation...');
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert([testOrderData])
+                    .select()
+                    .single();
+                
+                if (error) {
+                    log(`❌ Test order failed: ${error.message}`, 'error');
+                    log('The fix did not resolve the issue completely');
+                } else {
+                    log(`🎉 TEST ORDER SUCCESSFUL!`, 'success');
+                    log(`Created order: ${data.id}`, 'success');
+                    log('The 400 error is now FIXED! The app should work.', 'success');
+                }
+                
+            } catch (error) {
+                log(`❌ Test failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-authenticate on load
+        window.addEventListener('load', async () => {
+            try {
+                await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                log('✅ Ready to apply fix', 'success');
+            } catch (error) {
+                log('⚠️ Auto-auth failed, but fix can still be applied', 'warning');
+            }
+        });
+    </script>
+</body>
+</html>

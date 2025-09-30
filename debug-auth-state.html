@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Auth State</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .status { margin: 10px 0; padding: 10px; border: 1px solid #333; }
+        .error { color: #ff4444; }
+        .success { color: #44ff44; }
+        .warning { color: #ffaa44; }
+        button { margin: 5px; padding: 8px 16px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug Authentication State</h1>
+    
+    <div class="status" id="authStatus">Checking auth state...</div>
+    <div class="status" id="userInfo">User info will appear here...</div>
+    <div class="status" id="dataTest">Data test results will appear here...</div>
+    
+    <button onclick="checkAuth()">Check Auth State</button>
+    <button onclick="signInTest()">Sign In Admin</button>
+    <button onclick="testDataAccess()">Test Data Access</button>
+    <button onclick="createTestOrder()">Create Test Order</button>
+    <button onclick="signOut()">Sign Out</button>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://fhqgqhzwrnogwdqovbay.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocWdxaHp3cm5vZ3dkcW92YmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY2MzkzNDAsImV4cCI6MjA0MjIxNTM0MH0.mwdRPcFCp8qQBw_WTPPz4v8lJYrAnHYB6ByU5Y3-aao';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            element.innerHTML = `[${timestamp}] ${message}`;
+            element.className = `status ${className}`;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        async function checkAuth() {
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    log('authStatus', `❌ Auth error: ${error.message}`, 'error');
+                    return;
+                }
+                
+                if (user) {
+                    log('authStatus', `✅ User authenticated: ${user.email}`, 'success');
+                    log('userInfo', `ID: ${user.id} | Email: ${user.email} | Created: ${user.created_at}`, 'success');
+                } else {
+                    log('authStatus', '⚠️ No authenticated user', 'warning');
+                    log('userInfo', 'Please sign in first', 'warning');
+                }
+                
+                // Check session
+                const { data: { session } } = await supabase.auth.getSession();
+                console.log('Session:', session);
+                
+            } catch (err) {
+                log('authStatus', `❌ Error checking auth: ${err.message}`, 'error');
+            }
+        }
+
+        async function signInTest() {
+            try {
+                log('authStatus', 'Attempting to sign in...', 'warning');
+                
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (error) {
+                    log('authStatus', `❌ Sign in failed: ${error.message}`, 'error');
+                    return;
+                }
+                
+                if (data.user) {
+                    log('authStatus', `✅ Sign in successful: ${data.user.email}`, 'success');
+                    log('userInfo', `ID: ${data.user.id} | Session: ${data.session ? 'Active' : 'None'}`, 'success');
+                }
+                
+            } catch (err) {
+                log('authStatus', `❌ Sign in error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testDataAccess() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                if (!user) {
+                    log('dataTest', '❌ No authenticated user for data access', 'error');
+                    return;
+                }
+                
+                log('dataTest', `Testing data access with user: ${user.id}`, 'warning');
+                
+                // Test orders access
+                const { data: orders, error: ordersError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', user.id);
+                
+                if (ordersError) {
+                    log('dataTest', `❌ Orders access error: ${ordersError.message}`, 'error');
+                } else {
+                    log('dataTest', `✅ Orders access OK: ${orders?.length || 0} orders found`, 'success');
+                }
+                
+                console.log('Orders data:', orders);
+                
+            } catch (err) {
+                log('dataTest', `❌ Data access error: ${err.message}`, 'error');
+            }
+        }
+
+        async function createTestOrder() {
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                
+                if (!user) {
+                    log('dataTest', '❌ No authenticated user for creating order', 'error');
+                    return;
+                }
+                
+                const testOrder = {
+                    id: `debug-order-${Date.now()}`,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: `debug-customer-${Date.now()}`,
+                    status: 'pending',
+                    total_amount: 123.45,
+                    items: JSON.stringify([{ product: 'Debug Product', qty: 1, price: 123.45 }]),
+                    created_by: user.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('dataTest', `Creating test order with user ID: ${user.id}`, 'warning');
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert(testOrder)
+                    .select()
+                    .single();
+                
+                if (error) {
+                    log('dataTest', `❌ Order creation failed: ${error.message}`, 'error');
+                    console.error('Full error:', error);
+                } else {
+                    log('dataTest', `✅ Order created successfully: ${data.id}`, 'success');
+                    console.log('Created order:', data);
+                }
+                
+            } catch (err) {
+                log('dataTest', `❌ Create order error: ${err.message}`, 'error');
+            }
+        }
+
+        async function signOut() {
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    log('authStatus', `❌ Sign out error: ${error.message}`, 'error');
+                } else {
+                    log('authStatus', '✅ Signed out successfully', 'success');
+                    log('userInfo', 'No user', 'warning');
+                }
+            } catch (err) {
+                log('authStatus', `❌ Sign out error: ${err.message}`, 'error');
+            }
+        }
+
+        // Check auth state on load
+        window.addEventListener('load', () => {
+            setTimeout(checkAuth, 500);
+        });
+    </script>
+</body>
+</html>

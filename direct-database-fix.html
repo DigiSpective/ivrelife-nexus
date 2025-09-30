@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Database Fix</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+        button { margin: 10px; padding: 15px 30px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; font-size: 16px; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .big-button { background: #004400; border: 2px solid #00ff00; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Direct Database Fix</h1>
+    
+    <button class="big-button" onclick="applyDirectFix()">🚀 APPLY DIRECT FIX</button>
+    <button onclick="testOrderCreation()">✅ Test Order Creation</button>
+    <button onclick="checkReferences()">🔍 Check Current References</button>
+    
+    <pre id="log"></pre>
+    
+    <script>
+        // Use direct Supabase client without importing any modules
+        const supabase = {
+            url: 'https://qeiyxwuyhetnrnundpep.supabase.co',
+            key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+        };
+        
+        function log(message, type = 'info') {
+            const el = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+            el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+            el.scrollTop = el.scrollHeight;
+        }
+        
+        async function makeRequest(method, endpoint, data = null, auth = null) {
+            const headers = {
+                'Content-Type': 'application/json',
+                'apikey': supabase.key
+            };
+            
+            if (auth) {
+                headers['Authorization'] = `Bearer ${auth}`;
+            }
+            
+            const options = {
+                method,
+                headers
+            };
+            
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+            
+            const response = await fetch(`${supabase.url}/rest/v1/${endpoint}`, options);
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${result.message || JSON.stringify(result)}`);
+            }
+            
+            return result;
+        }
+        
+        async function authenticate() {
+            log('🔑 Authenticating...');
+            
+            const authResponse = await fetch(`${supabase.url}/auth/v1/token?grant_type=password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': supabase.key
+                },
+                body: JSON.stringify({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                })
+            });
+            
+            const authResult = await authResponse.json();
+            
+            if (!authResponse.ok) {
+                throw new Error(`Auth failed: ${authResult.error_description || authResult.message}`);
+            }
+            
+            log('✅ Authenticated successfully', 'success');
+            return authResult.access_token;
+        }
+        
+        async function applyDirectFix() {
+            log('🔧 APPLYING DIRECT DATABASE FIX...', 'warning');
+            
+            try {
+                // Step 1: Authenticate
+                const token = await authenticate();
+                
+                // Step 2: Create retailer
+                log('Step 2: Creating retailer...');
+                const retailerData = {
+                    id: '550e8400-e29b-41d4-a716-446655440000',
+                    name: 'IV ReLife Main Retailer',
+                    email: 'admin@iv-relife.com',
+                    phone: '555-0123',
+                    address: '123 Main Street',
+                    city: 'Test City',
+                    state: 'CA',
+                    zip: '12345',
+                    country: 'USA'
+                };
+                
+                try {
+                    await makeRequest('POST', 'retailers', retailerData, token);
+                    log('✅ Retailer created successfully', 'success');
+                } catch (error) {
+                    if (error.message.includes('duplicate') || error.message.includes('already exists')) {
+                        log('✅ Retailer already exists', 'success');
+                    } else {
+                        throw error;
+                    }
+                }
+                
+                // Step 3: Create customer
+                log('Step 3: Creating customer...');
+                const customerData = {
+                    id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    name: 'Test Customer',
+                    email: 'customer@example.com',
+                    phone: '555-0124'
+                };
+                
+                try {
+                    await makeRequest('POST', 'customers', customerData, token);
+                    log('✅ Customer created successfully', 'success');
+                } catch (error) {
+                    if (error.message.includes('duplicate') || error.message.includes('already exists')) {
+                        log('✅ Customer already exists', 'success');
+                    } else {
+                        throw error;
+                    }
+                }
+                
+                log('🎉 DIRECT FIX APPLIED SUCCESSFULLY!', 'success');
+                log('The 400 error should now be resolved.', 'success');
+                
+            } catch (error) {
+                log(`❌ Direct fix failed: ${error.message}`, 'error');
+                log('Full error details:');
+                log(JSON.stringify(error, null, 2));
+            }
+        }
+        
+        async function checkReferences() {
+            log('🔍 Checking current references...');
+            
+            try {
+                const token = await authenticate();
+                
+                // Check retailer
+                const retailers = await makeRequest('GET', 'retailers?id=eq.550e8400-e29b-41d4-a716-446655440000', null, token);
+                if (retailers.length > 0) {
+                    log(`✅ Retailer exists: ${retailers[0].name}`, 'success');
+                } else {
+                    log('❌ Retailer does NOT exist', 'error');
+                }
+                
+                // Check customer
+                const customers = await makeRequest('GET', 'customers?id=eq.dc0abfde-8588-4107-ab9b-1d5f2a91bce2', null, token);
+                if (customers.length > 0) {
+                    log(`✅ Customer exists: ${customers[0].name}`, 'success');
+                } else {
+                    log('❌ Customer does NOT exist', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Reference check failed: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testOrderCreation() {
+            log('🧪 Testing order creation...');
+            
+            try {
+                const token = await authenticate();
+                
+                const testOrder = {
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'dc0abfde-8588-4107-ab9b-1d5f2a91bce2',
+                    status: 'pending',
+                    subtotal_amount: 100.00,
+                    tax_amount: 8.00,
+                    total_amount: 108.00,
+                    notes: 'Direct API test order'
+                };
+                
+                const result = await makeRequest('POST', 'orders', testOrder, token);
+                log('🎉 ORDER CREATION SUCCESSFUL!', 'success');
+                log(`Created order: ${JSON.stringify(result, null, 2)}`);
+                log('The 400 error is now FIXED!', 'success');
+                
+            } catch (error) {
+                log(`❌ Order creation test failed: ${error.message}`, 'error');
+                log('The fix may not be complete.');
+            }
+        }
+    </script>
+</body>
+</html>

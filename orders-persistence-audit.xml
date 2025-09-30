@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<orders_persistence_audit>
+  <metadata>
+    <audit_date>2025-09-28T10:23:00Z</audit_date>
+    <audit_scope>Orders persistence and propagation system</audit_scope>
+    <reported_issue>New orders not propagating in /orders route and persistence issues</reported_issue>
+  </metadata>
+
+  <system_architecture>
+    <component name="AuthProvider" status="configured">
+      <location>src/components/auth/AuthProvider.tsx</location>
+      <description>Provides mock user authentication for development</description>
+      <user_context>mockUser (id: usr-1)</user_context>
+      <issues>
+        <issue severity="none">Mock user properly configured</issue>
+      </issues>
+    </component>
+
+    <component name="Orders API Layer" status="configured">
+      <location>src/lib/supabase.ts</location>
+      <functions>
+        <function name="getOrders" status="configured">
+          <implementation>Always uses comprehensive persistence via supabasePersistence.loadOrders()</implementation>
+          <fallback>getMockOrders() when no user ID</fallback>
+        </function>
+        <function name="createOrder" status="configured">
+          <implementation>Always uses createMockOrderEnhanced()</implementation>
+          <persistence_strategy>Comprehensive multi-tier</persistence_strategy>
+        </function>
+      </functions>
+    </component>
+
+    <component name="React Query Layer" status="configured">
+      <location>src/hooks/useOrders.ts</location>
+      <hooks>
+        <hook name="useOrders" status="configured">
+          <refetch_on_mount>true</refetch_on_mount>
+          <stale_time>60000ms</stale_time>
+          <cache_invalidation>Enabled on order creation</cache_invalidation>
+        </hook>
+        <hook name="useCreateOrder" status="configured">
+          <mutation_success>Invalidates ['orders'] query key</mutation_success>
+        </hook>
+      </hooks>
+    </component>
+
+    <component name="Persistence Layer" status="configured">
+      <location>src/lib/supabase-persistence.ts</location>
+      <methods>
+        <method name="saveOrders" status="configured">
+          <strategy>Direct Supabase orders table upsert</strategy>
+          <format_conversion>App format → Supabase format</format_conversion>
+          <conflict_resolution>onConflict: 'id'</conflict_resolution>
+        </method>
+        <method name="loadOrders" status="configured">
+          <strategy>Direct Supabase orders table query</strategy>
+          <filtering>created_by = effectiveUserId</filtering>
+          <ordering>created_at DESC</ordering>
+        </method>
+      </methods>
+    </component>
+
+    <component name="Enhanced Order Creation" status="configured">
+      <location>src/lib/mock-data.ts</location>
+      <function name="createMockOrderEnhanced" status="configured">
+        <tier1>Supabase orders table via supabasePersistence.saveOrders()</tier1>
+        <tier2>Supabase user_storage table</tier2>
+        <tier3>Fallback to createMockOrder()</tier3>
+      </function>
+    </component>
+
+    <component name="UI Layer" status="configured">
+      <location>src/pages/Orders.tsx</location>
+      <data_source>useOrders() hook</data_source>
+      <display_logic>Filters and maps ordersData?.data || []</display_logic>
+    </component>
+  </system_architecture>
+
+  <identified_issues>
+    <critical_issues>
+      <issue id="1" severity="high">
+        <title>React Query Cache Invalidation Timing</title>
+        <description>Order creation invalidates cache but may not trigger immediate refetch</description>
+        <location>src/hooks/useOrders.ts:47</location>
+        <impact>New orders may not appear in /orders route immediately</impact>
+        <root_cause>queryClient.invalidateQueries() is async but not awaited properly in UI</root_cause>
+      </issue>
+
+      <issue id="2" severity="high">
+        <title>Data Format Inconsistency</title>
+        <description>Persistence layer converts formats but UI expects specific structure</description>
+        <location>Multiple: persistence vs UI expectations</location>
+        <impact>Orders may not display correctly even if persisted</impact>
+        <root_cause>Format conversion between Supabase and app formats</root_cause>
+      </issue>
+
+      <issue id="3" severity="medium">
+        <title>User Context Race Condition</title>
+        <description>getCurrentUserId() may not be ready when persistence functions are called</description>
+        <location>src/lib/auth-context-guard.ts</location>
+        <impact>Orders may be saved without proper user context</impact>
+        <root_cause>Auth state may not be fully initialized during order operations</root_cause>
+      </issue>
+    </critical_issues>
+
+    <potential_issues>
+      <issue id="4" severity="low">
+        <title>Multiple Persistence Strategies</title>
+        <description>Complex fallback chain may cause inconsistent behavior</description>
+        <impact>Debugging persistence issues is complex</impact>
+      </issue>
+
+      <issue id="5" severity="low">
+        <title>Console Logging Overhead</title>
+        <description>Extensive logging may impact performance</description>
+        <impact>Performance degradation in production</impact>
+      </issue>
+    </potential_issues>
+  </identified_issues>
+
+  <test_scenarios>
+    <scenario name="Order Creation Flow">
+      <steps>
+        <step>1. Navigate to /orders/new</step>
+        <step>2. Fill out order form</step>
+        <step>3. Submit order</step>
+        <step>4. Navigate to /orders</step>
+        <step>5. Verify order appears in list</step>
+      </steps>
+      <expected_result>Order appears immediately in orders list</expected_result>
+      <current_result>Order may not appear or may appear with delay</current_result>
+    </scenario>
+
+    <scenario name="Page Refresh Persistence">
+      <steps>
+        <step>1. Create order</step>
+        <step>2. Refresh /orders page</step>
+        <step>3. Check if order persists</step>
+      </steps>
+      <expected_result>Order persists after refresh</expected_result>
+      <current_result>May work depending on persistence tier success</current_result>
+    </scenario>
+  </test_scenarios>
+
+  <recommendations>
+    <immediate_fixes>
+      <fix priority="1">
+        <title>Synchronize React Query Operations</title>
+        <description>Ensure invalidateQueries waits for completion before navigation</description>
+        <implementation>Add proper await in useCreateOrder onSuccess</implementation>
+      </fix>
+
+      <fix priority="2">
+        <title>Standardize Data Formats</title>
+        <description>Ensure consistent data structure between persistence and UI</description>
+        <implementation>Create data transform utilities</implementation>
+      </fix>
+
+      <fix priority="3">
+        <title>Improve Auth State Management</title>
+        <description>Ensure user context is available before persistence operations</description>
+        <implementation>Add proper auth state checks</implementation>
+      </fix>
+    </immediate_fixes>
+
+    <long_term_improvements>
+      <improvement>
+        <title>Simplify Persistence Architecture</title>
+        <description>Reduce complexity of multi-tier fallback system</description>
+      </improvement>
+      
+      <improvement>
+        <title>Add Comprehensive Error Handling</title>
+        <description>Implement proper error states and user feedback</description>
+      </improvement>
+    </long_term_improvements>
+  </recommendations>
+
+  <implementation_plan>
+    <phase name="immediate" priority="high">
+      <task>Fix React Query invalidation timing</task>
+      <task>Standardize data format handling</task>
+      <task>Add debug tools for order flow</task>
+    </phase>
+
+    <phase name="validation" priority="medium">
+      <task>Test order creation and display</task>
+      <task>Verify persistence across page refreshes</task>
+      <task>Validate React Query cache behavior</task>
+    </phase>
+  </implementation_plan>
+</orders_persistence_audit>

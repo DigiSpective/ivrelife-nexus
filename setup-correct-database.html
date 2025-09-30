@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Correct Database</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; background: #111; }
+        button { margin: 5px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        button:hover { background: #444; }
+        pre { background: #000; padding: 10px; border: 1px solid #333; max-height: 400px; overflow-y: auto; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .status { padding: 5px; margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Setup Correct Database (qeiyxwuyhetnrnundpep)</h1>
+    
+    <div class="section">
+        <h2>Step 1: Test Database Connection</h2>
+        <button onclick="testConnection()">Test Connection</button>
+        <div id="connection-status" class="status">Ready to test...</div>
+        <pre id="connection-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Check Existing Tables</h2>
+        <button onclick="checkTables()">Check Tables</button>
+        <div id="tables-status" class="status">Ready to check...</div>
+        <pre id="tables-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 3: Create Admin User</h2>
+        <button onclick="createAdminUser()">Create Admin User</button>
+        <div id="admin-status" class="status">Ready to create...</div>
+        <pre id="admin-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 4: Test Admin Sign In</h2>
+        <button onclick="testAdminSignIn()">Test Admin Sign In</button>
+        <div id="signin-status" class="status">Ready to test...</div>
+        <pre id="signin-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 5: Test Order Creation & Loading</h2>
+        <button onclick="testOrderFlow()">Test Order Flow</button>
+        <div id="order-status" class="status">Ready to test...</div>
+        <pre id="order-log"></pre>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // Use the CORRECT database that the app uses
+        const SUPABASE_URL = 'https://qeiyxwuyhetnrnundpep.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentUser = null;
+
+        function setStatus(id, message, type = 'info') {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = message;
+                el.className = `status ${type}`;
+            }
+        }
+
+        function log(id, message) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+
+        async function testConnection() {
+            try {
+                setStatus('connection-status', 'Testing connection...', 'warning');
+                log('connection-log', 'Testing connection to qeiyxwuyhetnrnundpep.supabase.co');
+                
+                // Test basic connection
+                const { data, error } = await supabase.from('_test').select('*').limit(1);
+                
+                if (error && error.code === 'PGRST204') {
+                    // Table doesn't exist but connection works
+                    setStatus('connection-status', '✅ Connection successful', 'success');
+                    log('connection-log', 'SUCCESS: Connected to database');
+                } else if (error) {
+                    setStatus('connection-status', `⚠️ Connection issue: ${error.message}`, 'warning');
+                    log('connection-log', `Connection response: ${error.message}`);
+                } else {
+                    setStatus('connection-status', '✅ Connection successful', 'success');
+                    log('connection-log', 'SUCCESS: Connected to database');
+                }
+                
+            } catch (error) {
+                setStatus('connection-status', '❌ Connection failed', 'error');
+                log('connection-log', `ERROR: ${error.message}`);
+            }
+        }
+
+        async function checkTables() {
+            try {
+                setStatus('tables-status', 'Checking tables...', 'warning');
+                log('tables-log', 'Checking if orders table exists...');
+                
+                const { data, error } = await supabase.from('orders').select('*').limit(1);
+                
+                if (error) {
+                    if (error.code === 'PGRST204' || error.message.includes('does not exist')) {
+                        setStatus('tables-status', '❌ Orders table missing', 'error');
+                        log('tables-log', 'ERROR: Orders table does not exist');
+                        log('tables-log', 'Need to run create-comprehensive-tables.sql in this database');
+                    } else {
+                        setStatus('tables-status', `⚠️ Table access issue: ${error.message}`, 'warning');
+                        log('tables-log', `Table check error: ${error.message}`);
+                    }
+                } else {
+                    setStatus('tables-status', '✅ Orders table exists', 'success');
+                    log('tables-log', `SUCCESS: Orders table exists with ${data.length} records`);
+                }
+                
+            } catch (error) {
+                setStatus('tables-status', '❌ Check failed', 'error');
+                log('tables-log', `ERROR: ${error.message}`);
+            }
+        }
+
+        async function createAdminUser() {
+            try {
+                setStatus('admin-status', 'Creating admin user...', 'warning');
+                log('admin-log', 'Attempting to create admin@iv-relife.com user...');
+                
+                // Try to sign up the admin user
+                const { data, error } = await supabase.auth.signUp({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789',
+                    options: {
+                        data: {
+                            name: 'Admin User',
+                            role: 'owner'
+                        }
+                    }
+                });
+                
+                if (error) {
+                    if (error.message.includes('already registered')) {
+                        setStatus('admin-status', '✅ Admin user already exists', 'success');
+                        log('admin-log', 'SUCCESS: Admin user already exists');
+                    } else {
+                        setStatus('admin-status', `❌ User creation failed: ${error.message}`, 'error');
+                        log('admin-log', `ERROR: ${error.message}`);
+                    }
+                } else {
+                    setStatus('admin-status', '✅ Admin user created', 'success');
+                    log('admin-log', 'SUCCESS: Admin user created');
+                    log('admin-log', `User ID: ${data.user?.id}`);
+                }
+                
+            } catch (error) {
+                setStatus('admin-status', '❌ Creation failed', 'error');
+                log('admin-log', `ERROR: ${error.message}`);
+            }
+        }
+
+        async function testAdminSignIn() {
+            try {
+                setStatus('signin-status', 'Testing admin sign in...', 'warning');
+                log('signin-log', 'Attempting to sign in with admin@iv-relife.com');
+                
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (error) {
+                    setStatus('signin-status', `❌ Sign in failed: ${error.message}`, 'error');
+                    log('signin-log', `ERROR: ${error.message}`);
+                } else {
+                    currentUser = data.user;
+                    setStatus('signin-status', '✅ Admin sign in successful', 'success');
+                    log('signin-log', `SUCCESS: Signed in as ${data.user.email}`);
+                    log('signin-log', `User ID: ${data.user.id}`);
+                }
+                
+            } catch (error) {
+                setStatus('signin-status', '❌ Sign in failed', 'error');
+                log('signin-log', `ERROR: ${error.message}`);
+            }
+        }
+
+        async function testOrderFlow() {
+            if (!currentUser) {
+                setStatus('order-status', '❌ Please sign in first', 'error');
+                return;
+            }
+            
+            try {
+                setStatus('order-status', 'Testing order flow...', 'warning');
+                log('order-log', 'Testing order creation and loading...');
+                
+                // Create test order
+                const testOrderId = `test-order-${Date.now()}`;
+                const orderData = {
+                    id: testOrderId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'test-customer-123',
+                    status: 'pending',
+                    total_amount: 299.99,
+                    items: JSON.stringify([{ product: 'Test Product', qty: 1, price: 299.99 }]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('order-log', `Creating order: ${testOrderId}`);
+                
+                const { data: createData, error: createError } = await supabase
+                    .from('orders')
+                    .insert(orderData)
+                    .select()
+                    .single();
+                
+                if (createError) {
+                    setStatus('order-status', `❌ Order creation failed: ${createError.message}`, 'error');
+                    log('order-log', `CREATE ERROR: ${createError.message}`);
+                    return;
+                }
+                
+                log('order-log', `SUCCESS: Order created with ID ${createData.id}`);
+                
+                // Load orders
+                log('order-log', 'Loading orders for user...');
+                
+                const { data: loadData, error: loadError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id);
+                
+                if (loadError) {
+                    setStatus('order-status', `❌ Order loading failed: ${loadError.message}`, 'error');
+                    log('order-log', `LOAD ERROR: ${loadError.message}`);
+                    return;
+                }
+                
+                const foundOrder = loadData.find(order => order.id === testOrderId);
+                if (foundOrder) {
+                    setStatus('order-status', '✅ Order flow working!', 'success');
+                    log('order-log', `SUCCESS: Created order found in loaded orders`);
+                    log('order-log', `Total orders for user: ${loadData.length}`);
+                } else {
+                    setStatus('order-status', '❌ Order not found after creation', 'error');
+                    log('order-log', `ERROR: Created order not found in loaded orders`);
+                }
+                
+            } catch (error) {
+                setStatus('order-status', '❌ Order flow failed', 'error');
+                log('order-log', `ERROR: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

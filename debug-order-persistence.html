@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Order Persistence</title>
+    <style>
+        body { 
+            font-family: monospace; 
+            padding: 20px; 
+            background: #0a0a0a; 
+            color: #00ff00; 
+            line-height: 1.4;
+        }
+        .section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #333; 
+            background: #111;
+        }
+        .error { color: #ff4444; }
+        .success { color: #44ff44; }
+        .warning { color: #ffaa44; }
+        .info { color: #4444ff; }
+        button { 
+            margin: 5px; 
+            padding: 10px 20px; 
+            background: #222;
+            color: #00ff00;
+            border: 1px solid #666;
+            cursor: pointer;
+        }
+        button:hover { background: #333; }
+        pre { 
+            background: #000; 
+            padding: 10px; 
+            white-space: pre-wrap; 
+            border: 1px solid #444;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .status {
+            padding: 5px;
+            margin: 5px 0;
+            border-left: 3px solid #666;
+            background: #1a1a1a;
+        }
+    </style>
+</head>
+<body>
+    <h1>🐛 Debug Order Persistence Flow</h1>
+    
+    <div class="section">
+        <h2>Step 1: Authentication Check</h2>
+        <div id="authStatus" class="status">Checking authentication...</div>
+        <button onclick="checkAuth()">Check Auth State</button>
+        <button onclick="signIn()">Sign In Admin</button>
+        <pre id="authDetails"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Direct Order Creation Test</h2>
+        <div id="createStatus" class="status">Ready to create order...</div>
+        <button onclick="createDirectOrder()">Create Order Direct to Supabase</button>
+        <pre id="createDetails"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 3: Order Loading Test</h2>
+        <div id="loadStatus" class="status">Ready to load orders...</div>
+        <button onclick="loadDirectOrders()">Load Orders Direct from Supabase</button>
+        <button onclick="loadViaApp()">Load Orders Via App Methods</button>
+        <pre id="loadDetails"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 4: User ID Comparison</h2>
+        <div id="compareStatus" class="status">Ready to compare user IDs...</div>
+        <button onclick="compareUserIds()">Compare User IDs in Database</button>
+        <pre id="compareDetails"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 5: RLS Policy Test</h2>
+        <div id="rlsStatus" class="status">Ready to test RLS policies...</div>
+        <button onclick="testRLS()">Test RLS Policies</button>
+        <pre id="rlsDetails"></pre>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://fhqgqhzwrnogwdqovbay.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocWdxaHp3cm5vZ3dkcW92YmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY2MzkzNDAsImV4cCI6MjA0MjIxNTM0MH0.mwdRPcFCp8qQBw_WTPPz4v8lJYrAnHYB6ByU5Y3-aao';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentUser = null;
+        let testOrderId = null;
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : type === 'info' ? 'ℹ️' : '🔍';
+            element.innerHTML = `[${timestamp}] ${prefix} ${message}`;
+            element.className = `status ${type}`;
+            console.log(`[${timestamp}] ${prefix} ${message}`);
+        }
+
+        function appendDetails(elementId, content) {
+            const element = document.getElementById(elementId);
+            element.textContent += content + '\n';
+        }
+
+        async function checkAuth() {
+            log('authStatus', 'Checking authentication state...', 'info');
+            
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    log('authStatus', `Auth error: ${error.message}`, 'error');
+                    appendDetails('authDetails', `Error: ${JSON.stringify(error, null, 2)}`);
+                    return false;
+                }
+                
+                if (user) {
+                    currentUser = user;
+                    log('authStatus', `User authenticated: ${user.email}`, 'success');
+                    appendDetails('authDetails', `User Details:\nID: ${user.id}\nEmail: ${user.email}\nCreated: ${user.created_at}\n`);
+                    return true;
+                } else {
+                    log('authStatus', 'No authenticated user found', 'warning');
+                    appendDetails('authDetails', 'No user session found\n');
+                    return false;
+                }
+                
+            } catch (err) {
+                log('authStatus', `Exception: ${err.message}`, 'error');
+                appendDetails('authDetails', `Exception: ${err.message}\n`);
+                return false;
+            }
+        }
+
+        async function signIn() {
+            log('authStatus', 'Attempting to sign in...', 'info');
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (error) {
+                    log('authStatus', `Sign in failed: ${error.message}`, 'error');
+                    appendDetails('authDetails', `Sign-in error: ${JSON.stringify(error, null, 2)}\n`);
+                    return false;
+                }
+                
+                currentUser = data.user;
+                log('authStatus', `Sign in successful: ${data.user.email}`, 'success');
+                appendDetails('authDetails', `Signed in:\nID: ${data.user.id}\nEmail: ${data.user.email}\nSession: ${data.session ? 'Active' : 'None'}\n`);
+                return true;
+                
+            } catch (err) {
+                log('authStatus', `Sign in exception: ${err.message}`, 'error');
+                appendDetails('authDetails', `Exception: ${err.message}\n`);
+                return false;
+            }
+        }
+
+        async function createDirectOrder() {
+            if (!currentUser) {
+                log('createStatus', 'No authenticated user - please sign in first', 'error');
+                return;
+            }
+            
+            log('createStatus', 'Creating order directly in Supabase...', 'info');
+            
+            try {
+                testOrderId = `debug-order-${Date.now()}`;
+                const orderData = {
+                    id: testOrderId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: `debug-customer-${Date.now()}`,
+                    status: 'pending',
+                    total_amount: 299.99,
+                    items: JSON.stringify([
+                        { product: 'Debug Product', qty: 1, price: 299.99 }
+                    ]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                appendDetails('createDetails', `Creating order with data:\n${JSON.stringify(orderData, null, 2)}\n`);
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert(orderData)
+                    .select()
+                    .single();
+                
+                if (error) {
+                    log('createStatus', `Order creation failed: ${error.message}`, 'error');
+                    appendDetails('createDetails', `ERROR: ${JSON.stringify(error, null, 2)}\n`);
+                } else {
+                    log('createStatus', `Order created successfully: ${data.id}`, 'success');
+                    appendDetails('createDetails', `SUCCESS: Order created\n${JSON.stringify(data, null, 2)}\n`);
+                }
+                
+            } catch (err) {
+                log('createStatus', `Exception during order creation: ${err.message}`, 'error');
+                appendDetails('createDetails', `EXCEPTION: ${err.message}\n`);
+            }
+        }
+
+        async function loadDirectOrders() {
+            if (!currentUser) {
+                log('loadStatus', 'No authenticated user - please sign in first', 'error');
+                return;
+            }
+            
+            log('loadStatus', 'Loading orders directly from Supabase...', 'info');
+            
+            try {
+                // First, try to load all orders for this user
+                const { data: userOrders, error: userError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                if (userError) {
+                    log('loadStatus', `Failed to load user orders: ${userError.message}`, 'error');
+                    appendDetails('loadDetails', `USER ORDERS ERROR: ${JSON.stringify(userError, null, 2)}\n`);
+                } else {
+                    log('loadStatus', `Loaded ${userOrders.length} orders for user`, 'success');
+                    appendDetails('loadDetails', `USER ORDERS (${userOrders.length}):\n${JSON.stringify(userOrders, null, 2)}\n\n`);
+                }
+                
+                // Also try to load ALL orders to see what's in the table
+                const { data: allOrders, error: allError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .limit(10);
+                
+                if (allError) {
+                    log('loadStatus', `Failed to load all orders: ${allError.message}`, 'error');
+                    appendDetails('loadDetails', `ALL ORDERS ERROR: ${JSON.stringify(allError, null, 2)}\n`);
+                } else {
+                    appendDetails('loadDetails', `ALL ORDERS IN TABLE (${allOrders.length}):\n${JSON.stringify(allOrders, null, 2)}\n`);
+                }
+                
+            } catch (err) {
+                log('loadStatus', `Exception during order loading: ${err.message}`, 'error');
+                appendDetails('loadDetails', `EXCEPTION: ${err.message}\n`);
+            }
+        }
+
+        async function loadViaApp() {
+            log('loadStatus', 'Testing app methods...', 'info');
+            
+            try {
+                // Test the app's loading method by making a request to the actual app
+                const response = await fetch('/api/orders', {
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    appendDetails('loadDetails', `APP API RESPONSE:\n${JSON.stringify(data, null, 2)}\n`);
+                } else {
+                    appendDetails('loadDetails', `APP API ERROR: ${response.status} ${response.statusText}\n`);
+                }
+                
+            } catch (err) {
+                appendDetails('loadDetails', `APP API EXCEPTION: ${err.message}\n`);
+            }
+        }
+
+        async function compareUserIds() {
+            if (!currentUser) {
+                log('compareStatus', 'No authenticated user - please sign in first', 'error');
+                return;
+            }
+            
+            log('compareStatus', 'Comparing user IDs in database...', 'info');
+            
+            try {
+                // Get all unique created_by values
+                const { data: userIds, error } = await supabase
+                    .from('orders')
+                    .select('created_by')
+                    .not('created_by', 'is', null);
+                
+                if (error) {
+                    log('compareStatus', `Failed to get user IDs: ${error.message}`, 'error');
+                    return;
+                }
+                
+                const uniqueUserIds = [...new Set(userIds.map(row => row.created_by))];
+                const currentUserId = currentUser.id;
+                
+                appendDetails('compareDetails', `Current authenticated user ID: ${currentUserId}\n\n`);
+                appendDetails('compareDetails', `User IDs found in orders table:\n`);
+                
+                uniqueUserIds.forEach(id => {
+                    const match = id === currentUserId ? ' ← MATCH!' : '';
+                    appendDetails('compareDetails', `${id}${match}\n`);
+                });
+                
+                const hasMatch = uniqueUserIds.includes(currentUserId);
+                if (hasMatch) {
+                    log('compareStatus', 'User ID matches found in database', 'success');
+                } else {
+                    log('compareStatus', 'No matching user ID found in database', 'warning');
+                }
+                
+            } catch (err) {
+                log('compareStatus', `Exception during user ID comparison: ${err.message}`, 'error');
+                appendDetails('compareDetails', `EXCEPTION: ${err.message}\n`);
+            }
+        }
+
+        async function testRLS() {
+            if (!currentUser) {
+                log('rlsStatus', 'No authenticated user - please sign in first', 'error');
+                return;
+            }
+            
+            log('rlsStatus', 'Testing RLS policies...', 'info');
+            
+            try {
+                // Test 1: Try to access orders without any filters
+                const { data: noFilter, error: noFilterError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .limit(5);
+                
+                appendDetails('rlsDetails', `Test 1 - No filter (should be restricted by RLS):\n`);
+                if (noFilterError) {
+                    appendDetails('rlsDetails', `ERROR: ${JSON.stringify(noFilterError, null, 2)}\n`);
+                } else {
+                    appendDetails('rlsDetails', `SUCCESS: ${noFilter.length} orders returned\n${JSON.stringify(noFilter, null, 2)}\n`);
+                }
+                
+                // Test 2: Try to access orders with user filter
+                const { data: withFilter, error: withFilterError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id);
+                
+                appendDetails('rlsDetails', `\nTest 2 - With user filter:\n`);
+                if (withFilterError) {
+                    appendDetails('rlsDetails', `ERROR: ${JSON.stringify(withFilterError, null, 2)}\n`);
+                } else {
+                    appendDetails('rlsDetails', `SUCCESS: ${withFilter.length} orders returned\n${JSON.stringify(withFilter, null, 2)}\n`);
+                }
+                
+                // Test 3: Check auth.uid() function
+                const { data: authTest, error: authTestError } = await supabase
+                    .rpc('test_auth_uid');
+                
+                appendDetails('rlsDetails', `\nTest 3 - auth.uid() function test:\n`);
+                if (authTestError) {
+                    appendDetails('rlsDetails', `ERROR: ${JSON.stringify(authTestError, null, 2)}\n`);
+                } else {
+                    appendDetails('rlsDetails', `AUTH UID: ${authTest}\nCurrent User ID: ${currentUser.id}\nMatch: ${authTest === currentUser.id}\n`);
+                }
+                
+                log('rlsStatus', 'RLS tests completed', 'success');
+                
+            } catch (err) {
+                log('rlsStatus', `Exception during RLS testing: ${err.message}`, 'error');
+                appendDetails('rlsDetails', `EXCEPTION: ${err.message}\n`);
+            }
+        }
+
+        // Auto-check auth on load
+        window.addEventListener('load', () => {
+            setTimeout(checkAuth, 500);
+        });
+    </script>
+</body>
+</html>

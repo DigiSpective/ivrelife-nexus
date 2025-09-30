@@ -25,6 +25,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useCreateOrder } from '@/hooks/useOrders';
 import { useToast } from '@/hooks/use-toast';
 import { useCart } from '@/components/cart/CartManager';
+import { useAuth } from '@/hooks/useAuth';
 
 const customerSchema = z.object({
   customer_id: z.string().min(1, 'Please select a customer'),
@@ -56,13 +57,14 @@ export default function NewOrder() {
   const location = useLocation();
   const { toast } = useToast();
   const { clearCart } = useCart();
+  const { user } = useAuth();
   
   // Get dynamic customers instead of static mock data
   const { data: customersData } = useCustomers();
   const customers = customersData?.data || [];
   const availableProducts = useAvailableProducts();
   
-  // Order creation hook
+  // Order creation hook - using simple direct store
   const { mutate: createOrderMutation, isPending: isCreatingOrder } = useCreateOrder();
 
   // Initialize cart data if coming from cart checkout
@@ -163,6 +165,16 @@ export default function NewOrder() {
       return;
     }
 
+    // Check if user is authenticated
+    if (!user?.id) {
+      toast({
+        title: "Authentication Error",
+        description: "You must be signed in to create orders.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Calculate totals
     const subtotal = selectedItems.reduce((sum, item) => {
       const price = item.product.sale_price_usd || item.product.price_usd;
@@ -171,17 +183,16 @@ export default function NewOrder() {
     const tax = subtotal * 0.08; // 8% tax rate
     const total = subtotal + tax;
 
-    // Prepare order data
+    // Prepare order data - match actual database schema
+    // IMPORTANT: Only send fields that are explicitly in the database schema
+    // Do NOT send status field - let database default handle it to avoid enum errors
     const newOrderData = {
-      retailer_id: 'ret-1', // Default retailer
-      location_id: 'loc-1', // Default location
+      retailer_id: '550e8400-e29b-41d4-a716-446655440000', // Use the UUID from the test data
       customer_id: orderData.customer_id,
-      created_by: 'usr-1', // Current user - should come from auth context
-      status: 'pending',
-      subtotal_amount: subtotal,
-      tax_amount: tax,
-      total_amount: total,
+      created_by: user?.id || '', // Current authenticated user
+      total_amount: total, // Total amount including tax
       notes: orderData.notes || '',
+      // Explicitly DO NOT include status field to avoid enum constraint errors
     };
 
     console.log('Prepared order data:', newOrderData);

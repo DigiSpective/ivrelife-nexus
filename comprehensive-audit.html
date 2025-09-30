@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comprehensive Persistence Audit</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        button { margin: 10px; padding: 10px 20px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #333; }
+        iframe { width: 100%; height: 400px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+    <h1>🕵️ Comprehensive Persistence Audit</h1>
+    
+    <div class="section">
+        <h2>Step 1: Test Direct Supabase Connection</h2>
+        <button onclick="testDirectConnection()">Test Connection</button>
+        <pre id="connection-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 2: Test Authentication Flow</h2>
+        <button onclick="testAuthFlow()">Test Auth + Order Creation</button>
+        <pre id="auth-log"></pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 3: Test Real App Interface</h2>
+        <button onclick="openApp()">Open App in New Tab</button>
+        <p>Use this to manually test the app interface while monitoring this page</p>
+    </div>
+    
+    <div class="section">
+        <h2>Step 4: Monitor Browser Console</h2>
+        <button onclick="showConsoleInstructions()">Show Console Instructions</button>
+        <pre id="console-instructions" style="display: none;">
+Instructions for manual testing:
+
+1. Open the main app in a new tab
+2. Open browser dev tools (F12)
+3. Go to Console tab
+4. Try to sign in with admin@iv-relife.com / 123456789
+5. Look for any errors in console
+6. Navigate to Orders page
+7. Try creating a new order
+8. Check if order appears in list
+9. Refresh page and check if order persists
+10. Report any error messages here
+
+Key things to look for:
+- "Cannot access uninitialized variable" errors
+- Authentication failures
+- Database connection errors
+- Order creation/retrieval failures
+        </pre>
+    </div>
+    
+    <div class="section">
+        <h2>Step 5: Database Direct Access Test</h2>
+        <button onclick="testDatabaseAccess()">Test Database Direct Access</button>
+        <pre id="database-log"></pre>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        let supabase;
+        let testResults = {
+            connection: false,
+            auth: false,
+            orderCreation: false,
+            orderRetrieval: false,
+            persistence: false
+        };
+        
+        function log(section, message, type = 'info') {
+            const el = document.getElementById(`${section}-log`);
+            if (el) {
+                const timestamp = new Date().toLocaleTimeString();
+                const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+                el.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span>\n`;
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+        
+        async function testDirectConnection() {
+            log('connection', '🔍 Testing direct Supabase connection...');
+            
+            try {
+                supabase = window.supabase.createClient(
+                    'https://qeiyxwuyhetnrnundpep.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak'
+                );
+                
+                log('connection', '✅ Client created successfully', 'success');
+                testResults.connection = true;
+                
+                // Test basic query
+                const { data, error } = await supabase.from('orders').select('id').limit(1);
+                if (error) {
+                    log('connection', `⚠️ Basic query failed: ${error.message}`, 'warning');
+                    log('connection', `Error details: ${JSON.stringify(error, null, 2)}`);
+                } else {
+                    log('connection', '✅ Basic query successful', 'success');
+                    log('connection', `Sample data: ${JSON.stringify(data, null, 2)}`);
+                }
+                
+            } catch (error) {
+                log('connection', `❌ Connection failed: ${error.message}`, 'error');
+                testResults.connection = false;
+            }
+        }
+        
+        async function testAuthFlow() {
+            if (!supabase) {
+                log('auth', '❌ Please test connection first', 'error');
+                return;
+            }
+            
+            log('auth', '🔑 Testing complete authentication + order flow...');
+            
+            try {
+                // Step 1: Authenticate
+                log('auth', 'Step 1: Authenticating...');
+                const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (authError) {
+                    log('auth', `❌ Auth failed: ${authError.message}`, 'error');
+                    
+                    // Try signup
+                    log('auth', 'Trying signup...');
+                    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789'
+                    });
+                    
+                    if (signupError) {
+                        log('auth', `❌ Signup failed: ${signupError.message}`, 'error');
+                        return;
+                    } else {
+                        log('auth', '✅ Signup successful', 'success');
+                        testResults.auth = true;
+                    }
+                } else {
+                    log('auth', '✅ Auth successful', 'success');
+                    testResults.auth = true;
+                }
+                
+                // Step 2: Get current user
+                const { data: { user }, error: userError } = await supabase.auth.getUser();
+                if (userError || !user) {
+                    log('auth', `❌ Failed to get user: ${userError?.message}`, 'error');
+                    return;
+                }
+                
+                log('auth', `✅ User confirmed: ${user.email}`, 'success');
+                
+                // Step 3: Create test order
+                log('auth', 'Step 2: Creating test order...');
+                const testOrderId = `audit-${Date.now()}`;
+                const orderData = {
+                    id: testOrderId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'audit-customer',
+                    status: 'pending',
+                    total_amount: 599.99,
+                    items: JSON.stringify([{ product: 'Audit Test Product', qty: 1, price: 599.99 }]),
+                    created_by: user.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                const { data: orderResult, error: orderError } = await supabase
+                    .from('orders')
+                    .insert(orderData)
+                    .select()
+                    .single();
+                
+                if (orderError) {
+                    log('auth', `❌ Order creation failed: ${orderError.message}`, 'error');
+                    log('auth', `Error details: ${JSON.stringify(orderError, null, 2)}`);
+                    return;
+                }
+                
+                log('auth', '✅ Order created successfully', 'success');
+                log('auth', `Order ID: ${orderResult.id}`, 'success');
+                testResults.orderCreation = true;
+                
+                // Step 4: Retrieve orders
+                log('auth', 'Step 3: Retrieving orders...');
+                const { data: orders, error: retrieveError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', user.id);
+                
+                if (retrieveError) {
+                    log('auth', `❌ Order retrieval failed: ${retrieveError.message}`, 'error');
+                    return;
+                }
+                
+                log('auth', `✅ Retrieved ${orders.length} orders`, 'success');
+                testResults.orderRetrieval = true;
+                
+                // Step 5: Check persistence
+                const foundOrder = orders.find(o => o.id === testOrderId);
+                if (foundOrder) {
+                    log('auth', '✅ Test order found - PERSISTENCE WORKING!', 'success');
+                    testResults.persistence = true;
+                } else {
+                    log('auth', '❌ Test order not found - persistence failed', 'error');
+                }
+                
+                // Step 6: Summary
+                log('auth', '=== AUDIT SUMMARY ===');
+                log('auth', `Connection: ${testResults.connection ? '✅' : '❌'}`);
+                log('auth', `Auth: ${testResults.auth ? '✅' : '❌'}`);
+                log('auth', `Order Creation: ${testResults.orderCreation ? '✅' : '❌'}`);
+                log('auth', `Order Retrieval: ${testResults.orderRetrieval ? '✅' : '❌'}`);
+                log('auth', `Persistence: ${testResults.persistence ? '✅' : '❌'}`);
+                
+                if (testResults.persistence) {
+                    log('auth', '🎉 DIRECT SUPABASE IS WORKING PERFECTLY!', 'success');
+                    log('auth', '📝 Issue must be in the React app components or imports', 'warning');
+                } else {
+                    log('auth', '❌ Persistence issue confirmed in direct Supabase access', 'error');
+                }
+                
+            } catch (error) {
+                log('auth', `❌ Test exception: ${error.message}`, 'error');
+                log('auth', `Stack: ${error.stack}`);
+            }
+        }
+        
+        function openApp() {
+            window.open('http://localhost:8084', '_blank');
+        }
+        
+        function showConsoleInstructions() {
+            const el = document.getElementById('console-instructions');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        async function testDatabaseAccess() {
+            if (!supabase) {
+                log('database', '❌ Please test connection first', 'error');
+                return;
+            }
+            
+            log('database', '🗄️ Testing database table access...');
+            
+            try {
+                // Test each relevant table
+                const tables = ['orders', 'customers', 'users', 'retailers'];
+                
+                for (const table of tables) {
+                    log('database', `Testing ${table} table...`);
+                    const { data, error } = await supabase.from(table).select('*').limit(1);
+                    
+                    if (error) {
+                        log('database', `❌ ${table}: ${error.message}`, 'error');
+                    } else {
+                        log('database', `✅ ${table}: accessible (${data.length} records)`, 'success');
+                    }
+                }
+                
+            } catch (error) {
+                log('database', `❌ Database test exception: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

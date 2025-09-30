@@ -1,4 +1,5 @@
-import { getSupabaseClient } from '@/lib/supabase-client';
+import { createClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/database';
 import { User } from '@/types';
 import { 
   mockUser,
@@ -17,15 +18,24 @@ import { dataManager } from '@/lib/data-manager';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Check if we have valid Supabase credentials
-const hasValidCredentials = supabaseUrl && supabaseAnonKey && 
-  supabaseUrl !== 'https://your-supabase-url.supabase.co' && 
-  supabaseAnonKey !== 'your-anon-key' &&
-  !supabaseUrl.includes('localhost') &&
-  !supabaseUrl.includes('example');
+// Check if credentials are valid
+const hasValidCredentials = supabaseUrl && supabaseAnonKey && supabaseUrl.length > 0 && supabaseAnonKey.length > 0;
 
-// Always try to use the real Supabase client first
-export const supabase = getSupabaseClient();
+console.log('🔥 Supabase config:', {
+  url: supabaseUrl,
+  keyLength: supabaseAnonKey.length,
+  keyPrefix: supabaseAnonKey.substring(0, 20) + '...',
+  hasValidCredentials
+});
+
+// Create simple, direct Supabase client
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+});
 
 // Mock client fallback (only used when Supabase operations fail)
 const mockSupabaseClient = {
@@ -133,8 +143,8 @@ export const getCurrentUser = async (): Promise<User | null> => {
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
-      console.log('No authenticated user found, returning mock user for development');
-      return mockUser;
+      console.log('No authenticated user found');
+      return null;
     }
     
     // Get user data directly from the users table
@@ -145,8 +155,17 @@ export const getCurrentUser = async (): Promise<User | null> => {
       .single();
     
     if (userError) {
-      console.warn('Error fetching user data from Supabase, falling back to mock user:', userError);
-      return mockUser;
+      console.warn('Error fetching user data from Supabase:', userError);
+      // Return basic user info from auth if users table doesn't exist yet
+      return {
+        id: user.id,
+        email: user.email || '',
+        role: 'owner',
+        retailer_id: null,
+        location_id: null,
+        name: user.user_metadata?.name || user.email || '',
+        avatar: user.user_metadata?.avatar_url
+      };
     }
     
     return {
@@ -159,8 +178,8 @@ export const getCurrentUser = async (): Promise<User | null> => {
       avatar: user.user_metadata?.avatar_url
     };
   } catch (error) {
-    console.warn('Supabase getCurrentUser failed, returning mock user:', error);
-    return mockUser;
+    console.warn('Supabase getCurrentUser failed:', error);
+    return null;
   }
 };
 
@@ -760,22 +779,19 @@ export const getProductVariantsByProduct = (productId: string) => {
 
 // Order functions
 export const getOrders = async () => {
-  if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured. Returning mock data.');
-    const mockOrders = await getMockOrders();
-    return Promise.resolve({ data: mockOrders, error: null });
-  }
+  console.log('🔥 getOrders called - using REAL Supabase');
   
   try {
-    return supabase.from('orders').select(`
+    const result = await supabase.from('orders').select(`
       *,
       customers(name),
       order_items(*)
     `);
+    console.log('📦 Supabase getOrders result:', result);
+    return result;
   } catch (error) {
-    console.error('Error fetching orders from Supabase, falling back to mock data:', error);
-    const mockOrders = await getMockOrders();
-    return Promise.resolve({ data: mockOrders, error: null });
+    console.error('❌ Error fetching orders from Supabase:', error);
+    return Promise.resolve({ data: [], error });
   }
 };
 
@@ -816,29 +832,49 @@ export const getOrdersByLocation = (locationId: string) => {
 };
 
 export const createOrder = async (orderData: Partial<Order>) => {
-  console.log('createOrder called with:', orderData);
-  
-  if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured. Using mock data.');
-    // Create order in mock storage
-    console.log('Calling createMockOrder with:', orderData);
-    const newOrder = await createMockOrder(orderData);
-    console.log('createMockOrder returned:', newOrder);
-    return Promise.resolve({ data: newOrder, error: null });
-  }
-  
+  console.log('🔥 createOrder called - USING DIRECT FUNCTION to bypass REST API enum issue:', orderData);
+
   try {
-    const result = await supabase.from('orders').insert([orderData]).select().single();
+    // WORKAROUND: Use RPC function call to bypass REST API enum caching
+    // This calls the create_order_direct PostgreSQL function directly
+    const result = await supabase.rpc('create_order_direct', {
+      p_retailer_id: orderData.retailer_id,
+      p_customer_id: orderData.customer_id,
+      p_created_by: orderData.created_by,
+      p_total_amount: orderData.total_amount,
+      p_notes: orderData.notes || null
+    });
+
+    console.log('📦 RPC createOrder result:', result);
+
+    // Log detailed error information if there's an error
     if (result.error) {
-      console.error('Supabase order creation failed, falling back to mock data:', result.error);
-      const newOrder = await createMockOrder(orderData);
-      return Promise.resolve({ data: newOrder, error: null });
+      console.error('❌ DETAILED ORDER CREATION ERROR:');
+      console.error('Error message:', result.error.message);
+      console.error('Error details:', result.error.details);
+      console.error('Error hint:', result.error.hint);
+      console.error('Error code:', result.error.code);
+      console.error('Full error object:', result.error);
     }
+
+    // Transform RPC result to match expected format
+    if (result.data && result.data.length > 0) {
+      const orderInfo = result.data[0];
+      return {
+        data: {
+          id: orderInfo.order_id,
+          status: orderInfo.order_status,
+          created_at: orderInfo.order_created_at,
+          ...orderData
+        },
+        error: null
+      };
+    }
+
     return result;
   } catch (error) {
-    console.error('Error creating order in Supabase, falling back to mock data:', error);
-    const newOrder = await createMockOrder(orderData);
-    return Promise.resolve({ data: newOrder, error: null });
+    console.error('❌ Exception creating order in Supabase:', error);
+    return Promise.resolve({ data: null, error });
   }
 };
 

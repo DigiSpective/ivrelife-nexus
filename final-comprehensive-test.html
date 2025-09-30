@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Comprehensive Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #000; color: #0f0; }
+        button { margin: 5px; padding: 8px 16px; background: #333; color: #0f0; border: 1px solid #666; cursor: pointer; }
+        button:disabled { background: #222; color: #666; }
+        pre { background: #111; padding: 10px; border: 1px solid #333; white-space: pre-wrap; max-height: 200px; overflow-y: auto; font-size: 12px; }
+        .success { color: #4f4; }
+        .error { color: #f44; }
+        .warning { color: #fa4; }
+        .section { margin: 15px 0; padding: 10px; border: 1px solid #333; }
+        .status { padding: 3px; margin: 3px 0; font-weight: bold; font-size: 14px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🔬 Final Comprehensive Persistence Test</h1>
+    
+    <div class="grid">
+        <div class="section">
+            <h3>🔧 Test 1: Supabase Client</h3>
+            <button onclick="testSupabaseClient()">Test Client</button>
+            <div id="client-status" class="status">Ready</div>
+            <pre id="client-log"></pre>
+        </div>
+        
+        <div class="section">
+            <h3>🔑 Test 2: Authentication</h3>
+            <button id="auth-btn" onclick="testAuth()" disabled>Test Auth</button>
+            <div id="auth-status" class="status">Waiting...</div>
+            <pre id="auth-log"></pre>
+        </div>
+        
+        <div class="section">
+            <h3>📥 Test 3: Load Orders</h3>
+            <button id="load-btn" onclick="testLoadOrders()" disabled>Load Orders</button>
+            <div id="load-status" class="status">Waiting...</div>
+            <pre id="load-log"></pre>
+        </div>
+        
+        <div class="section">
+            <h3>📝 Test 4: Create Order</h3>
+            <button id="create-btn" onclick="testCreateOrder()" disabled>Create Order</button>
+            <div id="create-status" class="status">Waiting...</div>
+            <pre id="create-log"></pre>
+        </div>
+        
+        <div class="section">
+            <h3>🔄 Test 5: Verify Persistence</h3>
+            <button id="verify-btn" onclick="testPersistence()" disabled>Verify</button>
+            <div id="verify-status" class="status">Waiting...</div>
+            <pre id="verify-log"></pre>
+        </div>
+        
+        <div class="section">
+            <h3>🎯 Test 6: Full Simulation</h3>
+            <button id="simulate-btn" onclick="simulateAppFlow()" disabled>Simulate App</button>
+            <div id="simulate-status" class="status">Waiting...</div>
+            <pre id="simulate-log"></pre>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>📊 Final Results</h2>
+        <div id="final-results" class="status">Testing in progress...</div>
+        <div id="conclusion" style="margin-top: 10px; padding: 10px; border: 2px solid #666;"></div>
+    </div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        let supabase;
+        let currentUser;
+        let testOrderId;
+        let testResults = {};
+        
+        function log(section, message, type = 'info') {
+            const el = document.getElementById(`${section}-log`);
+            if (el) {
+                const time = new Date().toLocaleTimeString();
+                const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+                el.innerHTML += `<span style="color: ${color}">[${time}] ${message}</span>\n`;
+                el.scrollTop = el.scrollHeight;
+            }
+        }
+        
+        function updateStatus(section, message, type = 'info') {
+            const el = document.getElementById(`${section}-status`);
+            if (el) {
+                const color = type === 'error' ? '#f44' : type === 'success' ? '#4f4' : type === 'warning' ? '#fa4' : '#0f0';
+                el.innerHTML = `<span style="color: ${color}">${message}</span>`;
+            }
+        }
+        
+        async function testSupabaseClient() {
+            log('client', '🔧 Testing Supabase client creation...');
+            try {
+                supabase = window.supabase.createClient(
+                    'https://qeiyxwuyhetnrnundpep.supabase.co',
+                    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak',
+                    { auth: { autoRefreshToken: true, persistSession: true, detectSessionInUrl: true } }
+                );
+                
+                const { data, error } = await supabase.from('orders').select('id').limit(1);
+                
+                if (error) {
+                    log('client', `❌ Connection test failed: ${error.message}`, 'error');
+                    testResults.client = false;
+                    updateStatus('client', '❌ Failed', 'error');
+                } else {
+                    log('client', '✅ Client and connection working', 'success');
+                    testResults.client = true;
+                    updateStatus('client', '✅ Working', 'success');
+                    document.getElementById('auth-btn').disabled = false;
+                }
+            } catch (error) {
+                log('client', `❌ Exception: ${error.message}`, 'error');
+                testResults.client = false;
+                updateStatus('client', '❌ Exception', 'error');
+            }
+        }
+        
+        async function testAuth() {
+            log('auth', '🔑 Testing authentication...');
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: 'admin@iv-relife.com',
+                    password: '123456789'
+                });
+                
+                if (error) {
+                    log('auth', `Sign in failed, trying signup: ${error.message}`);
+                    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789'
+                    });
+                    
+                    if (signupError) {
+                        log('auth', `❌ Both signin and signup failed: ${signupError.message}`, 'error');
+                        testResults.auth = false;
+                        updateStatus('auth', '❌ Failed', 'error');
+                        return;
+                    } else {
+                        currentUser = signupData.user;
+                        log('auth', '✅ Signup successful', 'success');
+                    }
+                } else {
+                    currentUser = data.user;
+                    log('auth', '✅ Signin successful', 'success');
+                }
+                
+                if (currentUser) {
+                    log('auth', `User: ${currentUser.email} (${currentUser.id})`);
+                    testResults.auth = true;
+                    updateStatus('auth', '✅ Authenticated', 'success');
+                    document.getElementById('load-btn').disabled = false;
+                    document.getElementById('simulate-btn').disabled = false;
+                }
+            } catch (error) {
+                log('auth', `❌ Exception: ${error.message}`, 'error');
+                testResults.auth = false;
+                updateStatus('auth', '❌ Exception', 'error');
+            }
+        }
+        
+        async function testLoadOrders() {
+            log('load', '📥 Testing order loading...');
+            try {
+                const { data, error } = await supabase.from('orders').select('*').eq('created_by', currentUser.id);
+                
+                if (error) {
+                    log('load', `❌ Load failed: ${error.message}`, 'error');
+                    testResults.load = false;
+                    updateStatus('load', '❌ Failed', 'error');
+                } else {
+                    log('load', `✅ Loaded ${data.length} orders`, 'success');
+                    testResults.load = true;
+                    testResults.initialCount = data.length;
+                    updateStatus('load', `✅ ${data.length} orders`, 'success');
+                    document.getElementById('create-btn').disabled = false;
+                }
+            } catch (error) {
+                log('load', `❌ Exception: ${error.message}`, 'error');
+                testResults.load = false;
+                updateStatus('load', '❌ Exception', 'error');
+            }
+        }
+        
+        async function testCreateOrder() {
+            log('create', '📝 Testing order creation...');
+            try {
+                testOrderId = `final-test-${Date.now()}`;
+                const orderData = {
+                    id: testOrderId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'final-test-customer',
+                    status: 'pending',
+                    total_amount: 799.99,
+                    items: JSON.stringify([{ product: 'Final Test Product', qty: 1, price: 799.99 }]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                const { data, error } = await supabase.from('orders').insert([orderData]).select().single();
+                
+                if (error) {
+                    log('create', `❌ Create failed: ${error.message}`, 'error');
+                    testResults.create = false;
+                    updateStatus('create', '❌ Failed', 'error');
+                } else {
+                    log('create', `✅ Created order: ${data.id}`, 'success');
+                    testResults.create = true;
+                    updateStatus('create', '✅ Created', 'success');
+                    document.getElementById('verify-btn').disabled = false;
+                }
+            } catch (error) {
+                log('create', `❌ Exception: ${error.message}`, 'error');
+                testResults.create = false;
+                updateStatus('create', '❌ Exception', 'error');
+            }
+        }
+        
+        async function testPersistence() {
+            log('verify', '🔄 Testing persistence...');
+            try {
+                const { data, error } = await supabase.from('orders').select('*').eq('created_by', currentUser.id);
+                
+                if (error) {
+                    log('verify', `❌ Verification failed: ${error.message}`, 'error');
+                    testResults.persistence = false;
+                    updateStatus('verify', '❌ Failed', 'error');
+                } else {
+                    const foundOrder = data.find(o => o.id === testOrderId);
+                    const newCount = data.length;
+                    
+                    if (foundOrder && newCount === testResults.initialCount + 1) {
+                        log('verify', '🎉 PERSISTENCE WORKING! Order found and count correct', 'success');
+                        testResults.persistence = true;
+                        updateStatus('verify', '✅ Working', 'success');
+                    } else if (foundOrder) {
+                        log('verify', '⚠️ Order found but count issue', 'warning');
+                        testResults.persistence = 'partial';
+                        updateStatus('verify', '⚠️ Partial', 'warning');
+                    } else {
+                        log('verify', '❌ Order not found - persistence failed', 'error');
+                        testResults.persistence = false;
+                        updateStatus('verify', '❌ Failed', 'error');
+                    }
+                }
+                
+                showResults();
+            } catch (error) {
+                log('verify', `❌ Exception: ${error.message}`, 'error');
+                testResults.persistence = false;
+                updateStatus('verify', '❌ Exception', 'error');
+                showResults();
+            }
+        }
+        
+        async function simulateAppFlow() {
+            log('simulate', '🎯 Simulating complete app flow...');
+            updateStatus('simulate', '🔄 Running...', 'warning');
+            
+            try {
+                // Step 1: Fresh auth check
+                const { data: sessionData } = await supabase.auth.getSession();
+                log('simulate', `Session check: ${sessionData.session ? 'Active' : 'None'}`);
+                
+                // Step 2: Load orders (like Orders page)
+                const { data: ordersData, error: ordersError } = await supabase.from('orders').select('*');
+                if (ordersError) {
+                    log('simulate', `❌ Orders load failed: ${ordersError.message}`, 'error');
+                    updateStatus('simulate', '❌ Failed', 'error');
+                    return;
+                }
+                log('simulate', `✅ App would show ${ordersData.length} total orders`);
+                
+                // Step 3: Create order (like NewOrder component)
+                const appTestId = `app-sim-${Date.now()}`;
+                const { data: createData, error: createError } = await supabase.from('orders').insert([{
+                    id: appTestId,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: 'app-simulation',
+                    status: 'pending',
+                    total_amount: 899.99,
+                    items: JSON.stringify([{ product: 'App Sim Product', qty: 1, price: 899.99 }]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }]).select().single();
+                
+                if (createError) {
+                    log('simulate', `❌ App simulation create failed: ${createError.message}`, 'error');
+                    updateStatus('simulate', '❌ Create Failed', 'error');
+                    return;
+                }
+                log('simulate', `✅ App simulation created order: ${createData.id}`);
+                
+                // Step 4: Immediate refresh (like React Query invalidation)
+                const { data: refreshData, error: refreshError } = await supabase.from('orders').select('*');
+                if (refreshError) {
+                    log('simulate', `❌ Refresh failed: ${refreshError.message}`, 'error');
+                    updateStatus('simulate', '❌ Refresh Failed', 'error');
+                    return;
+                }
+                
+                const foundInRefresh = refreshData.find(o => o.id === appTestId);
+                if (foundInRefresh) {
+                    log('simulate', '🎉 APP SIMULATION SUCCESS! Order immediately available', 'success');
+                    updateStatus('simulate', '✅ Perfect', 'success');
+                    testResults.appSimulation = true;
+                } else {
+                    log('simulate', '❌ App simulation failed - order not found in refresh', 'error');
+                    updateStatus('simulate', '❌ Sim Failed', 'error');
+                    testResults.appSimulation = false;
+                }
+                
+                showResults();
+                
+            } catch (error) {
+                log('simulate', `❌ Simulation exception: ${error.message}`, 'error');
+                updateStatus('simulate', '❌ Exception', 'error');
+                testResults.appSimulation = false;
+                showResults();
+            }
+        }
+        
+        function showResults() {
+            const results = document.getElementById('final-results');
+            const conclusion = document.getElementById('conclusion');
+            
+            const summary = [
+                `Client: ${testResults.client ? '✅' : '❌'}`,
+                `Auth: ${testResults.auth ? '✅' : '❌'}`,
+                `Load: ${testResults.load ? '✅' : '❌'}`,
+                `Create: ${testResults.create ? '✅' : '❌'}`,
+                `Persist: ${testResults.persistence === true ? '✅' : testResults.persistence === 'partial' ? '⚠️' : '❌'}`,
+                `App Sim: ${testResults.appSimulation ? '✅' : '❌'}`
+            ].join(' | ');
+            
+            results.innerHTML = `<span style="color: #0f0">${summary}</span>`;
+            
+            const allWorking = testResults.client && testResults.auth && testResults.load && 
+                             testResults.create && testResults.persistence === true && testResults.appSimulation;
+            
+            if (allWorking) {
+                conclusion.innerHTML = '<span style="color: #4f4; font-size: 18px;">🎉 ALL TESTS PASSED! PERSISTENCE IS WORKING PERFECTLY!</span><br>' +
+                                     '<span style="color: #0f0;">The issue has been resolved. Orders will now persist correctly in the React app.</span>';
+            } else {
+                conclusion.innerHTML = '<span style="color: #f44; font-size: 18px;">❌ Some tests failed. Persistence issue still exists.</span><br>' +
+                                     '<span style="color: #fa4;">Check the individual test logs above to identify the specific problem.</span>';
+            }
+        }
+    </script>
+</body>
+</html>

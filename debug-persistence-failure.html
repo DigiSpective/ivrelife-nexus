@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Persistence Failure</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8fafc;
+        }
+        .header {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .debug-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+        .button:hover { background: #2563eb; }
+        .button.danger { background: #dc2626; }
+        .button.danger:hover { background: #b91c1c; }
+        .log {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 12px;
+            margin: 5px 0;
+        }
+        .status.success { background: #dcfce7; color: #166534; }
+        .status.error { background: #fef2f2; color: #dc2626; }
+        .status.warning { background: #fef3c7; color: #d97706; }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 Debug Persistence Failure</h1>
+        <p>Systematic diagnosis of why data disappears after page refresh</p>
+    </div>
+
+    <div class="debug-section">
+        <h2>🧪 Step-by-Step Debugging</h2>
+        <div class="test-grid">
+            <div>
+                <h3>1. Database Connectivity</h3>
+                <button class="button" onclick="testDatabaseConnection()">Test DB Connection</button>
+                <div id="dbStatus" class="status">Ready</div>
+                <div id="dbLog" class="log"></div>
+            </div>
+
+            <div>
+                <h3>2. Authentication State</h3>
+                <button class="button" onclick="testAuthState()">Check Auth</button>
+                <div id="authStatus" class="status">Ready</div>
+                <div id="authLog" class="log"></div>
+            </div>
+
+            <div>
+                <h3>3. Create Test Order</h3>
+                <button class="button" onclick="createTestOrder()">Create Order</button>
+                <div id="createStatus" class="status">Ready</div>
+                <div id="createLog" class="log"></div>
+            </div>
+
+            <div>
+                <h3>4. Load Orders</h3>
+                <button class="button" onclick="loadOrders()">Load Orders</button>
+                <div id="loadStatus" class="status">Ready</div>
+                <div id="loadLog" class="log"></div>
+            </div>
+
+            <div>
+                <h3>5. Check App API</h3>
+                <button class="button" onclick="testAppAPI()">Test App Functions</button>
+                <div id="apiStatus" class="status">Ready</div>
+                <div id="apiLog" class="log"></div>
+            </div>
+
+            <div>
+                <h3>6. Simulate Refresh</h3>
+                <button class="button danger" onclick="simulateRefresh()">Simulate Page Refresh</button>
+                <div id="refreshStatus" class="status">Ready</div>
+                <div id="refreshLog" class="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="debug-section">
+        <h2>🚨 Live Debug Output</h2>
+        <div id="masterLog" class="log" style="height: 300px;"></div>
+    </div>
+
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://fhqgqhzwrnogwdqovbay.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocWdxaHp3cm5vZ3dkcW92YmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY2MzkzNDAsImV4cCI6MjA0MjIxNTM0MH0.mwdRPcFCp8qQBw_WTPPz4v8lJYrAnHYB6ByU5Y3-aao';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let testOrderId = null;
+
+        // Logging utility
+        function log(elementId, message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            const logMessage = `[${timestamp}] ${prefix} ${message}`;
+            
+            // Log to specific element
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML += logMessage + '\n';
+                element.scrollTop = element.scrollHeight;
+            }
+            
+            // Also log to master log
+            const masterLog = document.getElementById('masterLog');
+            if (masterLog) {
+                masterLog.innerHTML += logMessage + '\n';
+                masterLog.scrollTop = masterLog.scrollHeight;
+            }
+            
+            // Also log to console for debugging
+            console.log(logMessage);
+        }
+
+        function setStatus(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.className = `status ${status}`;
+                element.textContent = message;
+            }
+        }
+
+        // Test 1: Database Connection
+        async function testDatabaseConnection() {
+            log('dbLog', 'Testing database connection and table access...');
+            setStatus('dbStatus', 'warning', 'Testing...');
+            
+            try {
+                // Test connection to Supabase
+                const { data: { user }, error: authError } = await supabase.auth.getUser();
+                log('dbLog', `Auth user: ${user ? user.id : 'No user'}`, user ? 'success' : 'warning');
+                
+                // Test each table
+                const tables = ['orders', 'claims', 'shipments', 'customers'];
+                let allGood = true;
+                
+                for (const table of tables) {
+                    try {
+                        const { data, error } = await supabase.from(table).select('id').limit(1);
+                        if (error) {
+                            log('dbLog', `❌ Table ${table}: ${error.message}`, 'error');
+                            allGood = false;
+                        } else {
+                            log('dbLog', `✅ Table ${table}: Accessible (${data?.length || 0} rows visible)`, 'success');
+                        }
+                    } catch (err) {
+                        log('dbLog', `❌ Table ${table} exception: ${err.message}`, 'error');
+                        allGood = false;
+                    }
+                }
+                
+                if (allGood) {
+                    setStatus('dbStatus', 'success', '✅ All tables accessible');
+                    log('dbLog', '✅ Database connection test PASSED', 'success');
+                } else {
+                    setStatus('dbStatus', 'error', '❌ Some tables inaccessible');
+                    log('dbLog', '❌ Database connection test FAILED', 'error');
+                }
+                
+            } catch (error) {
+                setStatus('dbStatus', 'error', '❌ Connection failed');
+                log('dbLog', `❌ Connection test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 2: Authentication State
+        async function testAuthState() {
+            log('authLog', 'Checking authentication state...');
+            setStatus('authStatus', 'warning', 'Checking...');
+            
+            try {
+                // Check Supabase auth
+                const { data: { user }, error } = await supabase.auth.getUser();
+                log('authLog', `Supabase user: ${user ? user.id : 'null'}`, user ? 'success' : 'warning');
+                log('authLog', `Supabase session: ${user ? 'Active' : 'None'}`);
+                
+                // Test sign in if no user
+                if (!user) {
+                    log('authLog', 'No user found, attempting to sign in...', 'warning');
+                    
+                    // Try signing in anonymously or with test credentials
+                    const { data: signInData, error: signInError } = await supabase.auth.signInAnonymously();
+                    
+                    if (signInError) {
+                        log('authLog', `Anonymous sign-in failed: ${signInError.message}`, 'error');
+                        
+                        // Try with test user
+                        const { data: testSignIn, error: testError } = await supabase.auth.signInWithPassword({
+                            email: 'test@ivrelife.com',
+                            password: 'test123456'
+                        });
+                        
+                        if (testError) {
+                            log('authLog', `Test user sign-in failed: ${testError.message}`, 'error');
+                        } else {
+                            log('authLog', `✅ Signed in as test user: ${testSignIn.user?.id}`, 'success');
+                        }
+                    } else {
+                        log('authLog', `✅ Anonymous sign-in successful: ${signInData.user?.id}`, 'success');
+                    }
+                }
+                
+                // Final auth check
+                const { data: { user: finalUser } } = await supabase.auth.getUser();
+                if (finalUser) {
+                    setStatus('authStatus', 'success', '✅ Authenticated');
+                    log('authLog', `✅ Final auth state: ${finalUser.id}`, 'success');
+                } else {
+                    setStatus('authStatus', 'error', '❌ Not authenticated');
+                    log('authLog', '❌ Still not authenticated after attempts', 'error');
+                }
+                
+            } catch (error) {
+                setStatus('authStatus', 'error', '❌ Auth error');
+                log('authLog', `❌ Auth test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 3: Create Test Order
+        async function createTestOrder() {
+            log('createLog', 'Creating test order...');
+            setStatus('createStatus', 'warning', 'Creating...');
+            
+            try {
+                // Get current user
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    throw new Error('No authenticated user');
+                }
+                
+                log('createLog', `Creating order for user: ${user.id}`);
+                
+                // Create test order directly in Supabase
+                const testOrder = {
+                    id: `debug-order-${Date.now()}`,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: `debug-customer-${Date.now()}`,
+                    status: 'pending',
+                    total_amount: 199.99,
+                    items: JSON.stringify([
+                        { product: 'Debug Test Product', qty: 1, price: 199.99 }
+                    ]),
+                    created_by: user.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                log('createLog', `Order data: ${JSON.stringify(testOrder, null, 2)}`);
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert(testOrder)
+                    .select()
+                    .single();
+                
+                if (error) {
+                    throw error;
+                }
+                
+                testOrderId = data.id;
+                setStatus('createStatus', 'success', '✅ Order created');
+                log('createLog', `✅ Order created successfully: ${data.id}`, 'success');
+                log('createLog', `Created order data: ${JSON.stringify(data, null, 2)}`);
+                
+            } catch (error) {
+                setStatus('createStatus', 'error', '❌ Creation failed');
+                log('createLog', `❌ Order creation failed: ${error.message}`, 'error');
+                log('createLog', `Error details: ${JSON.stringify(error, null, 2)}`);
+            }
+        }
+
+        // Test 4: Load Orders
+        async function loadOrders() {
+            log('loadLog', 'Loading orders from database...');
+            setStatus('loadStatus', 'warning', 'Loading...');
+            
+            try {
+                // Get current user
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    throw new Error('No authenticated user');
+                }
+                
+                log('loadLog', `Loading orders for user: ${user.id}`);
+                
+                // Load orders directly from Supabase
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', user.id)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                setStatus('loadStatus', 'success', `✅ ${data?.length || 0} orders`);
+                log('loadLog', `✅ Loaded ${data?.length || 0} orders`, 'success');
+                
+                if (data && data.length > 0) {
+                    log('loadLog', `Orders found:`);
+                    data.forEach((order, index) => {
+                        log('loadLog', `  ${index + 1}. ${order.id} - $${order.total_amount} - ${order.status}`);
+                    });
+                } else {
+                    log('loadLog', '⚠️ No orders found', 'warning');
+                }
+                
+                // Check if our test order is there
+                if (testOrderId) {
+                    const foundTestOrder = data?.find(order => order.id === testOrderId);
+                    if (foundTestOrder) {
+                        log('loadLog', `✅ Test order found: ${testOrderId}`, 'success');
+                    } else {
+                        log('loadLog', `❌ Test order NOT found: ${testOrderId}`, 'error');
+                    }
+                }
+                
+            } catch (error) {
+                setStatus('loadStatus', 'error', '❌ Load failed');
+                log('loadLog', `❌ Loading failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 5: Test App API
+        async function testAppAPI() {
+            log('apiLog', 'Testing app API functions...');
+            setStatus('apiStatus', 'warning', 'Testing...');
+            
+            try {
+                // Test if we can access the app's functions
+                log('apiLog', 'Testing app domain: http://localhost:8084');
+                
+                // Try to fetch orders from the app
+                const response = await fetch('http://localhost:8084/api/orders').catch(() => null);
+                
+                if (response && response.ok) {
+                    const orders = await response.json();
+                    log('apiLog', `✅ App API responded with ${orders?.length || 0} orders`, 'success');
+                } else {
+                    log('apiLog', '⚠️ App API endpoint not available or no API route configured', 'warning');
+                }
+                
+                // Test localStorage
+                const localStorageTest = localStorage.getItem('iv-relife-orders:' + (await supabase.auth.getUser()).data.user?.id);
+                log('apiLog', `localStorage data: ${localStorageTest ? 'Data found' : 'No data'}`);
+                
+                // Test if we can access window functions (if in an iframe or cross-origin)
+                log('apiLog', `Window origin: ${window.location.origin}`);
+                log('apiLog', `User agent: ${navigator.userAgent}`);
+                
+                setStatus('apiStatus', 'success', '✅ Tests completed');
+                log('apiLog', '✅ App API tests completed', 'success');
+                
+            } catch (error) {
+                setStatus('apiStatus', 'error', '❌ API test failed');
+                log('apiLog', `❌ App API test failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 6: Simulate Refresh
+        async function simulateRefresh() {
+            log('refreshLog', 'Simulating page refresh scenario...');
+            setStatus('refreshStatus', 'warning', 'Simulating...');
+            
+            try {
+                // First, ensure we have data
+                if (!testOrderId) {
+                    log('refreshLog', 'No test order found, creating one first...');
+                    await createTestOrder();
+                }
+                
+                log('refreshLog', `Test order ID: ${testOrderId}`);
+                
+                // Simulate what happens on page refresh
+                log('refreshLog', '1. Clearing localStorage (simulating refresh)...');
+                
+                // Check what's in localStorage before clearing
+                const keys = Object.keys(localStorage).filter(key => key.includes('iv-relife'));
+                log('refreshLog', `Found localStorage keys: ${keys.join(', ')}`);
+                
+                // Clear app-related localStorage
+                keys.forEach(key => {
+                    localStorage.removeItem(key);
+                    log('refreshLog', `Removed localStorage key: ${key}`);
+                });
+                
+                log('refreshLog', '2. Testing auth persistence...');
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    log('refreshLog', `✅ Auth persisted: ${user.id}`, 'success');
+                } else {
+                    log('refreshLog', '❌ Auth lost after refresh simulation', 'error');
+                }
+                
+                log('refreshLog', '3. Testing data reload from database...');
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', user?.id || 'no-user')
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    log('refreshLog', `❌ Data reload failed: ${error.message}`, 'error');
+                } else {
+                    log('refreshLog', `✅ Reloaded ${data?.length || 0} orders from database`, 'success');
+                    
+                    if (testOrderId) {
+                        const found = data?.find(order => order.id === testOrderId);
+                        if (found) {
+                            log('refreshLog', `✅ Test order survived refresh: ${testOrderId}`, 'success');
+                        } else {
+                            log('refreshLog', `❌ Test order LOST after refresh: ${testOrderId}`, 'error');
+                        }
+                    }
+                }
+                
+                log('refreshLog', '4. Refresh simulation complete');
+                setStatus('refreshStatus', 'success', '✅ Simulation done');
+                
+                // Now actually refresh the page to test
+                log('refreshLog', '🔄 Refreshing page in 3 seconds to test real persistence...');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+                
+            } catch (error) {
+                setStatus('refreshStatus', 'error', '❌ Simulation failed');
+                log('refreshLog', `❌ Refresh simulation failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-run basic tests on load
+        window.addEventListener('load', async () => {
+            log('masterLog', '🔍 Starting automatic diagnosis...');
+            
+            // Add a delay to ensure everything is loaded
+            setTimeout(async () => {
+                await testDatabaseConnection();
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                await testAuthState();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

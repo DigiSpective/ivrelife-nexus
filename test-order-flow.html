@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Order Flow</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .status { margin: 10px 0; padding: 10px; border: 1px solid #333; }
+        .error { color: #ff4444; }
+        .success { color: #44ff44; }
+        .warning { color: #ffaa44; }
+        button { margin: 5px; padding: 8px 16px; }
+        pre { background: #333; padding: 10px; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test Order Creation and Loading Flow</h1>
+    
+    <div class="status" id="authStatus">Checking auth state...</div>
+    <div class="status" id="createStatus">Ready to create order...</div>
+    <div class="status" id="loadStatus">Ready to load orders...</div>
+    
+    <button onclick="checkAuth()">1. Check Auth</button>
+    <button onclick="createTestOrder()">2. Create Test Order</button>
+    <button onclick="loadOrders()">3. Load Orders</button>
+    <button onclick="testDirectSupabase()">4. Test Direct Supabase Query</button>
+    
+    <div id="orderData"></div>
+    
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+        const SUPABASE_URL = 'https://fhqgqhzwrnogwdqovbay.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZocWdxaHp3cm5vZ3dkcW92YmF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY2MzkzNDAsImV4cCI6MjA0MjIxNTM0MH0.mwdRPcFCp8qQBw_WTPPz4v8lJYrAnHYB6ByU5Y3-aao';
+        
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let currentUser = null;
+
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            element.innerHTML = `[${timestamp}] ${message}`;
+            element.className = `status ${className}`;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        async function checkAuth() {
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    log('authStatus', `❌ Auth error: ${error.message}`, 'error');
+                    return false;
+                }
+                
+                if (user) {
+                    currentUser = user;
+                    log('authStatus', `✅ User authenticated: ${user.email} (${user.id})`, 'success');
+                    return true;
+                } else {
+                    // Try to sign in
+                    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+                        email: 'admin@iv-relife.com',
+                        password: '123456789'
+                    });
+                    
+                    if (signInError) {
+                        log('authStatus', `❌ Sign in failed: ${signInError.message}`, 'error');
+                        return false;
+                    }
+                    
+                    currentUser = data.user;
+                    log('authStatus', `✅ Signed in: ${data.user.email} (${data.user.id})`, 'success');
+                    return true;
+                }
+                
+            } catch (err) {
+                log('authStatus', `❌ Error checking auth: ${err.message}`, 'error');
+                return false;
+            }
+        }
+
+        async function createTestOrder() {
+            if (!currentUser) {
+                log('createStatus', '❌ Please check auth first', 'error');
+                return;
+            }
+            
+            try {
+                log('createStatus', 'Creating test order...', 'warning');
+                
+                const testOrder = {
+                    id: `test-order-${Date.now()}`,
+                    retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+                    customer_id: `test-customer-${Date.now()}`,
+                    status: 'pending',
+                    total_amount: 199.99,
+                    items: JSON.stringify([
+                        { product: 'Test Product', qty: 1, price: 199.99 }
+                    ]),
+                    created_by: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                
+                console.log('Creating order with data:', testOrder);
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .insert(testOrder)
+                    .select()
+                    .single();
+                
+                if (error) {
+                    log('createStatus', `❌ Order creation failed: ${error.message}`, 'error');
+                    console.error('Full error:', error);
+                } else {
+                    log('createStatus', `✅ Order created: ${data.id}`, 'success');
+                    console.log('Created order:', data);
+                    
+                    // Update display
+                    document.getElementById('orderData').innerHTML = `<pre>Created Order:\n${JSON.stringify(data, null, 2)}</pre>`;
+                }
+                
+            } catch (err) {
+                log('createStatus', `❌ Create order error: ${err.message}`, 'error');
+            }
+        }
+
+        async function loadOrders() {
+            if (!currentUser) {
+                log('loadStatus', '❌ Please check auth first', 'error');
+                return;
+            }
+            
+            try {
+                log('loadStatus', 'Loading orders from Supabase...', 'warning');
+                
+                const { data, error } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .eq('created_by', currentUser.id)
+                    .order('created_at', { ascending: false });
+                
+                if (error) {
+                    log('loadStatus', `❌ Load orders failed: ${error.message}`, 'error');
+                    console.error('Full error:', error);
+                } else {
+                    log('loadStatus', `✅ Loaded ${data.length} orders`, 'success');
+                    console.log('Loaded orders:', data);
+                    
+                    // Update display
+                    const ordersHtml = data.map(order => 
+                        `Order ${order.id}: ${order.status} - $${order.total_amount} (${order.created_at})`
+                    ).join('\n');
+                    
+                    document.getElementById('orderData').innerHTML = `<pre>Loaded Orders (${data.length}):\n${ordersHtml}\n\nRaw Data:\n${JSON.stringify(data, null, 2)}</pre>`;
+                }
+                
+            } catch (err) {
+                log('loadStatus', `❌ Load orders error: ${err.message}`, 'error');
+            }
+        }
+
+        async function testDirectSupabase() {
+            if (!currentUser) {
+                log('loadStatus', '❌ Please check auth first', 'error');
+                return;
+            }
+            
+            try {
+                log('loadStatus', 'Testing direct Supabase table access...', 'warning');
+                
+                // Test table access without filters
+                const { data: allData, error: allError } = await supabase
+                    .from('orders')
+                    .select('*')
+                    .limit(5);
+                
+                if (allError) {
+                    log('loadStatus', `❌ Direct table access failed: ${allError.message}`, 'error');
+                } else {
+                    log('loadStatus', `✅ Direct access: ${allData.length} total orders in table`, 'success');
+                    console.log('All orders:', allData);
+                    
+                    // Test user-specific access
+                    const { data: userData, error: userError } = await supabase
+                        .from('orders')
+                        .select('*')
+                        .eq('created_by', currentUser.id);
+                    
+                    if (userError) {
+                        log('loadStatus', `❌ User orders failed: ${userError.message}`, 'error');
+                    } else {
+                        log('loadStatus', `✅ User orders: ${userData.length} orders for current user`, 'success');
+                        
+                        document.getElementById('orderData').innerHTML = `<pre>Direct Supabase Test:\n\nTotal orders in table: ${allData.length}\nUser orders: ${userData.length}\n\nUser Orders:\n${JSON.stringify(userData, null, 2)}</pre>`;
+                    }
+                }
+                
+            } catch (err) {
+                log('loadStatus', `❌ Direct Supabase test error: ${err.message}`, 'error');
+            }
+        }
+
+        // Auto-check auth on load
+        window.addEventListener('load', () => {
+            setTimeout(checkAuth, 500);
+        });
+    </script>
+</body>
+</html>

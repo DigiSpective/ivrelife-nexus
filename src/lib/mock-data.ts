@@ -217,41 +217,118 @@ export const getMockCustomers = async (userId?: string) => {
   try {
     console.log('📦 getMockCustomers called with userId:', userId);
     
-    // Use smart persistence instead of direct storage access
+    // Use Supabase persistence first, then smart persistence fallback
+    const { supabasePersistence } = await import('./supabase-persistence');
     const { smartPersistence } = await import('./smart-persistence');
     const { STORAGE_KEYS } = await import('./persistent-storage');
+    const { waitForAuth } = await import('./auth-context-guard');
     
-    // Get customers from smart persistence (will try Supabase first, then localStorage)
-    const rawCustomers = await smartPersistence.get(STORAGE_KEYS.CUSTOMERS, userId);
-    const customers = Array.isArray(rawCustomers) ? rawCustomers : [];
-    console.log('📊 Found in storage:', customers.length, 'customers for userId:', userId);
+    // Wait for auth to be ready and get current user if no userId provided
+    let effectiveUserId = userId;
+    if (!effectiveUserId) {
+      console.log('🕰️ Waiting for auth context...');
+      const currentUser = await waitForAuth();
+      effectiveUserId = currentUser?.id;
+      console.log('🔐 Got userId from auth context:', effectiveUserId);
+    }
     
-    // CRITICAL FIX: Only initialize if we have NO stored data AND no userId context
-    // This prevents overwriting user data on refresh
-    if (customers.length === 0) {
-      console.log('🔧 No customers found, checking if we should initialize...');
+    // If still no userId, return empty array to prevent data corruption
+    if (!effectiveUserId) {
+      console.log('⚠️ No authenticated user - returning empty array to prevent data corruption');
+      return [];
+    }
+    
+    // Strategy 1: Try to load from Supabase customers table first
+    console.log('🗄️ Trying Supabase customers table...');
+    let customers = await supabasePersistence.loadCustomers(effectiveUserId);
+    
+    if (customers && customers.length > 0) {
+      console.log('✅ Found customers in Supabase customers table:', customers.length);
+      return customers;
+    }
+    
+    // Strategy 2: Try user_storage table
+    console.log('💾 Trying Supabase user_storage table...');
+    const storageCustomers = await supabasePersistence.loadFromUserStorage('customers', effectiveUserId);
+    if (storageCustomers && Array.isArray(storageCustomers) && storageCustomers.length > 0) {
+      console.log('✅ Found customers in user_storage table:', storageCustomers.length);
       
-      // If we have a userId, this means user is logged in but has no data yet
-      // Only initialize with mock data if this is truly a first-time setup
-      if (userId) {
-        console.log('🆕 First-time setup for user:', userId);
-        await smartPersistence.set(STORAGE_KEYS.CUSTOMERS, mockCustomers, userId);
-        console.log('✅ Initialized', mockCustomers.length, 'mock customers for new user:', userId);
-        return mockCustomers;
+      // Migrate to customers table for better performance
+      console.log('🔄 Migrating to customers table...');
+      await supabasePersistence.saveCustomers(storageCustomers, effectiveUserId);
+      
+      return storageCustomers;
+    }
+    
+    // Strategy 3: Fall back to smart persistence (localStorage)
+    console.log('📁 Falling back to smart persistence (localStorage)...');
+    const rawCustomers = await smartPersistence.get(STORAGE_KEYS.CUSTOMERS, effectiveUserId);
+    customers = Array.isArray(rawCustomers) ? rawCustomers : [];
+    
+    if (customers.length > 0) {
+      console.log('✅ Found customers in localStorage:', customers.length);
+      
+      // Try to migrate to Supabase
+      console.log('⬆️ Attempting to migrate localStorage to Supabase...');
+      const migrated = await supabasePersistence.saveCustomers(customers, effectiveUserId);
+      if (migrated) {
+        console.log('✅ Successfully migrated customers to Supabase');
+      }
+      
+      return customers;
+    }
+    
+    // Strategy 4: Check if this is a truly new user
+    console.log('🔍 No customers found anywhere - checking if this is a first-time user');
+    const hasExistingData = await checkUserHasExistingData(effectiveUserId);
+    
+    if (!hasExistingData) {
+      console.log('🆕 First-time user setup - initializing with mock data');
+      
+      // Save to Supabase customers table first
+      const savedToSupabase = await supabasePersistence.saveCustomers(mockCustomers, effectiveUserId);
+      if (savedToSupabase) {
+        console.log('✅ Initialized mock customers in Supabase customers table');
       } else {
-        console.log('🚫 No userId provided, returning empty array (will not overwrite data)');
-        return [];
+        // Fall back to smart persistence
+        await smartPersistence.set(STORAGE_KEYS.CUSTOMERS, mockCustomers, effectiveUserId);
+        console.log('✅ Initialized mock customers in localStorage (fallback)');
+      }
+      
+      return mockCustomers;
+    } else {
+      console.log('📁 Existing user with no customers - returning empty array (user may have deleted all)');
+      return [];
+    }
+    
+  } catch (error) {
+    console.warn('❌ Error getting customers:', error);
+    // For errors, return empty array instead of mock data to prevent corruption
+    console.log('🚫 Returning empty array due to error (safer than mock data)');
+    return [];
+  }
+};
+
+// Helper function to check if user has any existing data
+async function checkUserHasExistingData(userId: string): Promise<boolean> {
+  try {
+    // Check localStorage for any user-specific keys
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.includes(userId) || key.includes('iv-relife'))) {
+        console.log('📁 Found existing data key:', key);
+        return true;
       }
     }
     
-    console.log('♻️ Returning existing customers from storage:', customers.map(c => ({ id: c.id, name: c.name })));
-    return customers;
+    // Could also check Supabase user_storage table here
+    console.log('🆕 No existing data found for user');
+    return false;
   } catch (error) {
-    console.warn('❌ Error getting customers from smart persistence, falling back to static mock data:', error);
-    console.log('📋 Returning', mockCustomers.length, 'static mock customers');
-    return mockCustomers;
+    console.warn('❌ Error checking existing data:', error);
+    return true; // Err on side of caution - assume user has data
   }
-};
+}
 
 export const getMockCustomerById = async (id: string, userId?: string) => {
   try {
@@ -264,44 +341,68 @@ export const getMockCustomerById = async (id: string, userId?: string) => {
 };
 
 export const createMockCustomer = async (customerData: Partial<Customer>, userId?: string): Promise<Customer> => {
-  const newCustomer: Customer = {
-    id: `cust-${Date.now()}`,
-    retailer_id: customerData.retailer_id || 'ret-1',
-    primary_location_id: customerData.primary_location_id,
-    name: customerData.name || '',
-    email: customerData.email,
-    phone: customerData.phone,
-    default_address: customerData.default_address,
-    notes: customerData.notes,
-    external_ids: customerData.external_ids,
-    created_by: customerData.created_by,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-  
   try {
-    console.log('💾 Adding customer to smart persistence with userId:', userId);
+    console.log('💾 Creating customer with userId:', userId);
     
-    // Get existing customers
-    const existingCustomers = await getMockCustomers(userId) || [];
-    const updatedCustomers = [...existingCustomers, newCustomer];
-    
-    // Use smart persistence to save
+    // Use Supabase persistence first, then smart persistence fallback
+    const { supabasePersistence } = await import('./supabase-persistence');
     const { smartPersistence } = await import('./smart-persistence');
     const { STORAGE_KEYS } = await import('./persistent-storage');
+    const { waitForAuth } = await import('./auth-context-guard');
     
-    const success = await smartPersistence.set(STORAGE_KEYS.CUSTOMERS, updatedCustomers, userId);
-    
-    if (success) {
-      console.log('✅ Customer added to smart persistence:', { id: newCustomer.id, name: newCustomer.name, userId });
-    } else {
-      console.warn('⚠️ Smart persistence save failed, but customer object created');
+    // Ensure we have authenticated user context
+    let effectiveUserId = userId;
+    if (!effectiveUserId) {
+      const currentUser = await waitForAuth();
+      effectiveUserId = currentUser?.id;
     }
     
-    return newCustomer;
+    if (!effectiveUserId) {
+      throw new Error('Cannot create customer: No authenticated user');
+    }
+    
+    const newCustomer: Customer = {
+      id: `cust-${Date.now()}`,
+      retailer_id: customerData.retailer_id || '550e8400-e29b-41d4-a716-446655440000',
+      primary_location_id: customerData.primary_location_id,
+      name: customerData.name || '',
+      email: customerData.email,
+      phone: customerData.phone,
+      default_address: customerData.default_address,
+      notes: customerData.notes,
+      external_ids: customerData.external_ids,
+      created_by: effectiveUserId,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    // Get existing customers
+    const existingCustomers = await getMockCustomers(effectiveUserId) || [];
+    const updatedCustomers = [...existingCustomers, newCustomer];
+    
+    // Strategy 1: Save to Supabase customers table
+    console.log('🗄️ Saving customers to Supabase customers table...');
+    const supabaseSuccess = await supabasePersistence.saveCustomers(updatedCustomers, effectiveUserId);
+    
+    if (supabaseSuccess) {
+      console.log('✅ Customer created and saved to Supabase customers table');
+      return newCustomer;
+    }
+    
+    // Strategy 2: Fall back to smart persistence
+    console.log('📁 Falling back to smart persistence...');
+    const smartSuccess = await smartPersistence.set(STORAGE_KEYS.CUSTOMERS, updatedCustomers, effectiveUserId);
+    
+    if (smartSuccess) {
+      console.log('✅ Customer created and saved to localStorage (fallback)');
+      return newCustomer;
+    }
+    
+    throw new Error('Failed to save customer to any storage method');
+    
   } catch (error) {
-    console.warn('❌ Error adding customer to smart persistence:', error);
-    return newCustomer;
+    console.error('❌ Error creating customer:', error);
+    throw error;
   }
 };
 
@@ -339,25 +440,58 @@ declare global {
 // Helper functions for mock order storage using persistent dataManager
 export const getMockOrders = async (userId?: string): Promise<Order[]> => {
   try {
-    // Import persistentStorage here to avoid circular dependency issues
+    const effectiveUserId = userId || 'usr-1';
+    console.log('📦 getMockOrders called with userId:', effectiveUserId);
+    
+    // Strategy 1: Try Supabase orders table first
+    const { supabasePersistence } = await import('./supabase-persistence');
+    const supabaseOrders = await supabasePersistence.loadOrders(effectiveUserId);
+    
+    if (supabaseOrders && supabaseOrders.length > 0) {
+      console.log('✅ Loaded orders from Supabase orders table:', supabaseOrders.length);
+      return supabaseOrders.map(order => ({
+        ...order,
+        orderItems: order.items || [],
+        customer: mockCustomers.find(c => c.id === order.customer_id) || mockCustomers[0],
+        retailer: mockRetailers.find(r => r.id === order.retailer_id) || mockRetailers[0],
+        location: mockLocations.find(l => l.id === order.location_id) || mockLocations[0],
+        status: order.status || 'pending',
+        totalAmount: order.total_amount || order.totalAmount || 0,
+        id: order.id,
+        orderDate: order.created_at || order.orderDate,
+        createdAt: order.created_at || order.createdAt || new Date().toISOString(),
+        updatedAt: order.updated_at || order.updatedAt || new Date().toISOString(),
+        title: order.title || `Order ${order.id}`,
+        description: order.description || order.items?.map((item: any) => `${item.product} x${item.qty}`).join(', ') || 'No items'
+      }));
+    }
+    
+    // Strategy 2: Try persistent storage
     const { persistentStorage, STORAGE_KEYS } = await import('./persistent-storage');
-    
-    // Get orders directly from persistent storage to avoid circular dependency
     const orders = await persistentStorage.get(STORAGE_KEYS.ORDERS, userId) || [];
-    console.log('getMockOrders called, returning:', orders.length, 'orders');
+    console.log('getMockOrders called, returning:', orders.length, 'orders from storage');
     
-    // If no orders in persistent storage, initialize with mock data
+    // If no orders in persistent storage, return static mock data immediately
     if (orders.length === 0) {
-      console.log('No orders found, initializing with mock data...');
-      for (const order of mockOrders) {
-        await dataManager.addOrder(order, userId);
+      console.log('No orders in storage, returning static mock orders directly:', mockOrders.length, 'orders');
+      
+      // Try to save them to storage in the background, but don't wait for it
+      try {
+        for (const order of mockOrders) {
+          await dataManager.addOrder(order, userId);
+        }
+        console.log('✅ Mock orders saved to storage for future use');
+      } catch (saveError) {
+        console.warn('⚠️ Failed to save mock orders to storage, but continuing with static data:', saveError);
       }
+      
       return mockOrders;
     }
     
     return orders;
   } catch (error) {
-    console.warn('Error getting orders from persistent storage, falling back to mock data:', error);
+    console.warn('Error getting orders from persistent storage, falling back to static mock data:', error);
+    console.log('Returning static mock orders:', mockOrders.length, 'orders');
     return mockOrders;
   }
 };
@@ -371,12 +505,14 @@ export const createMockOrder = async (orderData: Partial<Order>, userId?: string
   console.log('createMockOrder function called with:', orderData);
   
   try {
+    const effectiveUserId = userId || 'usr-1';
+    
     const newOrder: Order = {
       id: `ord-${Date.now()}`,
       retailer_id: orderData.retailer_id || 'ret-1',
       location_id: orderData.location_id || 'loc-1',
       customer_id: orderData.customer_id || 'cust-1',
-      created_by: orderData.created_by || 'usr-1',
+      created_by: effectiveUserId,
       status: orderData.status || 'pending',
       subtotal_amount: orderData.subtotal_amount || 0,
       tax_amount: orderData.tax_amount || 0,
@@ -387,6 +523,17 @@ export const createMockOrder = async (orderData: Partial<Order>, userId?: string
       ...orderData
     };
     
+    // Strategy 1: Save to Supabase orders table first
+    const { supabasePersistence } = await import('./supabase-persistence');
+    const supabaseSuccess = await supabasePersistence.saveOrders([newOrder], effectiveUserId);
+    
+    if (supabaseSuccess) {
+      console.log('✅ SUCCESS: Order created and saved to Supabase orders table');
+      return newOrder;
+    }
+    
+    // Strategy 2: Fall back to data manager
+    console.log('⚠️ Supabase save failed, falling back to data manager...');
     await dataManager.addOrder(newOrder, userId);
     console.log('Order added to persistent storage:', newOrder);
     return newOrder;
@@ -723,3 +870,333 @@ export const mockFilesMetadata: FileMetadata[] = [
     created_at: '2024-03-15T10:45:00Z'
   }
 ];
+
+// ============================================================================
+// COMPREHENSIVE SUPABASE PERSISTENCE FUNCTIONS
+// ============================================================================
+
+/**
+ * Get mock claims with comprehensive Supabase persistence
+ */
+export const getMockClaims = async (userId?: string): Promise<any[]> => {
+  try {
+    console.log('📦 getMockClaims called with userId:', userId);
+    
+    // Get effective user ID
+    const { getCurrentUserId } = await import('./auth-context-guard');
+    const effectiveUserId = userId || getCurrentUserId();
+    
+    if (!effectiveUserId) {
+      console.log('No authenticated user, returning static mock data');
+      return mockClaims;
+    }
+    
+    // Use Supabase persistence first
+    const { supabasePersistence } = await import('./supabase-persistence');
+    console.log('🗄️ Loading claims from Supabase claims table...');
+    
+    const claims = await supabasePersistence.loadClaims(effectiveUserId);
+    
+    if (claims && claims.length > 0) {
+      console.log('✅ Claims loaded from Supabase claims table:', claims.length);
+      return claims;
+    }
+    
+    // Strategy 2: Try user_storage table fallback
+    console.log('📁 Trying user_storage fallback...');
+    const fallbackClaims = await supabasePersistence.loadFromUserStorage('claims', effectiveUserId);
+    
+    if (fallbackClaims && fallbackClaims.length > 0) {
+      console.log('✅ Claims loaded from user_storage fallback:', fallbackClaims.length);
+      // Migrate to Supabase claims table
+      await supabasePersistence.saveClaims(fallbackClaims, effectiveUserId);
+      return fallbackClaims;
+    }
+    
+    // Strategy 3: Check localStorage
+    console.log('💾 Checking localStorage...');
+    const { smartPersistence, STORAGE_KEYS } = await import('./smart-persistence');
+    const localClaims = await smartPersistence.get('claims', effectiveUserId);
+    
+    if (localClaims && localClaims.length > 0) {
+      console.log('✅ Claims loaded from localStorage:', localClaims.length);
+      // Migrate to Supabase
+      await supabasePersistence.saveClaims(localClaims, effectiveUserId);
+      return localClaims;
+    }
+    
+    // Strategy 4: Check if this is a truly new user (no data anywhere)
+    console.log('📋 No existing claims found, checking if new user...');
+    return [];
+    
+  } catch (error) {
+    console.warn('Error loading claims, falling back to static mock data:', error);
+    return mockClaims;
+  }
+};
+
+/**
+ * Create mock claim with comprehensive Supabase persistence
+ */
+export const createMockClaim = async (claimData: any, userId?: string): Promise<any> => {
+  try {
+    console.log('💾 Creating claim with userId:', userId);
+    
+    // Get effective user ID
+    const { getCurrentUserId } = await import('./auth-context-guard');
+    const effectiveUserId = userId || getCurrentUserId();
+    
+    if (!effectiveUserId) {
+      throw new Error('No authenticated user for creating claims');
+    }
+    
+    // Create new claim with defaults
+    const newClaim = {
+      id: `claim-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+      status: 'submitted',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      created_by: effectiveUserId,
+      ...claimData
+    };
+    
+    // Get existing claims and add the new one
+    const existingClaims = await getMockClaims(effectiveUserId) || [];
+    const updatedClaims = [...existingClaims, newClaim];
+    
+    // Strategy 1: Save to Supabase claims table
+    console.log('🗄️ Saving claims to Supabase claims table...');
+    const { supabasePersistence } = await import('./supabase-persistence');
+    const supabaseSuccess = await supabasePersistence.saveClaims(updatedClaims, effectiveUserId);
+    
+    if (supabaseSuccess) {
+      console.log('✅ Claim created and saved to Supabase claims table');
+      return newClaim;
+    }
+    
+    // Strategy 2: Fall back to user_storage
+    console.log('📁 Falling back to user_storage...');
+    const userStorageSuccess = await supabasePersistence.saveToUserStorage('claims', updatedClaims, effectiveUserId);
+    
+    if (userStorageSuccess) {
+      console.log('✅ Claim created and saved to user_storage (fallback)');
+      return newClaim;
+    }
+    
+    // Strategy 3: Fall back to smart persistence
+    console.log('💾 Falling back to smart persistence...');
+    const { smartPersistence } = await import('./smart-persistence');
+    const smartSuccess = await smartPersistence.set('claims', updatedClaims, effectiveUserId);
+    
+    if (smartSuccess) {
+      console.log('✅ Claim created and saved to localStorage (fallback)');
+      return newClaim;
+    }
+    
+    throw new Error('Failed to save claim to any storage method');
+    
+  } catch (error) {
+    console.error('❌ Error creating claim:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get mock shipments with comprehensive Supabase persistence
+ */
+export const getMockShipments = async (userId?: string): Promise<any[]> => {
+  try {
+    console.log('📦 getMockShipments called with userId:', userId);
+    
+    // Get effective user ID
+    const { getCurrentUserId } = await import('./auth-context-guard');
+    const effectiveUserId = userId || getCurrentUserId();
+    
+    if (!effectiveUserId) {
+      console.log('No authenticated user, returning empty array');
+      return [];
+    }
+    
+    // Use Supabase persistence first
+    const { supabasePersistence } = await import('./supabase-persistence');
+    console.log('🗄️ Loading shipments from Supabase shipments table...');
+    
+    const shipments = await supabasePersistence.loadShipments(effectiveUserId);
+    
+    if (shipments && shipments.length > 0) {
+      console.log('✅ Shipments loaded from Supabase shipments table:', shipments.length);
+      return shipments;
+    }
+    
+    // Strategy 2: Try user_storage table fallback
+    console.log('📁 Trying user_storage fallback...');
+    const fallbackShipments = await supabasePersistence.loadFromUserStorage('shipments', effectiveUserId);
+    
+    if (fallbackShipments && fallbackShipments.length > 0) {
+      console.log('✅ Shipments loaded from user_storage fallback:', fallbackShipments.length);
+      // Migrate to Supabase shipments table
+      await supabasePersistence.saveShipments(fallbackShipments, effectiveUserId);
+      return fallbackShipments;
+    }
+    
+    // Strategy 3: Check localStorage
+    console.log('💾 Checking localStorage...');
+    const { smartPersistence } = await import('./smart-persistence');
+    const localShipments = await smartPersistence.get('shipments', effectiveUserId);
+    
+    if (localShipments && localShipments.length > 0) {
+      console.log('✅ Shipments loaded from localStorage:', localShipments.length);
+      // Migrate to Supabase
+      await supabasePersistence.saveShipments(localShipments, effectiveUserId);
+      return localShipments;
+    }
+    
+    // Strategy 4: Return empty array for new users
+    console.log('📋 No existing shipments found, returning empty array');
+    return [];
+    
+  } catch (error) {
+    console.warn('Error loading shipments, falling back to empty array:', error);
+    return [];
+  }
+};
+
+/**
+ * Create mock shipment with comprehensive Supabase persistence
+ */
+export const createMockShipment = async (shipmentData: any, userId?: string): Promise<any> => {
+  try {
+    console.log('💾 Creating shipment with userId:', userId);
+    
+    // Get effective user ID
+    const { getCurrentUserId } = await import('./auth-context-guard');
+    const effectiveUserId = userId || getCurrentUserId();
+    
+    if (!effectiveUserId) {
+      throw new Error('No authenticated user for creating shipments');
+    }
+    
+    // Create new shipment with defaults
+    const newShipment = {
+      id: `shipment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      retailer_id: '550e8400-e29b-41d4-a716-446655440000',
+      status: 'PENDING',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      created_by: effectiveUserId,
+      ...shipmentData
+    };
+    
+    // Get existing shipments and add the new one
+    const existingShipments = await getMockShipments(effectiveUserId) || [];
+    const updatedShipments = [...existingShipments, newShipment];
+    
+    // Strategy 1: Save to Supabase shipments table
+    console.log('🗄️ Saving shipments to Supabase shipments table...');
+    const { supabasePersistence } = await import('./supabase-persistence');
+    const supabaseSuccess = await supabasePersistence.saveShipments(updatedShipments, effectiveUserId);
+    
+    if (supabaseSuccess) {
+      console.log('✅ Shipment created and saved to Supabase shipments table');
+      return newShipment;
+    }
+    
+    // Strategy 2: Fall back to user_storage
+    console.log('📁 Falling back to user_storage...');
+    const userStorageSuccess = await supabasePersistence.saveToUserStorage('shipments', updatedShipments, effectiveUserId);
+    
+    if (userStorageSuccess) {
+      console.log('✅ Shipment created and saved to user_storage (fallback)');
+      return newShipment;
+    }
+    
+    // Strategy 3: Fall back to smart persistence
+    console.log('💾 Falling back to smart persistence...');
+    const { smartPersistence } = await import('./smart-persistence');
+    const smartSuccess = await smartPersistence.set('shipments', updatedShipments, effectiveUserId);
+    
+    if (smartSuccess) {
+      console.log('✅ Shipment created and saved to localStorage (fallback)');
+      return newShipment;
+    }
+    
+    throw new Error('Failed to save shipment to any storage method');
+    
+  } catch (error) {
+    console.error('❌ Error creating shipment:', error);
+    throw error;
+  }
+};
+
+/**
+ * Enhanced order creation with comprehensive Supabase persistence
+ */
+export const createMockOrderEnhanced = async (orderData: any, userId?: string): Promise<any> => {
+  try {
+    console.log('🚀 createMockOrderEnhanced called!');
+    console.log('💾 Creating order with enhanced persistence, userId:', userId);
+    console.log('📦 Order data:', orderData);
+    
+    // Get effective user ID
+    const { getCurrentUserId } = await import('./auth-context-guard');
+    const effectiveUserId = userId || getCurrentUserId();
+    
+    console.log('👤 Effective user ID:', effectiveUserId);
+    
+    if (!effectiveUserId) {
+      console.error('❌ No authenticated user for creating orders');
+      throw new Error('No authenticated user for creating orders');
+    }
+    
+    // Create new order with standardized defaults and validation
+    const { createOrderWithDefaults, validateOrderData } = await import('./data-transforms');
+    const newOrder = createOrderWithDefaults(orderData, effectiveUserId);
+    
+    // Validate the order before saving
+    const validation = validateOrderData(newOrder);
+    if (!validation.isValid) {
+      console.error('❌ Order validation failed:', validation.errors);
+      throw new Error(`Order validation failed: ${validation.errors.join(', ')}`);
+    }
+    
+    console.log('✅ Order validated successfully');
+    
+    // Get existing orders and add the new one
+    const existingOrders = await getMockOrders(effectiveUserId) || [];
+    const updatedOrders = [...existingOrders, newOrder];
+    
+    // Strategy 1: Save to Supabase orders table
+    console.log('🗄️ Attempting to save orders to Supabase orders table...');
+    console.log('📊 Updated orders array:', updatedOrders.length, 'orders');
+    const { supabasePersistence } = await import('./supabase-persistence');
+    const supabaseSuccess = await supabasePersistence.saveOrders(updatedOrders, effectiveUserId);
+    
+    console.log('💾 Supabase save result:', supabaseSuccess);
+    
+    if (supabaseSuccess) {
+      console.log('✅ SUCCESS: Order created and saved to Supabase orders table');
+      return newOrder;
+    } else {
+      console.warn('⚠️ Supabase orders table save failed, trying fallback...');
+    }
+    
+    // Strategy 2: Fall back to user_storage
+    console.log('📁 Falling back to user_storage...');
+    const userStorageSuccess = await supabasePersistence.saveToUserStorage('orders', updatedOrders, effectiveUserId);
+    
+    if (userStorageSuccess) {
+      console.log('✅ Order created and saved to user_storage (fallback)');
+      return newOrder;
+    }
+    
+    // Strategy 3: Fall back to existing createMockOrder function
+    console.log('🔄 Falling back to existing createMockOrder function...');
+    return await createMockOrder(orderData, userId);
+    
+  } catch (error) {
+    console.error('❌ Error creating order with enhanced persistence:', error);
+    // Fall back to existing createMockOrder function
+    return await createMockOrder(orderData, userId);
+  }
+};
