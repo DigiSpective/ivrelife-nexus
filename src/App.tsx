@@ -86,63 +86,63 @@ const App = () => (
             
             {/* Protected routes */}
             <Route path="/dashboard" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <Dashboard />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/orders" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <Orders />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/orders/new" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['retailer', 'location_user']}>
                 <DashboardLayout>
                   <NewOrder />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/orders/:id" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <OrderDetail />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/customers" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <Customers />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/customers/:id" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <CustomerDetail />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/products" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <Products />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/products/:id" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <ProductDetail />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/shipping" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice']}>
                 <DashboardLayout>
                   <ErrorBoundary>
                     <React.Suspense fallback={<div className="p-8"><div className="text-center">Loading Shipping...</div></div>}>
@@ -218,21 +218,21 @@ const App = () => (
               </AuthGuard>
             } />
             <Route path="/claims" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <Claims />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/claims/new" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['retailer', 'location_user']}>
                 <DashboardLayout>
                   <NewClaim />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/claims/:id" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <ClaimDetailPage />
                 </DashboardLayout>
@@ -267,14 +267,14 @@ const App = () => (
               </AuthGuard>
             } />
             <Route path="/settings" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <Settings />
                 </DashboardLayout>
               </AuthGuard>
             } />
             <Route path="/settings/subscription" element={
-              <AuthGuard>
+              <AuthGuard allowedRoles={['owner', 'backoffice', 'retailer', 'location_user']}>
                 <DashboardLayout>
                   <React.Suspense fallback={<div>Loading Subscription...</div>}>
                     {React.createElement(React.lazy(() => import('./pages/settings/SubscriptionSettings')))}
