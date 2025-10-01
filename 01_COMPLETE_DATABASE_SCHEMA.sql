@@ -438,6 +438,7 @@ CREATE TABLE fulfillments (
     assigned_to UUID REFERENCES users(id),
     retailer_id UUID REFERENCES retailers(id),
     location_id UUID REFERENCES locations(id),
+    metadata JSONB DEFAULT '{}'::jsonb,
     last_status_raw JSONB,
     last_check TIMESTAMPTZ,
     shipped_at TIMESTAMPTZ,

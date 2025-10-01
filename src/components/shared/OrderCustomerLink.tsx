@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { User, ShoppingCart, Eye, ExternalLink } from 'lucide-react';
-import { mockOrders, mockCustomers } from '@/lib/mock-data';
+import { useOrders } from '@/hooks/useOrders';
+import { useCustomers } from '@/hooks/useCustomers';
 
 interface OrderCustomerLinkProps {
   orderId?: string;
@@ -27,29 +28,40 @@ interface OrderInfo {
   };
 }
 
-export function OrderCustomerLink({ 
-  orderId, 
-  customerId, 
-  showFullDetails = false, 
-  variant = 'compact' 
+export function OrderCustomerLink({
+  orderId,
+  customerId,
+  showFullDetails = false,
+  variant = 'compact'
 }: OrderCustomerLinkProps) {
+  // Use real data from hooks
+  const { data: ordersData } = useOrders();
+  const { data: customersData } = useCustomers();
+
+  const orders = ordersData?.data || [];
+  const customers = customersData?.data || [];
+
   // Get order and customer information
-  const order = orderId ? mockOrders.find(o => o.id === orderId) : null;
-  const customer = customerId 
-    ? mockCustomers.find(c => c.id === customerId)
-    : order 
-    ? mockCustomers.find(c => c.id === order.customer_id)
+  const order = orderId ? orders.find(o => o.id === orderId) : null;
+  const customer = customerId
+    ? customers.find(c => c.id === customerId)
+    : order
+    ? customers.find(c => c.id === order.customer_id)
     : null;
 
   if (!order && !customer) {
-    return null;
+    return (
+      <div className="text-sm text-muted-foreground">
+        {variant === 'inline' ? '—' : 'No order or customer'}
+      </div>
+    );
   }
 
   const orderInfo: OrderInfo | null = order ? {
     id: order.id,
-    orderNumber: `ORD-${String(mockOrders.indexOf(order) + 1).padStart(4, '0')}`,
+    orderNumber: order.order_number || `Order ${order.id.slice(0, 8)}`,
     status: order.status,
-    totalAmount: order.total_amount,
+    totalAmount: order.total_amount || 0,
     orderDate: order.created_at,
     customer: {
       id: customer?.id || 'unknown',

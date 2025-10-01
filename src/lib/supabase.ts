@@ -1018,35 +1018,46 @@ export const getFulfillments = async () => {
 
 export const createFulfillment = async (fulfillment: any) => {
   console.log('Creating fulfillment with data:', fulfillment);
-  
-  // Ensure fulfillment has required fields
+
+  // Prepare fulfillment data - let database generate ID and timestamps
   const newFulfillment = {
-    id: fulfillment.id || `fulfillment-${Date.now()}`,
-    created_at: fulfillment.created_at || new Date().toISOString(),
-    updated_at: new Date().toISOString(),
     ...fulfillment
   };
-  
+
+  // Remove id, created_at, updated_at - let the database handle these
+  delete newFulfillment.id;
+  delete newFulfillment.created_at;
+  delete newFulfillment.updated_at;
+
+  console.log('Prepared fulfillment for insert:', newFulfillment);
+
   try {
     // Try Supabase first
     const result = await supabase.from('fulfillments').insert(newFulfillment).select().single();
     
     if (result.error) {
-      console.warn('Supabase fulfillment creation failed, falling back to persistent storage:', result.error);
-      await dataManager.addFulfillment(newFulfillment);
-      console.log('Fulfillment added to persistent storage:', newFulfillment);
-      return Promise.resolve({ data: newFulfillment, error: null });
+      console.error('Supabase fulfillment creation failed:', result.error);
+      // Generate a temporary ID for local storage
+      const fallbackFulfillment = {
+        ...newFulfillment,
+        id: `fulfillment-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      await dataManager.addFulfillment(fallbackFulfillment);
+      console.log('Fulfillment added to persistent storage:', fallbackFulfillment);
+      return Promise.resolve({ data: fallbackFulfillment, error: null });
     }
-    
-    console.log('Fulfillment successfully created in Supabase:', result.data);
-    
+
+    console.log('✅ Fulfillment successfully created in Supabase:', result.data);
+
     // Also add to persistent storage for offline access
     try {
-      await dataManager.addFulfillment(newFulfillment);
+      await dataManager.addFulfillment(result.data);
     } catch (mockError) {
       console.warn('Failed to backup fulfillment to persistent storage:', mockError);
     }
-    
+
     return result;
   } catch (error) {
     console.warn('Supabase connection failed, using persistent storage only:', error);
@@ -1070,7 +1081,9 @@ export const updateFulfillment = async (id: string, fulfillment: any) => {
 };
 
 // Claims functions
-export const getClaims = () => {
+export const getClaims = async () => {
+  console.log('🔍 getClaims() called');
+
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
     // Return mock claims data
@@ -1086,16 +1099,27 @@ export const getClaims = () => {
         updated_at: '2024-03-16T10:00:00Z'
       }
     ];
+    console.log('✅ Returning mock claims:', mockClaims.length);
     return Promise.resolve({ data: mockClaims, error: null });
   }
-  return supabase.from('claims').select(`
+
+  const result = await supabase.from('claims').select(`
     *,
-    orders(id, status),
-    products(name, sku)
+    orders(id, status)
   `);
+
+  if (result.error) {
+    console.error('❌ getClaims() error:', result.error);
+  } else {
+    console.log('✅ getClaims() fetched:', result.data?.length || 0, 'claims');
+  }
+
+  return result;
 };
 
-export const getClaimById = (id: string) => {
+export const getClaimById = async (id: string) => {
+  console.log('🔍 getClaimById() called with id:', id);
+
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured. Returning mock data.');
     // Return mock claim data
@@ -1111,16 +1135,23 @@ export const getClaimById = (id: string) => {
         updated_at: '2024-03-16T10:00:00Z'
       }
     ];
-    
+
     const claim = mockClaims.find(c => c.id === id) || null;
     return Promise.resolve({ data: claim, error: null });
   }
-  return supabase.from('claims').select(`
+
+  const result = await supabase.from('claims').select(`
     *,
-    orders(id, status),
-    products(name, sku),
-    shipments(tracking_number, carrier, status)
+    orders(id, status)
   `).eq('id', id).single();
+
+  if (result.error) {
+    console.error('❌ getClaimById() error:', result.error);
+  } else {
+    console.log('✅ getClaimById() fetched claim:', result.data);
+  }
+
+  return result;
 };
 
 export const getClaimsByRetailer = (retailerId: string) => {
@@ -1151,6 +1182,8 @@ export const getClaimsByRetailer = (retailerId: string) => {
 };
 
 export const createClaim = async (claim: any) => {
+  console.log('🔍 createClaim() called with:', claim);
+
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured.');
     // Return mock claim creation
@@ -1160,9 +1193,22 @@ export const createClaim = async (claim: any) => {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+    console.log('✅ Mock claim created:', newClaim);
     return Promise.resolve({ data: newClaim, error: null });
   }
-  return supabase.from('claims').insert(claim).select().single();
+
+  const result = await supabase.from('claims').insert(claim).select().single();
+
+  if (result.error) {
+    console.error('❌ createClaim() error:', result.error);
+    console.error('❌ Error message:', result.error.message);
+    console.error('❌ Error code:', result.error.code);
+    console.error('❌ Error details:', result.error.details);
+  } else {
+    console.log('✅ Claim created successfully:', result.data);
+  }
+
+  return result;
 };
 
 export const updateClaim = async (id: string, claim: any) => {
@@ -1189,12 +1235,27 @@ export const deleteClaim = async (id: string) => {
 };
 
 // User functions
-export const getUsers = () => {
+export const getUsers = async () => {
+  console.log('🔍 getUsers() called');
   if (!hasValidCredentials) {
-    console.warn('Supabase credentials not configured. Returning mock data.');
+    console.warn('❌ Supabase credentials not configured. Returning mock data.');
     return Promise.resolve({ data: [], error: null });
   }
-  return supabase.from('users').select('*');
+
+  console.log('✅ Fetching users from Supabase...');
+  const result = await supabase.from('users').select('*');
+  console.log('🔍 getUsers() result:', result);
+  console.log('🔍 getUsers() data count:', result.data?.length || 0);
+
+  if (result.error) {
+    console.error('❌ getUsers() error:', result.error);
+    console.error('❌ Error message:', result.error.message);
+    console.error('❌ Error code:', result.error.code);
+    console.error('❌ Error hint:', result.error.hint);
+    console.error('❌ Error details:', result.error.details);
+  }
+
+  return result;
 };
 
 export const getUsersByRetailer = (retailerId: string) => {
@@ -1206,19 +1267,165 @@ export const getUsersByRetailer = (retailerId: string) => {
 };
 
 export const createUser = async (user: any) => {
+  console.log('🔍 createUser() called with:', user);
+
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured.');
     return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
   }
-  return supabase.from('users').insert(user).select().single();
+
+  // Helper function to validate and clean UUID
+  const cleanUuid = (value: any): string | null => {
+    if (!value) return null;
+    if (typeof value !== 'string') return null;
+    // Check if it's a valid UUID format (8-4-4-4-12 characters)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(value)) return value;
+    // If it's not a valid UUID, return null
+    console.warn(`Invalid UUID format: "${value}", setting to null`);
+    return null;
+  };
+
+  try {
+    // For now, create user in database and send invite email
+    // The auth user will be created when they accept the invite
+    console.log('📝 Creating user record and sending invite...');
+
+    // Generate a temporary ID for the user
+    const tempUserId = crypto.randomUUID();
+
+    const cleanUser = {
+      id: tempUserId,
+      email: user.email,
+      name: user.name,
+      role: user.role || 'location',
+      status: 'active', // Use 'active' status - valid values are likely: active, inactive, suspended
+      is_active: true, // Set as active so they can log in with the invite
+      account_locked: false,
+      login_attempts: 0,
+      two_factor_enabled: false,
+      phone: user.phone || null,
+      department: user.department || null,
+      retailer_id: cleanUuid(user.retailer_id),
+      location_id: cleanUuid(user.location_id),
+      avatar: null,
+    };
+
+    console.log('✅ Inserting user into database:', cleanUser);
+
+    // Insert user into database
+    const result = await supabase.from('users').insert(cleanUser).select().single();
+
+    if (result.error) {
+      console.error('❌ createUser() error:', result.error);
+      return { data: null, error: result.error };
+    }
+
+    // If this is a retailer user, create a retailer profile
+    if (user.role === 'retailer') {
+      console.log('📋 Creating retailer profile for user:', tempUserId);
+      const retailerData = {
+        name: user.name,
+        email: user.email,
+        phone: user.phone || null,
+        address: null,
+        status: 'active',
+        settings: {},
+      };
+
+      const retailerResult = await supabase.from('retailers').insert(retailerData).select().single();
+
+      if (retailerResult.error) {
+        console.error('⚠️ Failed to create retailer profile:', retailerResult.error);
+        // Don't fail the whole operation, user is still created
+      } else {
+        console.log('✅ Retailer profile created:', retailerResult.data);
+
+        // Update the user's retailer_id to point to the newly created retailer
+        const updateResult = await supabase
+          .from('users')
+          .update({ retailer_id: retailerResult.data.id })
+          .eq('id', tempUserId);
+
+        if (updateResult.error) {
+          console.error('⚠️ Failed to link user to retailer:', updateResult.error);
+        } else {
+          console.log('✅ User linked to retailer:', retailerResult.data.id);
+        }
+      }
+    }
+
+    // Send invite email via Supabase Auth
+    console.log('📧 Sending invite email to:', user.email);
+    const { data: inviteData, error: inviteError } = await supabase.auth.signInWithOtp({
+      email: user.email,
+      options: {
+        data: {
+          name: user.name,
+          role: user.role,
+          user_id: tempUserId, // Pass the user ID so we can link it later
+        }
+      }
+    });
+
+    if (inviteError) {
+      console.warn('⚠️ Failed to send invite email:', inviteError);
+      // Don't fail the whole operation, user is still created
+    } else {
+      console.log('✅ Invite email sent successfully');
+    }
+
+    console.log('✅ User created successfully:', result.data);
+    return result;
+  } catch (error) {
+    console.error('❌ Unexpected error creating user:', error);
+    return { data: null, error };
+  }
 };
 
 export const updateUser = async (id: string, user: any) => {
+  console.log('🔍 updateUser() called with id:', id, 'user:', user);
+
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured.');
     return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
   }
-  return supabase.from('users').update(user).eq('id', id).select().single();
+
+  // Helper function to validate and clean UUID
+  const cleanUuid = (value: any): string | null => {
+    if (!value) return null;
+    if (typeof value !== 'string') return null;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(value)) return value;
+    console.warn(`Invalid UUID format: "${value}", setting to null`);
+    return null;
+  };
+
+  // Clean the update data
+  const cleanUpdate = {
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    retailer_id: cleanUuid(user.retailer_id),
+    location_id: cleanUuid(user.location_id),
+    // Don't update these fields if not provided
+    ...(user.phone !== undefined && { phone: user.phone }),
+    ...(user.department !== undefined && { department: user.department }),
+    ...(user.is_active !== undefined && { is_active: user.is_active }),
+    ...(user.status !== undefined && { status: user.status }),
+  };
+
+  console.log('✅ Cleaned update data:', cleanUpdate);
+
+  const result = await supabase.from('users').update(cleanUpdate).eq('id', id).select().single();
+
+  if (result.error) {
+    console.error('❌ updateUser() error:', result.error);
+  } else {
+    console.log('✅ User updated successfully:', result.data);
+  }
+
+  return result;
 };
 
 export const deleteUser = async (id: string) => {
@@ -1239,11 +1446,25 @@ export const getUserProfile = async (userId: string) => {
 };
 
 export const updateUserProfile = async (userId: string, userData: Partial<User>) => {
+  console.log('🔍 updateUserProfile() called with:', { userId, userData });
+
   if (!hasValidCredentials) {
     console.warn('Supabase credentials not configured.');
     return Promise.resolve({ data: null, error: new Error('Supabase not configured') });
   }
-  return supabase.from('users').update(userData).eq('id', userId).select().single();
+
+  const result = await supabase.from('users').update(userData).eq('id', userId).select().single();
+
+  if (result.error) {
+    console.error('❌ updateUserProfile() error:', result.error);
+    console.error('❌ Error message:', result.error.message);
+    console.error('❌ Error code:', result.error.code);
+    console.error('❌ Error details:', result.error.details);
+  } else {
+    console.log('✅ User profile updated successfully:', result.data);
+  }
+
+  return result;
 };
 
 // User features functions

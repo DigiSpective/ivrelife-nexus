@@ -21,6 +21,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { useCustomer, useCustomerContacts, useCustomerAddresses, useCustomerDocuments, useCustomerActivity } from '@/hooks/useCustomers';
+import { useOrders } from '@/hooks/useOrders';
 import { Customer, CustomerContact, CustomerAddress, CustomerDocument, CustomerActivity as CustomerActivityType } from '@/types';
 import { CustomerDialog } from '@/components/customers/CustomerDialog';
 import { CustomerDeleteDialog } from '@/components/customers/CustomerDeleteDialog';
@@ -35,12 +36,16 @@ export default function CustomerDetail() {
   const { data: addressesData, isLoading: isAddressesLoading } = useCustomerAddresses(id!);
   const { data: documentsData, isLoading: isDocumentsLoading } = useCustomerDocuments(id!);
   const { data: activityData, isLoading: isActivityLoading } = useCustomerActivity(id!);
-  
+  const { data: ordersData } = useOrders();
+
   const customer = customerData?.data;
   const contacts = contactsData?.data || [];
   const addresses = addressesData?.data || [];
   const documents = documentsData?.data || [];
   const activities = activityData?.data || [];
+
+  // Filter orders for this customer
+  const customerOrders = ordersData?.data?.filter(order => order.customer_id === id) || [];
 
   const [activeTab, setActiveTab] = useState('overview');
   const [editDialog, setEditDialog] = useState(false);
@@ -155,6 +160,21 @@ export default function CustomerDetail() {
     );
   }
 
+  // Helper to safely parse address data
+  const getAddress = (addressData: any) => {
+    if (!addressData) return null;
+    if (typeof addressData === 'string') {
+      try {
+        return JSON.parse(addressData);
+      } catch {
+        return null;
+      }
+    }
+    return addressData;
+  };
+
+  const defaultAddress = getAddress(customer.default_address);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -227,10 +247,14 @@ export default function CustomerDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {customer.default_address ? (
+            {defaultAddress ? (
               <div className="space-y-1">
-                <p>{customer.default_address.street}</p>
-                <p>{customer.default_address.city}, {customer.default_address.state} {customer.default_address.zip}</p>
+                <p>{defaultAddress.street || 'No street'}</p>
+                <p>
+                  {[defaultAddress.city, defaultAddress.state, defaultAddress.zip]
+                    .filter(Boolean)
+                    .join(', ') || 'No city/state/zip'}
+                </p>
               </div>
             ) : (
               <p className="text-muted-foreground">No address provided</p>
@@ -369,22 +393,33 @@ export default function CustomerDetail() {
               <CardContent>
                 {addresses.length > 0 ? (
                   <div className="space-y-3">
-                    {addresses.map((address) => (
-                      <div key={address.id} className="flex items-start gap-2">
-                        <div className="flex-1">
-                          <p className="font-medium">{address.label || 'Address'}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {address.address.street}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {address.address.city}, {address.address.state} {address.address.zip}
-                          </p>
+                    {addresses.map((address) => {
+                      const parsedAddress = getAddress(address.address);
+                      return (
+                        <div key={address.id} className="flex items-start gap-2">
+                          <div className="flex-1">
+                            <p className="font-medium">{address.label || 'Address'}</p>
+                            {parsedAddress ? (
+                              <>
+                                <p className="text-sm text-muted-foreground">
+                                  {parsedAddress.street || 'No street'}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {[parsedAddress.city, parsedAddress.state, parsedAddress.zip]
+                                    .filter(Boolean)
+                                    .join(', ') || 'No city/state/zip'}
+                                </p>
+                              </>
+                            ) : (
+                              <p className="text-sm text-muted-foreground">Address data unavailable</p>
+                            )}
+                          </div>
+                          {address.primary && (
+                            <Badge>Primary</Badge>
+                          )}
                         </div>
-                        {address.primary && (
-                          <Badge>Primary</Badge>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-center py-4">
@@ -423,15 +458,71 @@ export default function CustomerDetail() {
         {activeTab === 'orders' && (
           <Card className="shadow-card">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="w-5 h-5" />
-                Recent Orders
+              <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5" />
+                  Customer Orders ({customerOrders.length})
+                </span>
+                <Button asChild>
+                  <Link to="/orders/new">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Order
+                  </Link>
+                </Button>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground text-center py-8">
-                No orders found for this customer
-              </p>
+              {customerOrders.length > 0 ? (
+                <div className="space-y-4">
+                  {customerOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <ShoppingCart className="w-5 h-5 text-muted-foreground" />
+                          <div>
+                            <p className="font-medium">Order #{order.id.slice(0, 8).toUpperCase()}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(order.created_at).toLocaleDateString()} • ${order.total_amount.toLocaleString()}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Badge variant={
+                          order.status === 'delivered' ? 'default' :
+                          order.status === 'shipped' ? 'secondary' :
+                          order.status === 'processing' ? 'outline' :
+                          'destructive'
+                        } className="capitalize">
+                          {order.status}
+                        </Badge>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to={`/orders/${order.id}`}>
+                            View
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <ShoppingCart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No orders yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    This customer hasn't placed any orders yet
+                  </p>
+                  <Button asChild>
+                    <Link to="/orders/new">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create First Order
+                    </Link>
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

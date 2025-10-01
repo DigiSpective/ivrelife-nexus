@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Fulfillments Metadata Column - IV ReLife Nexus</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .log div {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .log .success {
+            color: #4CAF50;
+        }
+        .log .error {
+            color: #f44336;
+        }
+        .log .info {
+            color: #2196F3;
+        }
+        .log .warning {
+            color: #FF9800;
+        }
+        .error-box {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success-box {
+            background: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Add Metadata Column to Fulfillments Table</h1>
+
+        <p>This utility will add the missing <code>metadata</code> JSONB column to the <code>fulfillments</code> table.</p>
+
+        <div class="error-box" id="errorInfo" style="display: none;">
+            <strong>⚠️ Current Error:</strong>
+            <pre>Could not find the 'metadata' column of 'fulfillments' in the schema cache</pre>
+            <p>This error occurs when trying to create shipments because the database table is missing the metadata column.</p>
+        </div>
+
+        <button id="addColumnBtn" onclick="addMetadataColumn()">Add Metadata Column</button>
+        <button onclick="verifyColumn()">Verify Column</button>
+        <button onclick="clearLog()">Clear Log</button>
+
+        <div id="log" class="log"></div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://qeiyxwuyhetnrnundpep.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function addMetadataColumn() {
+            const btn = document.getElementById('addColumnBtn');
+            btn.disabled = true;
+
+            try {
+                log('🔧 Starting to add metadata column...', 'info');
+
+                // Use Supabase RPC to execute SQL
+                const sql = `
+                    ALTER TABLE fulfillments
+                    ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
+                    CREATE INDEX IF NOT EXISTS idx_fulfillments_metadata ON fulfillments USING GIN (metadata);
+                `;
+
+                log('📝 Executing SQL to add metadata column...', 'info');
+
+                // Note: We need to use the Supabase SQL editor or API to run DDL
+                // Since we can't run DDL directly from the anon key, we'll use a workaround
+
+                log('⚠️  Direct DDL execution requires service_role key', 'warning');
+                log('📋 Please run the SQL manually in Supabase SQL Editor:', 'info');
+                log('', 'info');
+                log('1. Go to: https://supabase.com/dashboard/project/qeiyxwuyhetnrnundpep/sql/new', 'info');
+                log('2. Copy and paste this SQL:', 'info');
+                log('', 'info');
+
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `
+                    <div class="success-box">
+                        <h3>📝 Manual Steps Required</h3>
+                        <p><strong>Please run this SQL in your Supabase SQL Editor:</strong></p>
+                        <ol>
+                            <li>Open <a href="https://supabase.com/dashboard/project/qeiyxwuyhetnrnundpep/sql/new" target="_blank">Supabase SQL Editor</a></li>
+                            <li>Copy the SQL below</li>
+                            <li>Paste and click "Run"</li>
+                            <li>Come back here and click "Verify Column"</li>
+                        </ol>
+                        <pre>-- Add metadata column to fulfillments table
+ALTER TABLE fulfillments
+ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'::jsonb;
+
+-- Add index for faster queries
+CREATE INDEX IF NOT EXISTS idx_fulfillments_metadata
+ON fulfillments USING GIN (metadata);
+
+-- Verify
+SELECT column_name, data_type, column_default
+FROM information_schema.columns
+WHERE table_name = 'fulfillments'
+AND column_name = 'metadata';</pre>
+                    </div>
+                `;
+
+                log('✅ Instructions displayed above', 'success');
+
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function verifyColumn() {
+            try {
+                log('🔍 Checking if metadata column exists...', 'info');
+
+                // We can't query information_schema directly, so we'll try to insert a test record
+                // and see if it accepts the metadata field
+
+                log('📊 Attempting to query fulfillments table with metadata...', 'info');
+
+                const { data, error } = await supabase
+                    .from('fulfillments')
+                    .select('id, metadata')
+                    .limit(1);
+
+                if (error) {
+                    if (error.message.includes('metadata')) {
+                        log('❌ metadata column does NOT exist', 'error');
+                        log('⚠️  Please follow the manual steps above to add the column', 'warning');
+                        document.getElementById('errorInfo').style.display = 'block';
+                    } else {
+                        log(`❌ Error: ${error.message}`, 'error');
+                    }
+                    return;
+                }
+
+                log('✅ metadata column EXISTS!', 'success');
+                log('🎉 The column has been successfully added!', 'success');
+
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `
+                    <div class="success-box">
+                        <h3>✅ Success!</h3>
+                        <p>The <code>metadata</code> column has been successfully added to the <code>fulfillments</code> table.</p>
+                        <p><strong>Next steps:</strong></p>
+                        <ol>
+                            <li>Refresh your application (Cmd+Shift+R or Ctrl+Shift+R)</li>
+                            <li>Go to the Shipping page</li>
+                            <li>Try creating a new shipment</li>
+                            <li>It should now appear in the table!</li>
+                        </ol>
+                    </div>
+                `;
+
+                document.getElementById('errorInfo').style.display = 'none';
+
+            } catch (error) {
+                log(`❌ Unexpected error: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-check on load
+        window.addEventListener('load', () => {
+            log('🌐 Connected to Supabase', 'success');
+            log('🔍 Checking current status...', 'info');
+            document.getElementById('errorInfo').style.display = 'block';
+            verifyColumn();
+        });
+    </script>
+</body>
+</html>

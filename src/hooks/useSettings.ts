@@ -35,34 +35,57 @@ export const useUserProfile = (userId: string) => {
 export const useUpdateUserProfile = () => {
   const queryClient = useQueryClient();
   const { logProfileUpdate } = useSettingsAuditLogger();
-  
+
   return useMutation({
     mutationFn: async ({ userId, userData }: { userId: string; userData: Partial<User> }) => {
+      console.log('🔍 useUpdateUserProfile mutation called:', { userId, userData });
+
       const result = await updateUserProfile(userId, userData);
-      
-      // Log audit action
-      if (result.data) {
-        await logProfileUpdate(userId, userData);
-        
-        // Create outbox event for notifications
-        await createOutboxEvent({
-          event_type: 'profile_update',
-          entity: 'users',
-          entity_id: userId,
-          payload: {
-            user_id: userId,
-            updated_fields: userData,
-            timestamp: new Date().toISOString()
-          }
-        });
+      console.log('🔍 updateUserProfile result:', result);
+
+      // If the update failed, return the error immediately
+      if (result.error) {
+        console.error('❌ Profile update failed:', result.error);
+        throw new Error(result.error.message || 'Failed to update profile');
       }
-      
+
+      // Log audit action (non-blocking - don't fail if logging fails)
+      if (result.data) {
+        try {
+          await logProfileUpdate(userId, userData);
+          console.log('✅ Audit log created');
+        } catch (err) {
+          console.warn('⚠️ Failed to create audit log (non-critical):', err);
+        }
+
+        // Create outbox event for notifications (non-blocking)
+        try {
+          await createOutboxEvent({
+            event_type: 'profile_update',
+            entity: 'users',
+            entity_id: userId,
+            payload: {
+              user_id: userId,
+              updated_fields: userData,
+              timestamp: new Date().toISOString()
+            }
+          });
+          console.log('✅ Outbox event created');
+        } catch (err) {
+          console.warn('⚠️ Failed to create outbox event (non-critical):', err);
+        }
+      }
+
       return result;
     },
     onSuccess: (data) => {
+      console.log('✅ Profile update mutation succeeded');
       queryClient.invalidateQueries({ queryKey: ['userProfile', data.data?.id] });
       // Also invalidate the current user data
       queryClient.invalidateQueries({ queryKey: ['currentUser'] });
+    },
+    onError: (error) => {
+      console.error('❌ Profile update mutation error:', error);
     },
   });
 };

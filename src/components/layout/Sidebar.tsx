@@ -17,7 +17,7 @@ import {
   X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { mockUser } from '@/lib/mock-data';
+import { useAuth } from '@/components/auth/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
@@ -29,7 +29,7 @@ interface SidebarProps {
 
 export function Sidebar({ className, isOpen = false, onClose }: SidebarProps) {
   const location = useLocation();
-  const user = mockUser;
+  const { user, loading } = useAuth();
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -145,12 +145,15 @@ export function Sidebar({ className, isOpen = false, onClose }: SidebarProps) {
     }
   ];
 
-  const filteredNavigation = navigation.filter(item => 
-    item.roles.includes(user.role)
+  // Default role for filtering if no user yet (prevents empty sidebar during load)
+  const userRole = user?.role || 'owner';
+
+  const filteredNavigation = navigation.filter(item =>
+    item.roles.includes(userRole)
   );
 
-  const filteredAdminNavigation = adminNavigation.filter(item => 
-    item.roles.includes(user.role)
+  const filteredAdminNavigation = adminNavigation.filter(item =>
+    item.roles.includes(userRole)
   );
 
   return (
@@ -255,17 +258,17 @@ export function Sidebar({ className, isOpen = false, onClose }: SidebarProps) {
       <div className="p-4 border-t border-border">
         <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
           <Avatar className="w-10 h-10">
-            <AvatarImage src={user.avatar} />
+            <AvatarImage src={user?.avatar} />
             <AvatarFallback className="gradient-primary text-white font-semibold">
-              {user.name.split(' ').map(n => n[0]).join('')}
+              {user?.name ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U'}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-foreground truncate">
-              {user.name}
+              {user?.name || 'User'}
             </p>
             <p className="text-xs text-muted-foreground capitalize">
-              {user.role}
+              {user?.role || 'user'}
             </p>
           </div>
         </div>

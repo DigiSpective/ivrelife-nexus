@@ -501,7 +501,8 @@ INSERT INTO shipping_providers (id, name, api_identifier, active)
 VALUES
     (gen_random_uuid(), 'FedEx', 'fedex', TRUE),
     (gen_random_uuid(), 'UPS', 'ups', TRUE),
-    (gen_random_uuid(), 'USPS', 'usps', TRUE)
+    (gen_random_uuid(), 'USPS', 'usps', TRUE),
+    (gen_random_uuid(), 'LTL Freight', 'ltl_freight', TRUE)
 ON CONFLICT DO NOTHING;
 
 -- Insert system settings

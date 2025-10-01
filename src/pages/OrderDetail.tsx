@@ -40,7 +40,7 @@ export default function OrderDetail() {
   const customer = order ? customers.find(c => c.id === order.customer_id) : null;
   const { orderItems, orderTotal } = useOrderProducts(id || '');
 
-  if (!order || !customer) {
+  if (!order) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -60,6 +60,21 @@ export default function OrderDetail() {
       </div>
     );
   }
+
+  // Helper to safely access address data
+  const getAddress = (addressData: any) => {
+    if (!addressData) return null;
+    if (typeof addressData === 'string') {
+      try {
+        return JSON.parse(addressData);
+      } catch {
+        return null;
+      }
+    }
+    return addressData;
+  };
+
+  const customerAddress = customer ? getAddress(customer.default_address) : null;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -263,40 +278,61 @@ export default function OrderDetail() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Name</label>
-                  <p className="font-semibold">{customer.name}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Email</label>
-                  <p className="font-semibold">{customer.email}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                  <p className="font-semibold">{customer.phone}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Customer ID</label>
-                  <p className="font-semibold">{customer.external_id || customer.id}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Billing Address</label>
-                  <div className="mt-1">
-                    <p>{customer.address.street}</p>
-                    <p>{customer.address.city}, {customer.address.state} {customer.address.zip}</p>
+            {customer ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Name</label>
+                    <p className="font-semibold">{customer.name}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Email</label>
+                    <p className="font-semibold">{customer.email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Phone</label>
+                    <p className="font-semibold">{customer.phone || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Customer ID</label>
+                    <p className="font-semibold">{customer.id}</p>
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Customer Since</label>
-                  <p className="font-semibold">{new Date(customer.created_at).toLocaleDateString()}</p>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Billing Address</label>
+                    {customerAddress ? (
+                      <div className="mt-1">
+                        <p>{customerAddress.street || ''}</p>
+                        <p>
+                          {[customerAddress.city, customerAddress.state, customerAddress.zip]
+                            .filter(Boolean)
+                            .join(', ')}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-1">No address on file</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">Customer Since</label>
+                    <p className="font-semibold">{new Date(customer.created_at).toLocaleDateString()}</p>
+                  </div>
+                  {customer.notes && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Notes</label>
+                      <p className="text-sm mt-1">{customer.notes}</p>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                <User className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Customer information not available</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -315,31 +351,48 @@ export default function OrderDetail() {
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Shipping Address</label>
                   <div className="mt-2 p-4 bg-muted/30 rounded-lg">
-                    <div className="flex items-start gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
-                      <div>
-                        <p>{customer.address.street}</p>
-                        <p>{customer.address.city}, {customer.address.state} {customer.address.zip}</p>
+                    {customerAddress ? (
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                        <div>
+                          <p>{customerAddress.street || 'No street address'}</p>
+                          <p>
+                            {[customerAddress.city, customerAddress.state, customerAddress.zip]
+                              .filter(Boolean)
+                              .join(', ') || 'No city/state/zip'}
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="flex items-start gap-2">
+                        <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                        <p className="text-sm text-muted-foreground">No shipping address on file</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Shipping Method</label>
                   <div className="mt-2 p-4 bg-muted/30 rounded-lg">
-                    <p className="font-medium">Standard Shipping</p>
-                    <p className="text-sm text-muted-foreground">5-7 business days</p>
-                    <p className="text-sm font-medium mt-1">$15.99</p>
+                    <p className="font-medium">
+                      {order.requires_ltl ? 'LTL Freight Shipping' : 'Standard Shipping'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.requires_ltl ? 'Specialized freight delivery' : '5-7 business days'}
+                    </p>
                   </div>
                 </div>
               </div>
-              
+
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Tracking Information</label>
                 <div className="mt-2 p-4 border border-dashed rounded-lg text-center text-muted-foreground">
                   <Truck className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p>Tracking information will be available once the order ships</p>
+                  {order.status === 'pending' && (
+                    <p className="text-xs mt-2">Order is currently being processed</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -363,7 +416,9 @@ export default function OrderDetail() {
                     <Receipt className="w-8 h-8 text-muted-foreground" />
                     <div>
                       <h4 className="font-medium">Order Invoice</h4>
-                      <p className="text-sm text-muted-foreground">Generated automatically</p>
+                      <p className="text-sm text-muted-foreground">
+                        Invoice #{order.id.slice(0, 8).toUpperCase()}
+                      </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -378,11 +433,79 @@ export default function OrderDetail() {
                   </div>
                 </div>
               </div>
-              
-              <div className="border border-dashed rounded-lg p-8 text-center text-muted-foreground">
-                <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>Additional documents will appear here as they are generated</p>
-              </div>
+
+              {order.contract_url && (
+                <div className="border border-border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Receipt className="w-8 h-8 text-muted-foreground" />
+                      <div>
+                        <h4 className="font-medium">Customer Contract</h4>
+                        <p className="text-sm text-muted-foreground">Signed contract document</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={order.contract_url} target="_blank" rel="noopener noreferrer">
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {order.signature_url && (
+                <div className="border border-border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Receipt className="w-8 h-8 text-muted-foreground" />
+                      <div>
+                        <h4 className="font-medium">Customer Signature</h4>
+                        <p className="text-sm text-muted-foreground">Digital signature</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={order.signature_url} target="_blank" rel="noopener noreferrer">
+                          <Download className="w-4 h-4 mr-2" />
+                          View
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {order.id_photo_url && (
+                <div className="border border-border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Receipt className="w-8 h-8 text-muted-foreground" />
+                      <div>
+                        <h4 className="font-medium">ID Photo</h4>
+                        <p className="text-sm text-muted-foreground">Customer identification</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" asChild>
+                        <a href={order.id_photo_url} target="_blank" rel="noopener noreferrer">
+                          <Download className="w-4 h-4 mr-2" />
+                          View
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!order.contract_url && !order.signature_url && !order.id_photo_url && (
+                <div className="border border-dashed rounded-lg p-8 text-center text-muted-foreground">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>No additional documents have been uploaded yet</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

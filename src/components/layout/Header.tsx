@@ -1,16 +1,27 @@
 import React, { useState } from 'react';
-import { Bell, Search, Menu, X, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Bell, Search, Menu, X, CheckCircle, AlertCircle, Clock, User, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import { CartSidebar } from '@/components/cart/CartSidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
 } from '@/components/ui/popover';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 // Sample notifications - in a real app, this would come from an API or context
 const sampleNotifications = [
@@ -45,9 +56,26 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+
   // Use React state for notifications
   const [notifications, setNotifications] = useState(sampleNotifications);
   const unreadCount = notifications.filter((n: any) => !n.read).length;
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth/login');
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   const markAsRead = (notificationId: string) => {
     setNotifications(prev => 
@@ -211,6 +239,44 @@ export function Header({ onMenuClick }: HeaderProps) {
             )}
           </PopoverContent>
         </Popover>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={user?.avatar} alt={user?.name || 'User'} />
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {user?.name ? getInitials(user.name) : <User className="h-4 w-4" />}
+                </AvatarFallback>
+              </Avatar>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent className="w-56" align="end" forceMount>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{user?.name || 'User'}</p>
+                <p className="text-xs leading-none text-muted-foreground">
+                  {user?.email}
+                </p>
+                {user?.role && (
+                  <Badge variant="outline" className="mt-1 w-fit text-xs capitalize">
+                    {user.role}
+                  </Badge>
+                )}
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/settings')}>
+              <SettingsIcon className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="text-right hidden lg:block">
           <p className="text-sm font-medium">Welcome back!</p>

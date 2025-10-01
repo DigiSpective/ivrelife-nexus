@@ -51,19 +51,19 @@ export function ClaimForm({ retailer_id, location_id, created_by, onSuccess, onC
   // Get dynamic customers instead of static mock data
   const { data: customersData } = useCustomers();
   const customers = customersData?.data || [];
-  
-  // Debug: Check data availability
-  console.log('📊 Data loaded:', {
-    mockOrderItems: mockOrderItems.length,
-    mockProductVariants: mockProductVariants.length, 
-    sampleProducts: sampleProducts.length,
-    orders: orders.length,
-    customers: customers.length
-  });
 
   // Get dynamic orders instead of static mock data
   const { data: ordersData } = useOrders();
   const orders = ordersData?.data || [];
+
+  // Debug: Check data availability
+  console.log('📊 Data loaded:', {
+    mockOrderItems: mockOrderItems.length,
+    mockProductVariants: mockProductVariants.length,
+    sampleProducts: sampleProducts.length,
+    orders: orders.length,
+    customers: customers.length
+  });
 
   // Get available orders with order numbers and customer info
   const availableOrders = orders.map((order, index) => ({
@@ -180,29 +180,60 @@ export function ClaimForm({ retailer_id, location_id, created_by, onSuccess, onC
 
   const onSubmit = (data: ClaimFormValues) => {
     setIsLoading(true);
-    
+
+    // Helper function to validate UUID format
+    const isValidUUID = (value: string): boolean => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return uuidRegex.test(value);
+    };
+
+    // Helper to validate retailer_id and location_id
+    const cleanUuid = (value: any): string | null => {
+      if (!value) return null;
+      if (typeof value !== 'string') return null;
+      if (isValidUUID(value)) return value;
+      console.warn(`Invalid UUID format: "${value}", setting to null`);
+      return null;
+    };
+
     // Create separate claims for each product
-    const claimPromises = data.product_ids.map(product_id => {
-      const claimData: Partial<Claim> = {
-        order_id: data.order_id,
-        product_id,
-        reason: data.reason,
-        resolution_notes: data.resolution_notes,
-        retailer_id,
-        location_id,
-        created_by,
-        status: 'submitted',
-      };
-      
-      return new Promise((resolve, reject) => {
-        createClaim(claimData, {
-          onSuccess: resolve,
-          onError: reject,
+    const createClaimsSequentially = async () => {
+      for (const product_id of data.product_ids) {
+        // Find the product details to include in resolution notes
+        const productInfo = availableProducts.find(p => p.id === product_id);
+        const productDescription = productInfo
+          ? `Product: ${productInfo.displayName} (SKU: ${product_id})`
+          : `Product ID: ${product_id}`;
+
+        // Store product SKU in a parseable format at the start of resolution notes
+        const notesWithProduct = `[PRODUCT_SKU:${product_id}]\n${productDescription}${
+          data.resolution_notes ? `\n\n${data.resolution_notes}` : ''
+        }`;
+
+        const claimData: Partial<Claim> = {
+          order_id: data.order_id,
+          product_id: isValidUUID(product_id) ? product_id : null, // Only store if valid UUID
+          reason: data.reason,
+          resolution_notes: notesWithProduct,
+          retailer_id: cleanUuid(retailer_id),
+          location_id: cleanUuid(location_id),
+          created_by,
+          status: 'submitted',
+        };
+
+        console.log('📋 Submitting claim data:', claimData);
+
+        // Use promise wrapper for mutation
+        await new Promise<void>((resolve, reject) => {
+          createClaim(claimData, {
+            onSuccess: () => resolve(),
+            onError: (error) => reject(error),
+          });
         });
-      });
-    });
-    
-    Promise.all(claimPromises)
+      }
+    };
+
+    createClaimsSequentially()
       .then(() => {
         setIsLoading(false);
         form.reset();

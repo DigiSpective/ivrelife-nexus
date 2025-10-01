@@ -12,23 +12,22 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useCreateFulfillment, useShippingProviders, useShippingMethods } from '@/hooks/useShipping';
+import { useUpdateFulfillment, useShippingProviders, useShippingMethods } from '@/hooks/useShipping';
 import { useOrders } from '@/hooks/useOrders';
 import { useCustomers } from '@/hooks/useCustomers';
 import { Badge } from '@/components/ui/badge';
+import type { Fulfillment } from '@/types';
 
-interface FulfillmentModalProps {
+interface EditFulfillmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  orderId?: string;
-  retailerId?: string;
-  locationId?: string;
+  fulfillment: Fulfillment | null;
   onSuccess?: () => void;
 }
 
-export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, locationId, onSuccess }: FulfillmentModalProps) {
+export function EditFulfillmentModal({ open, onOpenChange, fulfillment, onSuccess }: EditFulfillmentModalProps) {
   const [formData, setFormData] = useState({
-    orderId: orderId || '',
+    orderId: '',
     providerId: '',
     methodId: '',
     trackingNumber: '',
@@ -37,7 +36,7 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
   });
 
   const { toast } = useToast();
-  const { mutate: createFulfillment, isPending: isCreating } = useCreateFulfillment();
+  const { mutate: updateFulfillment, isPending: isUpdating } = useUpdateFulfillment();
   const { data: providersData } = useShippingProviders();
   const { data: methodsData } = useShippingMethods();
   const { data: ordersData } = useOrders();
@@ -54,13 +53,20 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
   const selectedOrder = orders.find(o => o.id === formData.orderId);
   const selectedCustomer = selectedOrder ? customers.find(c => c.id === selectedOrder.customer_id) : null;
 
-  // Update orderId when prop changes
+  // Populate form when fulfillment changes
   useEffect(() => {
-    if (orderId) {
-      setFormData(prev => ({ ...prev, orderId }));
+    if (fulfillment && open) {
+      setFormData({
+        orderId: fulfillment.order_id || '',
+        providerId: fulfillment.provider_id || '',
+        methodId: fulfillment.method_id || '',
+        trackingNumber: fulfillment.tracking_number || '',
+        status: fulfillment.status || 'label_created',
+        notes: (fulfillment.metadata as any)?.notes || '',
+      });
     }
-  }, [orderId]);
-  
+  }, [fulfillment, open]);
+
   const handleChange = (field: string, value: string) => {
     if (field === 'providerId') {
       // Reset method when provider changes
@@ -69,8 +75,10 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
       setFormData(prev => ({ ...prev, [field]: value }));
     }
   };
-  
+
   const handleSubmit = async () => {
+    if (!fulfillment?.id) return;
+
     if (!formData.orderId) {
       toast({
         title: 'Validation Error',
@@ -80,15 +88,14 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
       return;
     }
 
-    const fulfillmentData = {
+    const updatedData = {
       order_id: formData.orderId,
       provider_id: formData.providerId,
       method_id: formData.methodId,
       tracking_number: formData.trackingNumber || null,
       status: formData.status,
-      retailer_id: retailerId || selectedOrder?.retailer_id,
-      location_id: locationId || selectedOrder?.location_id,
       metadata: {
+        ...(fulfillment.metadata as any || {}),
         notes: formData.notes,
         customer_id: selectedOrder?.customer_id,
         customer_name: selectedCustomer?.name,
@@ -96,50 +103,43 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
       }
     };
 
-    console.log('Submitting fulfillment:', fulfillmentData);
+    console.log('Updating fulfillment:', updatedData);
 
-    createFulfillment(fulfillmentData, {
-      onSuccess: (data) => {
-        console.log('Fulfillment created successfully:', data);
-        toast({
-          title: 'Fulfillment Created',
-          description: 'Shipping fulfillment has been successfully created.',
-        });
+    updateFulfillment(
+      { id: fulfillment.id, fulfillment: updatedData },
+      {
+        onSuccess: (data) => {
+          console.log('Fulfillment updated successfully:', data);
+          toast({
+            title: 'Fulfillment Updated',
+            description: 'Shipping fulfillment has been successfully updated.',
+          });
 
-        // Reset form first
-        setFormData({
-          orderId: '',
-          providerId: '',
-          methodId: '',
-          trackingNumber: '',
-          status: 'label_created',
-          notes: '',
-        });
+          onOpenChange(false);
 
-        // Close modal
-        onOpenChange(false);
-
-        // Call onSuccess callback after a small delay to ensure mutation completes
-        setTimeout(() => {
-          onSuccess?.();
-        }, 100);
-      },
-      onError: (error) => {
-        console.error('Error creating fulfillment:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to create shipping fulfillment. Please try again.',
-          variant: 'destructive',
-        });
+          setTimeout(() => {
+            onSuccess?.();
+          }, 100);
+        },
+        onError: (error) => {
+          console.error('Error updating fulfillment:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to update shipping fulfillment. Please try again.',
+            variant: 'destructive',
+          });
+        }
       }
-    });
+    );
   };
-  
+
+  if (!fulfillment) return null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create Fulfillment</DialogTitle>
+          <DialogTitle>Edit Fulfillment</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
           {/* Order Selection */}
@@ -148,7 +148,6 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
             <Select
               value={formData.orderId}
               onValueChange={(value) => handleChange('orderId', value)}
-              disabled={!!orderId} // Disable if orderId is passed as prop
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select an order" />
@@ -205,7 +204,7 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
           </div>
 
           <div>
-            <Label htmlFor="method">Shipping Method</Label>
+            <Label htmlFor="method">Shipping Method *</Label>
             <Select
               value={formData.methodId}
               onValueChange={(value) => handleChange('methodId', value)}
@@ -223,7 +222,7 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
               </SelectContent>
             </Select>
           </div>
-          
+
           <div>
             <Label htmlFor="trackingNumber">Tracking Number</Label>
             <Input
@@ -233,11 +232,11 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
               placeholder="Enter tracking number"
             />
           </div>
-          
+
           <div>
-            <Label htmlFor="status">Status</Label>
-            <Select 
-              value={formData.status} 
+            <Label htmlFor="status">Status *</Label>
+            <Select
+              value={formData.status}
               onValueChange={(value: any) => handleChange('status', value)}
             >
               <SelectTrigger>
@@ -254,7 +253,7 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
               </SelectContent>
             </Select>
           </div>
-          
+
           <div>
             <Label htmlFor="notes">Notes</Label>
             <Textarea
@@ -262,16 +261,17 @@ export function FulfillmentModal({ open, onOpenChange, orderId, retailerId, loca
               value={formData.notes}
               onChange={(e) => handleChange('notes', e.target.value)}
               placeholder="Add any additional notes..."
+              rows={3}
             />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isCreating || !formData.providerId || !formData.methodId}
+          <Button
+            onClick={handleSubmit}
+            disabled={isUpdating || !formData.providerId || !formData.methodId || !formData.orderId}
           >
-            {isCreating ? 'Creating...' : 'Create Fulfillment'}
+            {isUpdating ? 'Updating...' : 'Update Fulfillment'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -30,7 +30,20 @@ export const useClaims = (filters?: {
 export const useClaim = (id: string) => {
   return useQuery({
     queryKey: ['claim', id],
-    queryFn: () => getClaimById(id),
+    queryFn: async () => {
+      console.log('🔍 useClaim queryFn - fetching claim with id:', id);
+      const result = await getClaimById(id);
+      console.log('🔍 useClaim queryFn - result:', result);
+
+      // Check for errors and throw to trigger error state
+      if (result.error) {
+        console.error('❌ useClaim queryFn - error:', result.error);
+        throw new Error(result.error.message || 'Failed to fetch claim');
+      }
+
+      console.log('🔍 useClaim queryFn - returning data:', result.data);
+      return result.data;
+    },
     enabled: !!id,
   });
 };
@@ -45,36 +58,56 @@ export const useClaimsByRetailer = (retailerId: string) => {
 
 export const useCreateClaim = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: (claim: Partial<Claim>) => createClaim(claim),
+    mutationFn: async (claim: Partial<Claim>) => {
+      console.log('🚀 useCreateClaim mutation started:', claim);
+      const result = await createClaim(claim);
+      console.log('🚀 useCreateClaim mutation result:', result);
+
+      // Check for errors and throw to trigger onError instead of onSuccess
+      if (result.error) {
+        console.error('❌ Mutation has error, throwing:', result.error);
+        throw new Error(result.error.message || 'Failed to create claim');
+      }
+
+      return result;
+    },
     onSuccess: (data) => {
+      console.log('✅ useCreateClaim onSuccess called with:', data);
+
+      // Invalidate and refetch claims
       queryClient.invalidateQueries({ queryKey: ['claims'] });
-      // Create audit log for claim creation
+      console.log('✅ Invalidated claims queries');
+
+      // Create audit log for claim creation (non-blocking)
       if (data.data?.id) {
         createAuditLog({
           action: 'claim_created',
           entity: 'claim',
           entity_id: data.data.id,
-          details: { 
+          details: {
             message: 'New claim created',
             claim_id: data.data.id,
             retailer_id: data.data.retailer_id
           }
-        });
-        
-        // Create outbox event for notifications
+        }).catch(err => console.warn('Failed to create audit log:', err));
+
+        // Create outbox event for notifications (non-blocking)
         createOutboxEvent({
           event_type: 'claim_created',
           entity: 'claim',
           entity_id: data.data.id,
-          payload: { 
+          payload: {
             claim_id: data.data.id,
             retailer_id: data.data.retailer_id,
             reason: data.data.reason
           }
-        });
+        }).catch(err => console.warn('Failed to create outbox event:', err));
       }
+    },
+    onError: (error) => {
+      console.error('❌ useCreateClaim mutation error:', error);
     },
   });
 };

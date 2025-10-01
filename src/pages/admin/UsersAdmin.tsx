@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { 
+import { useAdminUsers, useAdminCreateUser, useAdminUpdateUser, useAdminDeleteUser } from '@/hooks/useAdmin';
+import {
   Users,
   Plus,
   Edit,
@@ -33,13 +34,13 @@ import {
   Upload,
   Filter
 } from 'lucide-react';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 
 interface ExtendedUser {
@@ -159,7 +160,22 @@ const mockExtendedUsers: ExtendedUser[] = [
 ];
 
 export default function UsersAdmin() {
-  const [users, setUsers] = useState<ExtendedUser[]>(mockExtendedUsers);
+  // Fetch users from database
+  const { data: usersData, isLoading, error } = useAdminUsers();
+  const { mutate: createUserMutation } = useAdminCreateUser();
+  const { mutate: updateUserMutation } = useAdminUpdateUser();
+  const { mutate: deleteUserMutation } = useAdminDeleteUser();
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🔍 UsersAdmin - Raw usersData:', usersData);
+    console.log('🔍 UsersAdmin - isLoading:', isLoading);
+    console.log('🔍 UsersAdmin - error:', error);
+    console.log('🔍 UsersAdmin - users count:', usersData?.data?.length || 0);
+  }, [usersData, isLoading, error]);
+
+  const users = usersData?.data || [];
+
   const [editingUser, setEditingUser] = useState<ExtendedUser | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -233,67 +249,114 @@ export default function UsersAdmin() {
     if (!editingUser) return;
 
     if (isCreateDialogOpen) {
-      setUsers(prev => [...prev, editingUser]);
-      toast({
-        title: "User Created",
-        description: `${editingUser.name} has been created successfully.`,
+      createUserMutation(editingUser, {
+        onSuccess: () => {
+          toast({
+            title: "User Created",
+            description: `${editingUser.name} has been created successfully.`,
+          });
+          setIsCreateDialogOpen(false);
+          setEditingUser(null);
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: `Failed to create user: ${error.message}`,
+            variant: "destructive",
+          });
+        }
       });
     } else {
-      setUsers(prev => prev.map(u => u.id === editingUser.id ? editingUser : u));
-      toast({
-        title: "User Updated",
-        description: `${editingUser.name} has been updated successfully.`,
+      updateUserMutation({ id: editingUser.id, userData: editingUser }, {
+        onSuccess: () => {
+          toast({
+            title: "User Updated",
+            description: `${editingUser.name} has been updated successfully.`,
+          });
+          setIsEditDialogOpen(false);
+          setEditingUser(null);
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: `Failed to update user: ${error.message}`,
+            variant: "destructive",
+          });
+        }
       });
     }
-    
-    setIsEditDialogOpen(false);
-    setIsCreateDialogOpen(false);
-    setEditingUser(null);
   };
 
   const handleDeleteUser = (userId: string) => {
     const user = users.find(u => u.id === userId);
     if (!user) return;
-    
+
     if (confirm(`Are you sure you want to delete ${user.name}?`)) {
-      setUsers(prev => prev.filter(u => u.id !== userId));
-      toast({
-        title: "User Deleted",
-        description: `${user.name} has been deleted.`,
+      deleteUserMutation(userId, {
+        onSuccess: () => {
+          toast({
+            title: "User Deleted",
+            description: `${user.name} has been deleted.`,
+          });
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: `Failed to delete user: ${error.message}`,
+            variant: "destructive",
+          });
+        }
       });
     }
   };
 
   const handleToggleUserStatus = (userId: string) => {
-    setUsers(prev => prev.map(user => {
-      if (user.id === userId) {
-        const newStatus = !user.is_active;
-        toast({
-          title: newStatus ? "User Activated" : "User Deactivated",
-          description: `${user.name} has been ${newStatus ? 'activated' : 'deactivated'}.`,
-        });
-        return { ...user, is_active: newStatus, updated_at: new Date().toISOString() };
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    const newStatus = !user.is_active;
+    updateUserMutation(
+      { id: userId, userData: { is_active: newStatus } },
+      {
+        onSuccess: () => {
+          toast({
+            title: newStatus ? "User Activated" : "User Deactivated",
+            description: `${user.name} has been ${newStatus ? 'activated' : 'deactivated'}.`,
+          });
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: `Failed to update user status: ${error.message}`,
+            variant: "destructive",
+          });
+        }
       }
-      return user;
-    }));
+    );
   };
 
   const handleUnlockUser = (userId: string) => {
-    setUsers(prev => prev.map(user => {
-      if (user.id === userId) {
-        toast({
-          title: "User Unlocked",
-          description: `${user.name}'s account has been unlocked.`,
-        });
-        return { 
-          ...user, 
-          account_locked: false, 
-          login_attempts: 0, 
-          updated_at: new Date().toISOString() 
-        };
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+
+    updateUserMutation(
+      { id: userId, userData: { account_locked: false, login_attempts: 0 } },
+      {
+        onSuccess: () => {
+          toast({
+            title: "User Unlocked",
+            description: `${user.name}'s account has been unlocked.`,
+          });
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: `Failed to unlock user: ${error.message}`,
+            variant: "destructive",
+          });
+        }
       }
-      return user;
-    }));
+    );
   };
 
   const handleBulkAction = (action: string) => {
@@ -306,36 +369,57 @@ export default function UsersAdmin() {
       return;
     }
 
+    // Perform bulk update for each selected user
+    const userIds = Array.from(selectedUsers);
+    let updateData: any = {};
+
     switch (action) {
       case 'activate':
-        setUsers(prev => prev.map(user => 
-          selectedUsers.has(user.id) ? { ...user, is_active: true, updated_at: new Date().toISOString() } : user
-        ));
-        toast({
-          title: "Users Activated",
-          description: `${selectedUsers.size} users have been activated.`,
-        });
+        updateData = { is_active: true };
         break;
       case 'deactivate':
-        setUsers(prev => prev.map(user => 
-          selectedUsers.has(user.id) ? { ...user, is_active: false, updated_at: new Date().toISOString() } : user
-        ));
-        toast({
-          title: "Users Deactivated", 
-          description: `${selectedUsers.size} users have been deactivated.`,
-        });
+        updateData = { is_active: false };
         break;
       case 'unlock':
-        setUsers(prev => prev.map(user => 
-          selectedUsers.has(user.id) ? { ...user, account_locked: false, login_attempts: 0, updated_at: new Date().toISOString() } : user
-        ));
-        toast({
-          title: "Users Unlocked",
-          description: `${selectedUsers.size} users have been unlocked.`,
-        });
+        updateData = { account_locked: false, login_attempts: 0 };
         break;
     }
-    setSelectedUsers(new Set());
+
+    // Update each user
+    Promise.all(
+      userIds.map(userId =>
+        new Promise((resolve, reject) => {
+          updateUserMutation(
+            { id: userId, userData: updateData },
+            {
+              onSuccess: () => resolve(true),
+              onError: (error) => reject(error)
+            }
+          );
+        })
+      )
+    )
+      .then(() => {
+        const actionText =
+          action === 'activate'
+            ? 'activated'
+            : action === 'deactivate'
+            ? 'deactivated'
+            : 'unlocked';
+
+        toast({
+          title: `Users ${actionText.charAt(0).toUpperCase() + actionText.slice(1)}`,
+          description: `${selectedUsers.size} users have been ${actionText}.`,
+        });
+        setSelectedUsers(new Set());
+      })
+      .catch((error) => {
+        toast({
+          title: "Error",
+          description: `Failed to update some users: ${error.message}`,
+          variant: "destructive",
+        });
+      });
   };
 
   const updateEditingUser = (updates: Partial<ExtendedUser>) => {
@@ -355,6 +439,18 @@ export default function UsersAdmin() {
   };
 
   const stats = calculateStats();
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground animate-pulse" />
+          <p className="text-lg font-medium">Loading users...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { 
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -14,14 +14,14 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
+import {
   Table,
   TableBody,
   TableCell,
@@ -31,6 +31,7 @@ import {
 } from '@/components/ui/table';
 import { Claim, ClaimStatus } from '@/types';
 import { useUpdateClaim, useAuditLogs } from '@/hooks/useClaims';
+import { useOrderProducts } from '@/hooks/useOrderProducts';
 import { ClaimStatusBadge } from './ClaimStatusBadge';
 import { OrderCustomerLink } from '../shared/OrderCustomerLink';
 import { format } from 'date-fns';
@@ -45,6 +46,48 @@ export function ClaimDetail({ claim }: ClaimDetailProps) {
   const [isEditing, setIsEditing] = useState(false);
   const { mutate: updateClaim } = useUpdateClaim();
   const { data: auditLogs = [] } = useAuditLogs('claim', claim.id);
+
+  // Get order items with product details using the same hook as OrderDetail page
+  const { orderItems: allOrderItems } = useOrderProducts(claim.order_id || '');
+
+  // Filter order items to show only the product(s) related to this specific claim
+  const claimOrderItems = useMemo(() => {
+    // Try to extract product SKU from resolution notes
+    let productSku: string | null = null;
+
+    if (claim.resolution_notes) {
+      const match = claim.resolution_notes.match(/\[PRODUCT_SKU:([^\]]+)\]/);
+      if (match) {
+        productSku = match[1];
+      }
+    }
+
+    // Use product_id if available, otherwise use extracted SKU
+    const productIdentifier = claim.product_id || productSku;
+
+    if (!productIdentifier) {
+      // If no product identifier, show all order items (fallback for old claims)
+      console.log('⚠️ ClaimDetail - No product identifier found, showing all items');
+      return allOrderItems;
+    }
+
+    // Filter to show only items matching this claim's product
+    // The identifier could be a variant ID, product ID, or SKU
+    const filtered = allOrderItems.filter(item => {
+      return (
+        item.id === productIdentifier ||
+        item.product_variant_id === productIdentifier ||
+        item.product?.id === productIdentifier ||
+        item.product?.sku === productIdentifier
+      );
+    });
+
+    console.log('🔍 ClaimDetail - productIdentifier:', productIdentifier);
+    console.log('🔍 ClaimDetail - allOrderItems:', allOrderItems.length);
+    console.log('🔍 ClaimDetail - filtered items:', filtered.length);
+
+    return filtered.length > 0 ? filtered : allOrderItems;
+  }, [claim.product_id, claim.resolution_notes, allOrderItems]);
 
   const handleStatusChange = () => {
     updateClaim({
@@ -89,18 +132,38 @@ export function ClaimDetail({ claim }: ClaimDetailProps) {
           
           <Separator />
           
+          <div className="space-y-4">
+            <div>
+              <Label>Claimed Product{claimOrderItems.length > 1 ? 's' : ''}</Label>
+              {claimOrderItems.length > 0 ? (
+                <div className="mt-2 space-y-2">
+                  {claimOrderItems.map((item, index) => (
+                    <div key={index} className="p-3 border rounded-md bg-blue-50 border-blue-200">
+                      <p className="text-sm font-medium">{item.product?.name || 'Unknown Product'}</p>
+                      <p className="text-xs text-muted-foreground">
+                        SKU: {item.product?.sku || 'N/A'} • Qty: {item.qty} • ${item.unit_price.toLocaleString()} each
+                      </p>
+                      <p className="text-xs font-semibold text-right mt-1">
+                        Line Total: ${item.line_total.toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No products found for this claim</p>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
-              <div>
-                <Label>Product</Label>
-                <p className="text-sm">{claim.product_id || 'N/A'}</p>
-              </div>
-              
               <div>
                 <Label>Submitted By</Label>
                 <p className="text-sm">{claim.created_by}</p>
               </div>
-              
+
               <div>
                 <Label>Submitted Date</Label>
                 <p className="text-sm">
@@ -122,7 +185,11 @@ export function ClaimDetail({ claim }: ClaimDetailProps) {
               
               <div>
                 <Label>Resolution Notes</Label>
-                <p className="text-sm">{claim.resolution_notes || 'No resolution notes'}</p>
+                <p className="text-sm">
+                  {claim.resolution_notes
+                    ? claim.resolution_notes.replace(/\[PRODUCT_SKU:[^\]]+\]\n?/, '')
+                    : 'No resolution notes'}
+                </p>
               </div>
             </div>
           </div>

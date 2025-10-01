@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Users - Supabase</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-bottom: 30px; }
+        h2 { color: #666; margin-top: 30px; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
+        .status { padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover { background: #45a049; }
+        button:disabled { background: #cccccc; cursor: not-allowed; }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #ddd;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #4CAF50;
+            color: white;
+        }
+        tr:hover { background: #f5f5f5; }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-active { background: #d4edda; color: #155724; }
+        .badge-inactive { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Users - Supabase Connection</h1>
+
+        <div id="connectionStatus"></div>
+
+        <button onclick="checkConnection()">1. Check Supabase Connection</button>
+        <button onclick="checkAuthUsers()">2. Check auth.users</button>
+        <button onclick="checkUsersTable()">3. Check users Table</button>
+        <button onclick="checkAppUsersTable()">4. Check app_users Table</button>
+        <button onclick="listAllTables()">5. List All Tables</button>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Get credentials from .env file (you'll need to paste them here)
+        const SUPABASE_URL = prompt('Enter your Supabase URL:', 'https://your-project.supabase.co');
+        const SUPABASE_ANON_KEY = prompt('Enter your Supabase Anon Key:', 'your-anon-key');
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function log(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+        }
+
+        function logJson(title, data) {
+            const div = document.createElement('div');
+            div.innerHTML = `<h2>${title}</h2><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function checkConnection() {
+            document.getElementById('results').innerHTML = '';
+            log('🔄 Checking Supabase connection...', 'info');
+
+            try {
+                const { data, error } = await supabase.from('_prisma_migrations').select('*').limit(1);
+
+                if (error && error.code === '42P01') {
+                    // Table doesn't exist, but connection works
+                    log('✅ Supabase connection successful!', 'success');
+                } else if (error) {
+                    log(`❌ Connection error: ${error.message}`, 'error');
+                } else {
+                    log('✅ Supabase connection successful!', 'success');
+                }
+
+                // Check current session
+                const { data: sessionData } = await supabase.auth.getSession();
+                logJson('Current Session', sessionData);
+
+            } catch (err) {
+                log(`❌ Connection failed: ${err.message}`, 'error');
+            }
+        }
+
+        async function checkAuthUsers() {
+            document.getElementById('results').innerHTML = '';
+            log('🔄 Checking auth.users (requires service role key)...', 'info');
+            log('⚠️ Note: auth.users table is not directly accessible via anon key. You need to create a users table or app_users table that references auth.users.', 'warning');
+
+            try {
+                // Try to get current authenticated user
+                const { data: { user }, error } = await supabase.auth.getUser();
+
+                if (error) {
+                    log(`❌ No authenticated user: ${error.message}`, 'error');
+                    log('💡 You need to sign in first to see your user data.', 'info');
+                } else if (user) {
+                    log('✅ Current authenticated user found!', 'success');
+                    logJson('Current User', user);
+                } else {
+                    log('❌ No user is currently signed in', 'warning');
+                }
+            } catch (err) {
+                log(`❌ Error: ${err.message}`, 'error');
+            }
+        }
+
+        async function checkUsersTable() {
+            document.getElementById('results').innerHTML = '';
+            log('🔄 Checking "users" table...', 'info');
+
+            try {
+                const { data, error, count } = await supabase
+                    .from('users')
+                    .select('*', { count: 'exact' });
+
+                if (error) {
+                    log(`❌ Error accessing users table: ${error.message}`, 'error');
+                    logJson('Error Details', error);
+                } else {
+                    log(`✅ Found ${data.length} users in "users" table!`, 'success');
+
+                    if (data.length > 0) {
+                        // Display in table format
+                        let tableHtml = `
+                            <h2>Users Table (${data.length} records)</h2>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Email</th>
+                                        <th>Name</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+
+                        data.forEach(user => {
+                            const statusBadge = user.status === 'active'
+                                ? '<span class="badge badge-active">Active</span>'
+                                : '<span class="badge badge-inactive">Inactive</span>';
+
+                            tableHtml += `
+                                <tr>
+                                    <td>${user.id.slice(0, 8)}...</td>
+                                    <td>${user.email}</td>
+                                    <td>${user.name || 'N/A'}</td>
+                                    <td>${user.role}</td>
+                                    <td>${statusBadge}</td>
+                                    <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                                </tr>
+                            `;
+                        });
+
+                        tableHtml += '</tbody></table>';
+                        document.getElementById('results').innerHTML += tableHtml;
+
+                        logJson('Full User Data', data);
+                    } else {
+                        log('⚠️ "users" table exists but is empty', 'warning');
+                    }
+                }
+            } catch (err) {
+                log(`❌ Exception: ${err.message}`, 'error');
+            }
+        }
+
+        async function checkAppUsersTable() {
+            document.getElementById('results').innerHTML = '';
+            log('🔄 Checking "app_users" table...', 'info');
+
+            try {
+                const { data, error } = await supabase
+                    .from('app_users')
+                    .select('*');
+
+                if (error) {
+                    log(`❌ Error accessing app_users table: ${error.message}`, 'error');
+                    logJson('Error Details', error);
+                } else {
+                    log(`✅ Found ${data.length} users in "app_users" table!`, 'success');
+
+                    if (data.length > 0) {
+                        // Display in table format
+                        let tableHtml = `
+                            <h2>App Users Table (${data.length} records)</h2>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Email</th>
+                                        <th>Full Name</th>
+                                        <th>Role</th>
+                                        <th>Active</th>
+                                        <th>Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+
+                        data.forEach(user => {
+                            const activeBadge = user.is_active
+                                ? '<span class="badge badge-active">Active</span>'
+                                : '<span class="badge badge-inactive">Inactive</span>';
+
+                            tableHtml += `
+                                <tr>
+                                    <td>${user.id.slice(0, 8)}...</td>
+                                    <td>${user.email}</td>
+                                    <td>${user.full_name || user.first_name + ' ' + user.last_name || 'N/A'}</td>
+                                    <td>${user.role}</td>
+                                    <td>${activeBadge}</td>
+                                    <td>${new Date(user.created_at).toLocaleDateString()}</td>
+                                </tr>
+                            `;
+                        });
+
+                        tableHtml += '</tbody></table>';
+                        document.getElementById('results').innerHTML += tableHtml;
+
+                        logJson('Full App User Data', data);
+                    } else {
+                        log('⚠️ "app_users" table exists but is empty', 'warning');
+                    }
+                }
+            } catch (err) {
+                log(`❌ Exception: ${err.message}`, 'error');
+            }
+        }
+
+        async function listAllTables() {
+            document.getElementById('results').innerHTML = '';
+            log('🔄 Listing all accessible tables...', 'info');
+
+            const tablesToCheck = [
+                'users',
+                'app_users',
+                'customers',
+                'orders',
+                'products',
+                'retailers',
+                'locations',
+                'fulfillments',
+                'shipping_providers',
+                'shipping_methods',
+                'claims'
+            ];
+
+            let tableHtml = `
+                <h2>Table Accessibility Check</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Table Name</th>
+                            <th>Status</th>
+                            <th>Record Count</th>
+                            <th>Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            for (const tableName of tablesToCheck) {
+                try {
+                    const { data, error, count } = await supabase
+                        .from(tableName)
+                        .select('*', { count: 'exact', head: true });
+
+                    if (error) {
+                        tableHtml += `
+                            <tr>
+                                <td><strong>${tableName}</strong></td>
+                                <td><span class="badge badge-inactive">Error</span></td>
+                                <td>-</td>
+                                <td style="color: red; font-size: 12px;">${error.message}</td>
+                            </tr>
+                        `;
+                    } else {
+                        tableHtml += `
+                            <tr>
+                                <td><strong>${tableName}</strong></td>
+                                <td><span class="badge badge-active">Accessible</span></td>
+                                <td>${count || 0}</td>
+                                <td>-</td>
+                            </tr>
+                        `;
+                    }
+                } catch (err) {
+                    tableHtml += `
+                        <tr>
+                            <td><strong>${tableName}</strong></td>
+                            <td><span class="badge badge-inactive">Exception</span></td>
+                            <td>-</td>
+                            <td style="color: red; font-size: 12px;">${err.message}</td>
+                        </tr>
+                    `;
+                }
+            }
+
+            tableHtml += '</tbody></table>';
+            document.getElementById('results').innerHTML = tableHtml;
+        }
+
+        // Auto-check connection on load
+        window.onload = () => {
+            if (SUPABASE_URL && SUPABASE_ANON_KEY &&
+                !SUPABASE_URL.includes('your-project') &&
+                !SUPABASE_ANON_KEY.includes('your-anon-key')) {
+                checkConnection();
+            }
+        };
+    </script>
+</body>
+</html>

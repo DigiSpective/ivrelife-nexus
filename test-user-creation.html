@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test User Creation</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <h1>Test User Creation</h1>
+  <button onclick="testCreateUser()">Create Test User</button>
+  <pre id="output"></pre>
+
+  <script>
+    const supabaseUrl = 'https://qeiyxwuyhetnrnundpep.supabase.co';
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlaXl4d3V5aGV0bnJudW5kcGVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDQyMTEsImV4cCI6MjA3NDIyMDIxMX0.fkmN8zQXVv3m7VBcpIj1KfkspSb4a6K93RZVT8qiKak';
+
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+    async function testCreateUser() {
+      const output = document.getElementById('output');
+      output.textContent = 'Testing user creation...\n';
+
+      try {
+        // Test 1: Check if we can read from users table
+        output.textContent += '\n1. Testing SELECT from users table...\n';
+        const { data: users, error: selectError } = await supabase
+          .from('users')
+          .select('*')
+          .limit(1);
+
+        if (selectError) {
+          output.textContent += `❌ SELECT Error: ${JSON.stringify(selectError, null, 2)}\n`;
+        } else {
+          output.textContent += `✅ SELECT Success: Found ${users.length} users\n`;
+        }
+
+        // Test 2: Try to insert a user
+        output.textContent += '\n2. Testing INSERT into users table...\n';
+        const testUser = {
+          id: crypto.randomUUID(),
+          email: 'test@example.com',
+          name: 'Test User',
+          role: 'location',
+          status: 'pending_invite',
+          is_active: false,
+          account_locked: false,
+          login_attempts: 0,
+          two_factor_enabled: false,
+        };
+
+        output.textContent += `Attempting to insert: ${JSON.stringify(testUser, null, 2)}\n`;
+
+        const { data: insertData, error: insertError } = await supabase
+          .from('users')
+          .insert(testUser)
+          .select()
+          .single();
+
+        if (insertError) {
+          output.textContent += `❌ INSERT Error: ${JSON.stringify(insertError, null, 2)}\n`;
+
+          // Check if it's an RLS policy error
+          if (insertError.code === '42501' || insertError.message.includes('policy')) {
+            output.textContent += '\n⚠️ This appears to be a Row Level Security (RLS) policy issue.\n';
+            output.textContent += 'The users table likely has RLS enabled that prevents inserts.\n';
+          }
+        } else {
+          output.textContent += `✅ INSERT Success: ${JSON.stringify(insertData, null, 2)}\n`;
+        }
+
+        // Test 3: Check current user
+        output.textContent += '\n3. Checking current authenticated user...\n';
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          output.textContent += `Current user: ${user.email} (${user.id})\n`;
+          output.textContent += `Role: ${user.role}\n`;
+        } else {
+          output.textContent += '⚠️ No authenticated user\n';
+        }
+
+      } catch (error) {
+        output.textContent += `\n❌ Unexpected error: ${error.message}\n${error.stack}\n`;
+      }
+    }
+  </script>
+</body>
+</html>

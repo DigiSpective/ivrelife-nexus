@@ -27,7 +27,7 @@ export default function Shipping() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isFulfillmentModalOpen, setIsFulfillmentModalOpen] = useState(false);
-  const { data: fulfillments } = useFulfillments();
+  const { data: fulfillments, refetch: refetchFulfillments } = useFulfillments();
   
   // Mock data for KPIs
   const kpis = {
@@ -162,11 +162,12 @@ export default function Shipping() {
       )}
 
       {/* Fulfillment Modal */}
-      <FulfillmentModal 
+      <FulfillmentModal
         open={isFulfillmentModalOpen}
         onOpenChange={setIsFulfillmentModalOpen}
         onSuccess={() => {
-          // Refresh data if needed
+          // Refresh fulfillments data
+          refetchFulfillments();
         }}
       />
     </div>
